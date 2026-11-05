@@ -47,7 +47,7 @@ using ::testing::IsTrue;
 using ::testing::StartsWith;
 using ::testing::StrEq;
 
-auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
+auto* test_env [[maybe_unused]] = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
 }  // namespace
 
@@ -208,7 +208,7 @@ TEST(LogEntryTest, EmptyFields) {
 TEST(LogEntryTest, NegativeFields) {
   // When Abseil's minimum C++ version is C++17, this conditional can be
   // converted to a constexpr if and the static_cast below removed.
-  if (std::is_signed<absl::LogEntry::tid_t>::value) {
+  if (std::is_signed_v<absl::LogEntry::tid_t>) {
     LogEntryTestPeer entry(
         "foo.cc", -1234, kUsePrefix, absl::LogSeverity::kInfo,
         "2020-01-02T03:04:05.6789", static_cast<absl::LogEntry::tid_t>(-451),
@@ -318,7 +318,7 @@ TEST(LogEntryTest, LongFields) {
 TEST(LogEntryTest, LongNegativeFields) {
   // When Abseil's minimum C++ version is C++17, this conditional can be
   // converted to a constexpr if and the static_cast below removed.
-  if (std::is_signed<absl::LogEntry::tid_t>::value) {
+  if (std::is_signed_v<absl::LogEntry::tid_t>) {
     LogEntryTestPeer entry(
         "I am the very model of a modern Major-General / "
         "I've information vegetable, animal, and mineral.",
@@ -463,6 +463,22 @@ TEST(LogEntryTest, Raw) {
       entry.entry().text_message_with_prefix(),
       Eq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: hello world"));
   EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+}
+
+TEST(LogEntryTest, InfiniteTimestamp) {
+  const auto format_prefix = [](absl::Time timestamp) {
+    std::string str(1000, '\0');
+    absl::Span<char> buf(&str[0], str.size());
+    const size_t prefix_size = absl::log_internal::FormatLogPrefix(
+        absl::LogSeverity::kInfo, timestamp, 451, "foo.cc", 1234,
+        absl::log_internal::PrefixFormat::kNotRaw, buf);
+    str.resize(prefix_size);
+    return str;
+  };
+  EXPECT_THAT(format_prefix(absl::InfiniteFuture()),
+              StartsWith("I1231 23:59:59.999999     451 foo.cc:1234] "));
+  EXPECT_THAT(format_prefix(absl::InfinitePast()),
+              StartsWith("I0101 00:00:00.000000     451 foo.cc:1234] "));
 }
 
 }  // namespace

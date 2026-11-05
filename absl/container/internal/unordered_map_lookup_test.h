@@ -15,8 +15,11 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_LOOKUP_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_LOOKUP_TEST_H_
 
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/hash_policy_testing.h"
 
@@ -30,10 +33,9 @@ class LookupTest : public ::testing::Test {};
 TYPED_TEST_SUITE_P(LookupTest);
 
 TYPED_TEST_P(LookupTest, At) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m(values.begin(), values.end());
   for (const auto& p : values) {
     const auto& val = m.at(p.first);
@@ -42,11 +44,10 @@ TYPED_TEST_P(LookupTest, At) {
 }
 
 TYPED_TEST_P(LookupTest, OperatorBracket) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   using V = typename TypeParam::mapped_type;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& p : values) {
     auto& val = m[p.first];
@@ -58,10 +59,9 @@ TYPED_TEST_P(LookupTest, OperatorBracket) {
 }
 
 TYPED_TEST_P(LookupTest, Count) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& p : values)
     EXPECT_EQ(0, m.count(p.first)) << ::testing::PrintToString(p.first);
@@ -72,10 +72,9 @@ TYPED_TEST_P(LookupTest, Count) {
 
 TYPED_TEST_P(LookupTest, Find) {
   using std::get;
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& p : values)
     EXPECT_TRUE(m.end() == m.find(p.first))
@@ -90,10 +89,9 @@ TYPED_TEST_P(LookupTest, Find) {
 
 TYPED_TEST_P(LookupTest, EqualRange) {
   using std::get;
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& p : values) {
     auto r = m.equal_range(p.first);

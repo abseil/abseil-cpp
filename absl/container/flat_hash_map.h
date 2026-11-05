@@ -39,6 +39,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
@@ -71,6 +72,15 @@ struct FlatHashMapPolicy;
 // * Contains a `capacity()` member function indicating the number of element
 //   slots (open, deleted, and empty) within the hash map.
 // * Returns `void` from the `erase(iterator)` overload.
+// * Constructors accept reservation size as an optional argument instead of
+//   bucket count. Reservation size is the number of elements that fits in the
+//   map before rehash.
+// * insert/emplace and other modification functions return special iterator
+//   that doesn't support iteration. std::next(it) for such iterators would
+//   always point to the end().
+//
+// TODO(b/519468416): copy redacted version of notable differences to
+// node_hash_* files.
 //
 // By default, `flat_hash_map` uses the `absl::Hash` hashing framework.
 // All fundamental and Abseil types that support the `absl::Hash` framework have
@@ -127,13 +137,17 @@ struct FlatHashMapPolicy;
 //   if (result != ducks.end()) {
 //     std::cout << "Result: " << result->second << std::endl;
 //   }
-template <class K, class V, class Hash = DefaultHashContainerHash<K>,
-          class Eq = DefaultHashContainerEq<K>,
-          class Allocator = std::allocator<std::pair<const K, V>>>
+template <
+    class K, class V,
+    class Hash =
+        typename container_internal::FlatHashMapPolicy<K, V>::DefaultHash,
+    class Eq = typename container_internal::FlatHashMapPolicy<K, V>::DefaultEq,
+    class Allocator =
+        typename container_internal::FlatHashMapPolicy<K, V>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER flat_hash_map
-    : public absl::container_internal::raw_hash_map<
+    : public absl::container_internal::InstantiateRawHashMap<
           absl::container_internal::FlatHashMapPolicy<K, V>, Hash, Eq,
-          Allocator> {
+          Allocator>::type {
   using Base = typename flat_hash_map::raw_hash_map;
 
  public:
@@ -167,16 +181,28 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //   // Move is guaranteed efficient
   //   absl::flat_hash_map<int, std::string> map5(std::move(map4));
   //
+  //   // After the move, map4 is in a valid but unspecified state. The only
+  //   // operations guaranteed to be safe on a moved-from map are destruction,
+  //   // assignment, and clear(). Any other operation (e.g. size(), empty(),
+  //   // iteration) results in undefined behavior.
+  //
   // * Move assignment operator
   //
   //   // May be efficient if allocators are compatible
   //   absl::flat_hash_map<int, std::string> map6;
   //   map6 = std::move(map5);
   //
+  //   // Same moved-from guarantees apply to map5 after this operation.
+  //
   // * Range constructor
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::flat_hash_map<int, std::string> map7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
+  //   absl::flat_hash_map<int, std::string> map8(std::from_range, v);
   flat_hash_map() {}
   using Base::Base;
 
@@ -414,11 +440,6 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //   key value and returns a node handle owning that extracted data. If the
   //   `flat_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
-  //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // flat_hash_map::merge()
@@ -605,22 +626,22 @@ namespace container_internal {
 // Erasure and/or insertion of elements in the function is not allowed.
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(const flat_hash_map<K, V, H, E, A>& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(const flat_hash_map<K, V, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>&& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>&& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
@@ -629,13 +650,42 @@ decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>&& c,
 
 namespace container_internal {
 
+// These members are common to all template instantiations, so we factor them
+// out into this base class to avoid re-instantiating similar templates multiple
+// times, reducing compilation time.
+struct FlatHashMapPolicyBase {
+  template <class F, class... Args>
+  static decltype(absl::container_internal::DecomposePair(
+      std::declval<F>(), std::declval<Args>()...))
+  apply(F&& f, Args&&... args) {
+    return absl::container_internal::DecomposePair(std::forward<F>(f),
+                                                   std::forward<Args>(args)...);
+  }
+
+  static size_t space_used(const void*) { return 0; }
+
+  template <class K, class V>
+  static V& value(std::pair<const K, V>* kv) {
+    return kv->second;
+  }
+
+  template <class K, class V>
+  static const V& value(const std::pair<const K, V>* kv) {
+    return kv->second;
+  }
+};
+
 template <class K, class V>
-struct FlatHashMapPolicy {
+struct FlatHashMapPolicy : FlatHashMapPolicyBase {
   using slot_policy = container_internal::map_slot_policy<K, V>;
   using slot_type = typename slot_policy::slot_type;
   using key_type = K;
   using mapped_type = V;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
+
+  using DefaultHash = DefaultHashContainerHash<K>;
+  using DefaultEq = DefaultHashContainerEq<K>;
+  using DefaultAlloc = std::allocator<std::pair<const K, V>>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
@@ -654,27 +704,14 @@ struct FlatHashMapPolicy {
     return slot_policy::transfer(alloc, new_slot, old_slot);
   }
 
-  template <class F, class... Args>
-  static decltype(absl::container_internal::DecomposePair(
-      std::declval<F>(), std::declval<Args>()...))
-  apply(F&& f, Args&&... args) {
-    return absl::container_internal::DecomposePair(std::forward<F>(f),
-                                                   std::forward<Args>(args)...);
-  }
-
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<K, V>::value
-               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault>
+               ? GetTypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>()
                : nullptr;
   }
 
-  static size_t space_used(const slot_type*) { return 0; }
-
   static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }
-
-  static V& value(std::pair<const K, V>* kv) { return kv->second; }
-  static const V& value(const std::pair<const K, V>* kv) { return kv->second; }
 };
 
 }  // namespace container_internal

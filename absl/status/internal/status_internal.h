@@ -14,22 +14,29 @@
 #ifndef ABSL_STATUS_INTERNAL_STATUS_INTERNAL_H_
 #define ABSL_STATUS_INTERNAL_STATUS_INTERNAL_H_
 
+// IWYU pragma: private, include "absl/status/status.h"
+
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/functional/function_ref.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/optional_ref.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 
-#ifndef SWIG
-// Disabled for SWIG as it doesn't parse attributes correctly.
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 // Returned Status objects may not be ignored. Codesearch doesn't handle ifdefs
@@ -44,17 +51,17 @@ class [[nodiscard]] ABSL_ATTRIBUTE_TRIVIAL_ABI
 class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI
     Status;
 #endif
-ABSL_NAMESPACE_END
-}  // namespace absl
-#endif  // !SWIG
-
-namespace absl {
-ABSL_NAMESPACE_BEGIN
 
 enum class StatusCode : int;
 enum class StatusToStringMode : int;
 
+// Forward declaration of StatusOr for Status friendship.
+template <typename T>
+class StatusOr;
+
 namespace status_internal {
+class StatusPrivateAccessor;
+class StatusPrivateAccessorForStatusBuilder;
 
 // Container for status payloads.
 struct Payload {
@@ -63,6 +70,9 @@ struct Payload {
 };
 
 using Payloads = absl::InlinedVector<Payload, 1>;
+
+template <typename T>
+using EnableIfString = std::enable_if_t<std::is_same_v<T, std::string>>;
 
 // Reference-counted representation of Status data.
 class StatusRep {
@@ -74,6 +84,14 @@ class StatusRep {
         message_(message_arg),
         payloads_(std::move(payloads_arg)) {}
 
+  template <typename String, typename = EnableIfString<String>>
+  StatusRep(absl::StatusCode code_arg, String&& message_arg,
+            std::unique_ptr<status_internal::Payloads> payloads_arg)
+      : ref_(int32_t{1}),
+        code_(code_arg),
+        message_(std::forward<String>(message_arg)),
+        payloads_(std::move(payloads_arg)) {}
+
   absl::StatusCode code() const { return code_; }
   const std::string& message() const { return message_; }
 
@@ -83,7 +101,7 @@ class StatusRep {
   void Unref() const;
 
   // Payload methods correspond to the same methods in absl::Status.
-  absl::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
+  std::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
   void SetPayload(absl::string_view type_url, absl::Cord payload);
   struct EraseResult {
     bool erased;
@@ -94,6 +112,14 @@ class StatusRep {
       absl::FunctionRef<void(absl::string_view, const absl::Cord&)> visitor)
       const;
 
+  // Returns the raw payload list, or nullptr if there are none. Unlike
+  // `ForEachPayload`, this does not hide `kStackTraceUrl` payloads and does not
+  // invalidate `type_url` lifetimes in debug builds; callers must handle both.
+  const Payloads* absl_nullable payloads() const { return payloads_.get(); }
+
+  absl::Span<const SourceLocation> GetSourceLocations() const;
+  void AddSourceLocation(absl::SourceLocation loc);
+
   std::string ToString(StatusToStringMode mode) const;
 
   bool operator==(const StatusRep& other) const;
@@ -101,17 +127,36 @@ class StatusRep {
 
   // Returns an equivalent heap allocated StatusRep with refcount 1.
   //
-  // `this` is not safe to be used after calling as it may have been deleted.
+  // If `new_message` is provided, the message will be replaced with the new
+  // message.
+  StatusRep* absl_nonnull Clone(
+      absl::optional_ref<absl::string_view> new_message, bool include_payloads,
+      bool include_source_locations) const;
+
+  // Same as Clone(), but also removes a reference to `this`. `this` is not safe
+  // to be used after calling as it may have been deleted.
+  StatusRep* absl_nonnull CloneAndUnref(
+      absl::optional_ref<absl::string_view> new_message, bool include_payloads,
+      bool include_source_locations) const;
   StatusRep* absl_nonnull CloneAndUnref() const;
 
  private:
+  friend class absl::Status;
+
   mutable std::atomic<int32_t> ref_;
   absl::StatusCode code_;
 
   // As an internal implementation detail, we guarantee that if status.message()
   // is non-empty, then the resulting string_view is null terminated.
   // This is required to implement 'StatusMessageAsCStr(...)'
+  //
+  // NOTE: if most statuses are constructed with messages that are either empty
+  // or so long they don't fit in the std::string's local storage (small string
+  // optimization), replacing std::string with an entirely heap-allocated
+  // string might save memory at scale.
   std::string message_;
+
+  absl::InlinedVector<absl::SourceLocation, 1> source_locations_;
   std::unique_ptr<status_internal::Payloads> payloads_;
 };
 

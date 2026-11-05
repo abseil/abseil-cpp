@@ -15,8 +15,12 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 
+#include <type_traits>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/hash_policy_testing.h"
 
@@ -30,10 +34,9 @@ class LookupTest : public ::testing::Test {};
 TYPED_TEST_SUITE_P(LookupTest);
 
 TYPED_TEST_P(LookupTest, Count) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& v : values)
     EXPECT_EQ(0, m.count(v)) << ::testing::PrintToString(v);
@@ -43,32 +46,28 @@ TYPED_TEST_P(LookupTest, Count) {
 }
 
 TYPED_TEST_P(LookupTest, Find) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& v : values)
     EXPECT_TRUE(m.end() == m.find(v)) << ::testing::PrintToString(v);
   m.insert(values.begin(), values.end());
   for (const auto& v : values) {
     typename TypeParam::iterator it = m.find(v);
-    static_assert(std::is_same<const typename TypeParam::value_type&,
-                               decltype(*it)>::value,
-                  "");
+    static_assert(
+        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>);
     static_assert(std::is_same<const typename TypeParam::value_type*,
-                               decltype(it.operator->())>::value,
-                  "");
+                               decltype(it.operator->())>::value);
     EXPECT_TRUE(m.end() != it) << ::testing::PrintToString(v);
     EXPECT_EQ(v, *it) << ::testing::PrintToString(v);
   }
 }
 
 TYPED_TEST_P(LookupTest, EqualRange) {
-  using T = hash_internal::GeneratedType<TypeParam>;
+  using T = GeneratedType<TypeParam>;
   std::vector<T> values;
-  std::generate_n(std::back_inserter(values), 10,
-                  hash_internal::Generator<T>());
+  std::generate_n(std::back_inserter(values), 10, Generator<T>());
   TypeParam m;
   for (const auto& v : values) {
     auto r = m.equal_range(v);

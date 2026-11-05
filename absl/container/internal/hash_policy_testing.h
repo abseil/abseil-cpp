@@ -22,10 +22,12 @@
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 
@@ -158,9 +160,8 @@ auto items(const Map& m) -> std::vector<
 }
 
 template <class Set>
-auto keys(const Set& s)
-    -> std::vector<typename std::decay<typename Set::key_type>::type> {
-  std::vector<typename std::decay<typename Set::key_type>::type> res;
+auto keys(const Set& s) -> std::vector<std::decay_t<typename Set::key_type>> {
+  std::vector<std::decay_t<typename Set::key_type>> res;
   res.reserve(s.size());
   for (const auto& v : s) res.emplace_back(v);
   return res;
@@ -169,19 +170,5 @@ auto keys(const Set& s)
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
-
-// ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS is false for glibcxx versions
-// where the unordered containers are missing certain constructors that
-// take allocator arguments. This test is defined ad-hoc for the platforms
-// we care about (notably Crosstool 17) because libstdcxx's useless
-// versioning scheme precludes a more principled solution.
-// From GCC-4.9 Changelog: (src: https://gcc.gnu.org/gcc-4.9/changes.html)
-// "the unordered associative containers in <unordered_map> and <unordered_set>
-// meet the allocator-aware container requirements;"
-#if defined(__GLIBCXX__) && __GLIBCXX__ <= 20140425
-#define ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS 0
-#else
-#define ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS 1
-#endif
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASH_POLICY_TESTING_H_

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Portable implementation - just use glibc
+// Portable implementation using <execinfo.h> backtrace()
 //
 // Note:  The glibc implementation may cause a call to malloc.
 // This can cause a deadlock in HeapProfiler.
@@ -38,14 +38,15 @@
 // can not call anything which might call malloc or mmap itself.
 static __thread int recursive = 0;
 
-// The stack trace function might be invoked very early in the program's
-// execution (e.g. from the very first malloc if using tcmalloc). Also, the
-// glibc implementation itself will trigger malloc the first time it is called.
-// As such, we suppress usage of backtrace during this early stage of execution.
+#if defined(__GLIBC__)
+// glibc's backtrace() lazily dlopen()s libgcc_s on first use, which
+// allocates. If that first call happens very early (e.g. from the first
+// malloc when using tcmalloc), it can recurse into an uninitialized
+// allocator. Suppress stack traces until static initialization has run.
+// Other libcs that use this file (bionic, Apple) don't lazy-load.
 static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
-// Waiting until static initializers run seems to be late enough.
 // This file is included into stacktrace.cc so this will only run once.
-ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
+[[maybe_unused]] static int stacktraces_enabler = []() {
   void* unused_stack[1];
   // Force the first backtrace to happen early to get the one-time shared lib
   // loading (allocation) out of the way. After the first call it is much safer
@@ -54,12 +55,17 @@ ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
   disable_stacktraces.store(false, std::memory_order_relaxed);
   return 0;
 }();
+#endif  // defined(__GLIBC__)
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, uintptr_t* frames, int* sizes,
                       int max_depth, int skip_count, const void* ucp,
                       int* min_dropped_frames) {
-  if (recursive || disable_stacktraces.load(std::memory_order_relaxed)) {
+  if (recursive
+#if defined(__GLIBC__)
+      || disable_stacktraces.load(std::memory_order_relaxed)
+#endif
+  ) {
     return 0;
   }
   ++recursive;
@@ -71,13 +77,20 @@ static int UnwindImpl(void** result, uintptr_t* frames, int* sizes,
 
   size = backtrace(stack, kStackLength);
   skip_count++;  // we want to skip the current frame as well
-  int result_count = size - skip_count;
-  if (result_count < 0)
-    result_count = 0;
-  if (result_count > max_depth)
-    result_count = max_depth;
-  for (int i = 0; i < result_count; i++)
-    result[i] = stack[i + skip_count];
+
+  int num_frames = size - skip_count;
+  if (num_frames < 0) num_frames = 0;
+  if (num_frames > max_depth) num_frames = max_depth;
+
+  int result_count = 0;
+  for (int i = 0; i < num_frames; i++) {
+    int stack_index = i + skip_count;
+    // Follow x86 and stop if the return address is null (end of stack).
+    if (stack[stack_index] == nullptr) {
+      break;
+    }
+    result[result_count++] = stack[stack_index];
+  }
 
   if (IS_STACK_FRAMES) {
     // No implementation for finding out the stack frames yet.

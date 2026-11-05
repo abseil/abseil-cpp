@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/base/attributes.h"
 #include "absl/base/log_severity.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -88,7 +87,7 @@ static void BM_EnabledLogOverhead(benchmark::State& state) {
       absl::LogSeverityAtLeast::kInfinity);
   absl::log_internal::ScopedMinLogLevel scoped_min_log_level(
       absl::LogSeverityAtLeast::kInfo);
-  ABSL_ATTRIBUTE_UNUSED NullLogSink null_sink;
+  [[maybe_unused]] NullLogSink null_sink;
   for (auto _ : state) {
     LOG(INFO);
   }
@@ -143,7 +142,7 @@ static void BM_LogEveryNOverhead(benchmark::State& state) {
   absl::ScopedStderrThreshold disable_stderr_logging(
       absl::LogSeverityAtLeast::kInfinity);
   absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
-  ABSL_ATTRIBUTE_UNUSED NullLogSink null_sink;
+  [[maybe_unused]] NullLogSink null_sink;
 
   while (state.KeepRunningBatch(10)) {
     LOG_EVERY_N_SEC(INFO, 10);

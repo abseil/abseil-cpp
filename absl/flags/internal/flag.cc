@@ -39,6 +39,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/usage_config.h"
@@ -104,6 +105,58 @@ void AddToFreelist(void* p) {
   s_freelist->push_back(p);
 }
 
+// Uncommon per-flag data (callbacks and dynamic default overrides) is stored in
+// side tables to keep FlagImpl small across the many flags in a binary.
+// Logically, each map entry is an optional field of FlagImpl.
+template <typename K, typename V>
+class ThreadSafeMap {
+ public:
+  V Get(const K& key) {
+    absl::MutexLock l(mutex_);
+    auto it = map_.find(key);
+    return it != map_.end() ? it->second : V{};
+  }
+
+  V Set(const K& key, V new_val) {
+    absl::MutexLock l(mutex_);
+    return std::exchange(map_[key], new_val);
+  }
+
+  template <typename Factory>
+  V GetOrCreate(const K& key, Factory factory) {
+    absl::MutexLock l(mutex_);
+    V& val = map_[key];
+    if (val == V{}) {
+      val = factory();
+    }
+    return val;
+  }
+
+ private:
+  absl::Mutex mutex_;
+  absl::flat_hash_map<K, V> map_ ABSL_GUARDED_BY(mutex_);
+};
+
+FlagCallback* GetOrCreateCallback(const FlagImpl* flag) {
+  static absl::NoDestructor<ThreadSafeMap<const FlagImpl*, FlagCallback*>>
+      callbacks;
+  return callbacks->GetOrCreate(flag, [] { return new FlagCallback; });
+}
+
+ThreadSafeMap<const FlagImpl*, void*>& DynamicDefaults() {
+  static absl::NoDestructor<ThreadSafeMap<const FlagImpl*, void*>>
+      dynamic_defaults;
+  return *dynamic_defaults;
+}
+
+void* GetDynamicDefault(const FlagImpl* flag) {
+  return DynamicDefaults().Get(flag);
+}
+
+void* SetDynamicDefault(const FlagImpl* flag, void* new_val) {
+  return DynamicDefaults().Set(flag, new_val);
+}
+
 }  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -129,7 +182,15 @@ class FlagState : public flags_internal::FlagStateInterface {
         on_command_line_(on_command_line),
         counter_(counter) {}
 
+  FlagState(FlagImpl& flag_impl, FlagDefaultSrc default_value)
+      : flag_impl_(flag_impl),
+        value_(default_value),
+        modified_(false),
+        on_command_line_(false),
+        counter_(-1) {}
+
   ~FlagState() override {
+    if (counter_ < 0) return;
     if (flag_impl_.ValueStorageKind() != FlagValueStorageKind::kHeapAllocated &&
         flag_impl_.ValueStorageKind() != FlagValueStorageKind::kSequenceLocked)
       return;
@@ -153,9 +214,11 @@ class FlagState : public flags_internal::FlagStateInterface {
   union SavedValue {
     explicit SavedValue(void* v) : heap_allocated(v) {}
     explicit SavedValue(int64_t v) : one_word(v) {}
+    explicit SavedValue(FlagDefaultSrc v) : default_value(v) {}
 
     void* heap_allocated;
     int64_t one_word;
+    FlagDefaultSrc default_value;
   } value_;
   bool modified_;
   bool on_command_line_;
@@ -286,7 +349,7 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   switch (DefaultKind()) {
     case FlagDefaultKind::kDynamicValue:
-      res = flags_internal::Clone(op_, default_value_.dynamic_value);
+      res = flags_internal::Clone(op_, GetDynamicDefault(this));
       break;
     case FlagDefaultKind::kGenFunc:
       res = flags_internal::Alloc(op_);
@@ -344,7 +407,12 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
 
 absl::string_view FlagImpl::Name() const { return name_; }
 
-absl::string_view FlagImpl::TypeName() const { return type_name_; }
+absl::string_view FlagImpl::TypeName() const {
+  if (ABSL_PREDICT_TRUE(type_id_ != kCustomFlagTypeId)) {
+    return kCommonFlagTypeNames[type_id_];
+  }
+  return name_ + std::strlen(name_) + 1;
+}
 
 std::string FlagImpl::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
@@ -404,20 +472,20 @@ std::string FlagImpl::CurrentValue() const {
 void FlagImpl::SetCallback(const FlagCallbackFunc mutation_callback) {
   absl::MutexLock l(DataGuard());
 
-  if (callback_ == nullptr) {
-    callback_ = new FlagCallback;
-  }
-  callback_->func = mutation_callback;
+  FlagCallback* cb = GetOrCreateCallback(this);
+  cb->func = mutation_callback;
+  has_callback_ = true;
 
   InvokeCallback();
 }
 
 void FlagImpl::InvokeCallback() const {
-  if (!callback_) return;
+  if (!has_callback_) return;
 
+  FlagCallback* cb_entry = GetOrCreateCallback(this);
   // Make a copy of the C-style function pointer that we are about to invoke
   // before we release the lock guarding it.
-  FlagCallbackFunc cb = callback_->func;
+  FlagCallbackFunc cb = cb_entry->func;
 
   // If the flag has a mutation callback this function invokes it. While the
   // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -431,11 +499,39 @@ void FlagImpl::InvokeCallback() const {
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
   MutexRelock relock(DataGuard());
-  absl::MutexLock lock(callback_->guard);
+  absl::MutexLock lock(cb_entry->guard);
   cb();
 }
 
+// Returns true if an unmodified absl::Flag (i.e. `seq_lock_.IsUnmodified()`)
+// can skip lazy initialization and state allocation in `SaveState()`, and
+// instead reconstructs from the provided default value if modified before
+// restoration.
+bool FlagImpl::CanSkipInitOnSave() const {
+  if (!seq_lock_.IsUnmodified()) return false;
+  switch (ValueStorageKind()) {
+    case FlagValueStorageKind::kValueAndInitBit:
+    case FlagValueStorageKind::kOneWordAtomic:
+      // Only `kOneWord` defaults are inlinable compile-time constants; other
+      // kinds may have dynamic defaults or side effects.
+      return static_cast<FlagDefaultKind>(def_kind_) ==
+             FlagDefaultKind::kOneWord;
+    case FlagValueStorageKind::kSequenceLocked:
+      // Always uses a default-generator function when unmodified.
+      return true;
+    case FlagValueStorageKind::kHeapAllocated:
+      // Built-in types have side-effect-free defaults; user-defined types may
+      // have custom construction or validation side effects.
+      return !ShouldValidateFlagValue(flags_internal::FastTypeId(op_));
+  }
+  return false;
+}
+
 std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
+  if (ABSL_PREDICT_TRUE(CanSkipInitOnSave())) {
+    return std::make_unique<FlagState>(*this, default_value_);
+  }
+
   absl::MutexLock l(DataGuard());
 
   bool modified = modified_;
@@ -443,7 +539,7 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic: {
-      return absl::make_unique<FlagState>(
+      return std::make_unique<FlagState>(
           *this, OneWordValue().load(std::memory_order_acquire), modified,
           on_command_line, ModificationCount());
     }
@@ -454,11 +550,11 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
           seq_lock_.TryRead(cloned, AtomicBufferValue(), Sizeof(op_));
       assert(success);
       static_cast<void>(success);
-      return absl::make_unique<FlagState>(*this, cloned, modified,
-                                          on_command_line, ModificationCount());
+      return std::make_unique<FlagState>(*this, cloned, modified,
+                                         on_command_line, ModificationCount());
     }
     case FlagValueStorageKind::kHeapAllocated: {
-      return absl::make_unique<FlagState>(
+      return std::make_unique<FlagState>(
           *this,
           flags_internal::Clone(
               op_, PtrStorage().load(std::memory_order_acquire).Ptr()),
@@ -469,6 +565,10 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
 }
 
 bool FlagImpl::RestoreState(const FlagState& flag_state) {
+  if (ABSL_PREDICT_TRUE(flag_state.counter_ < 0 && seq_lock_.IsUnmodified())) {
+    return false;
+  }
+
   absl::MutexLock l(DataGuard());
   if (flag_state.counter_ == ModificationCount()) {
     return false;
@@ -477,11 +577,22 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic:
-      StoreValue(&flag_state.value_.one_word, kProgrammaticChange);
+      StoreValue(
+          flag_state.counter_ < 0
+              ? static_cast<const void*>(&flag_state.value_.default_value)
+              : static_cast<const void*>(&flag_state.value_.one_word),
+          kProgrammaticChange);
       break;
     case FlagValueStorageKind::kSequenceLocked:
     case FlagValueStorageKind::kHeapAllocated:
-      StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
+      if (flag_state.counter_ < 0) {
+        std::unique_ptr<void, DynValueDeleter> init_value(
+            flags_internal::Alloc(op_), DynValueDeleter{op_});
+        (*flag_state.value_.default_value.gen_func)(init_value.get());
+        StoreValue(init_value.get(), kProgrammaticChange);
+      } else {
+        StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
+      }
       break;
   }
 
@@ -659,18 +770,17 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
       auto tentative_value = TryParse(value, err);
       if (!tentative_value) return false;
 
+      void* new_default = tentative_value.release();
+      void* old_value = SetDynamicDefault(this, new_default);
       if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-        void* old_value = default_value_.dynamic_value;
-        default_value_.dynamic_value = tentative_value.release();
         tentative_value.reset(old_value);
       } else {
-        default_value_.dynamic_value = tentative_value.release();
         def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case.
-        StoreValue(default_value_.dynamic_value, source);
+        StoreValue(new_default, source);
         modified_ = false;
       }
       break;

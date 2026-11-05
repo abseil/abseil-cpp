@@ -15,24 +15,39 @@
 #ifndef ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_
 
+#include <cstddef>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/common_policy_traits.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 #include "absl/meta/type_traits.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-template <class Policy, class Hash, class Eq, class Alloc>
-class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
+template <class Policy, class... Params>
+class raw_hash_map;
+
+template <typename Policy, typename Hash, typename Eq, typename Alloc>
+struct InstantiateRawHashMap {
+  using type = typename ApplyWithoutDefaultSuffix<
+      raw_hash_map,
+      TypeList<int, typename Policy::DefaultHash, typename Policy::DefaultEq,
+               typename Policy::DefaultAlloc>,
+      TypeList<Policy, Hash, Eq, Alloc>>::type;
+};
+
+template <class Policy, class... Params>
+class raw_hash_map : public raw_hash_set<Policy, Params...> {
   // P is Policy. It's passed as a template argument to support maps that have
   // incomplete types as values, as in unordered_map<K, IncompleteType>.
   // MappedReference<> may be a non-reference type.
@@ -44,6 +59,10 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   template <class P>
   using MappedConstReference = decltype(P::value(
       std::addressof(std::declval<typename raw_hash_map::const_reference>())));
+
+  using Hash = typename raw_hash_map::raw_hash_set::hasher;
+  using Eq = typename raw_hash_map::raw_hash_set::key_equal;
+  using Alloc = typename raw_hash_map::raw_hash_set::allocator_type;
 
   template <class K>
   using key_arg =
@@ -60,30 +79,37 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   //
   // TODO(b/402804213): Remove these traits and simplify the overloads whenever
   // we have a better mechanism available to handle lifetime analysis.
-  template <class K, bool Value, typename = void>
-  using LifetimeBoundK = HasValue<
-      Value, std::conditional_t<policy_trait_element_is_owner<Policy>::value,
-                                std::false_type,
-                                type_traits_internal::IsLifetimeBoundAssignment<
-                                    typename Policy::key_type, K>>>;
-  template <class V, bool Value, typename = void>
+  //
+  // MovableOrVoid is an optional, extra constraint (via SFINAE) to guard
+  // separate move-only overloads.
+  template <class K, bool Value, bool ExtraConstraint = true>
+  using LifetimeBoundK = std::bool_constant<
+      (ExtraConstraint || !type_traits_internal::IsAllocMoveSameAsCopy<
+                              absl::remove_cvref_t<K>, Alloc>::value) &&
+      HasValue<Value, std::conditional_t<
+                          policy_trait_element_is_owner<Policy>::value,
+                          std::false_type,
+                          type_traits_internal::IsLifetimeBoundAssignment<
+                              typename Policy::key_type, K>>>::value>;
+  template <class V, bool Value>
   using LifetimeBoundV =
       HasValue<Value, type_traits_internal::IsLifetimeBoundAssignment<
                           typename Policy::mapped_type, V>>;
-  template <class K, bool KValue, class V, bool VValue, typename... Dummy>
-  using LifetimeBoundKV =
-      absl::conjunction<LifetimeBoundK<K, KValue, absl::void_t<Dummy...>>,
-                        LifetimeBoundV<V, VValue>>;
+  template <class K, bool KValue, class V, bool VValue,
+            bool ExtraConstraintK = true, bool ExtraConstraintV = true>
+  using LifetimeBoundKV = std::conjunction<
+      LifetimeBoundK<K, KValue, ExtraConstraintK && ExtraConstraintV>,
+      LifetimeBoundV<V, VValue>>;
 
  public:
   using key_type = typename Policy::key_type;
   using mapped_type = typename Policy::mapped_type;
 
-  static_assert(!std::is_reference<key_type>::value, "");
+  static_assert(!std::is_reference_v<key_type>);
 
   // TODO(b/187807849): Evaluate whether to support reference mapped_type and
   // remove this assertion if/when it is supported.
-  static_assert(!std::is_reference<mapped_type>::value, "");
+  static_assert(!std::is_reference_v<mapped_type>);
 
   using iterator = typename raw_hash_map::raw_hash_set::iterator;
   using const_iterator = typename raw_hash_map::raw_hash_set::const_iterator;
@@ -106,48 +132,51 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
       typename K = key_type, class V = mapped_type,                            \
       ABSL_INTERNAL_IF_##KValue##_NOR_##VValue(                                \
           int = (EnableIf<LifetimeBoundKV<K, KValue, V, VValue,                \
-                                          IfRRef<int KQual>::AddPtr<K>,        \
-                                          IfRRef<int VQual>::AddPtr<V>>>()),   \
+                                          !std::is_reference_v<int KQual> ||   \
+                                              !std::is_reference_v<K>,         \
+                                          !std::is_reference_v<int VQual> ||   \
+                                              !std::is_reference_v<V>>>()),    \
           ABSL_INTERNAL_SINGLE_ARG(                                            \
-              int &...,                                                        \
+              int&...,                                                         \
               decltype(EnableIf<LifetimeBoundKV<K, KValue, V, VValue>>()) =    \
                   0))>                                                         \
   decltype(auto) Func(                                                         \
       __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(                \
-          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),                          \
-      V VQual v ABSL_INTERNAL_IF_##VValue(ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY( \
-          this))) ABSL_ATTRIBUTE_LIFETIME_BOUND {                              \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS),                           \
+      V VQual v ABSL_INTERNAL_IF_##VValue(                                     \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS))                           \
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
     return ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                            \
         (this->template Func<K, V, 0>), Callee)(                               \
         std::forward<decltype(k)>(k), std::forward<decltype(v)>(v)) Tail;      \
   }                                                                            \
   static_assert(true, "This is to force a semicolon.")
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
                   false, false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
                   false, true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
-                  true, false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
-                  true, true, ABSL_INTERNAL_SINGLE_ARG());
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
                   false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, false,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, true,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
                   true, ABSL_INTERNAL_SINGLE_ARG());
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
                   false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
                   true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
                   false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
+                  true, ABSL_INTERNAL_SINGLE_ARG());
+
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
+                  false, ABSL_INTERNAL_SINGLE_ARG());
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
+                  true, ABSL_INTERNAL_SINGLE_ARG());
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
+                  false, ABSL_INTERNAL_SINGLE_ARG());
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
                   true, ABSL_INTERNAL_SINGLE_ARG());
 
   ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, false,
@@ -159,31 +188,31 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, true, true,
                   ABSL_INTERNAL_SINGLE_ARG());
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
                   false, false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
                   false, true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
-                  true, false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, const &,
-                  true, true, .first, const_iterator ABSL_INTERNAL_COMMA);
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
                   false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, false,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, true,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const &, &&, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
                   true, .first, const_iterator ABSL_INTERNAL_COMMA);
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
                   false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, false,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
                   true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
                   false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const &, true,
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
+                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
+
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
+                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
+                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
+                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
+  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
                   true, .first, const_iterator ABSL_INTERNAL_COMMA);
 
   ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, false,
@@ -199,73 +228,74 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   // All `try_emplace()` overloads make the same guarantees regarding rvalue
   // arguments as `std::unordered_map::try_emplace()`, namely that these
   // functions will not move from rvalue arguments if insertions do not happen.
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K *>>(),
-            class... Args,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
-  std::pair<iterator, bool> try_emplace(key_arg<K> &&k, Args &&...args)
+  template <
+      class K = key_type,
+      int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>(),
+      class... Args,
+      std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
+  std::pair<iterator, bool> try_emplace(key_arg<K>&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(std::forward<key_arg<K>>(k),
                             std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true, K *>> = 0,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, class... Args,
+      EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0,
+      std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(
-      key_arg<K> &&k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
-      Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+      key_arg<K>&& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
+      Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template try_emplace<K, 0>(std::forward<key_arg<K>>(k),
                                             std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>(),
-            class... Args,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
-  std::pair<iterator, bool> try_emplace(const key_arg<K> &k, Args &&...args)
+  template <
+      class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>(),
+      class... Args,
+      std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
+  std::pair<iterator, bool> try_emplace(const key_arg<K>& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(k, std::forward<Args>(args)...);
   }
-  template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true>> = 0,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, class... Args, EnableIf<LifetimeBoundK<K, true>> = 0,
+      std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(
-      const key_arg<K> &k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
-      Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+      const key_arg<K>& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
+      Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template try_emplace<K, 0>(k, std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K *>>(),
+  template <class K = key_type,
+            int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>(),
             class... Args>
-  iterator try_emplace(const_iterator, key_arg<K> &&k,
-                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator try_emplace(const_iterator, key_arg<K>&& k,
+                       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace(std::forward<key_arg<K>>(k), std::forward<Args>(args)...)
         .first;
   }
   template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true, K *>> = 0>
+            EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0>
   iterator try_emplace(const_iterator hint,
-                       key_arg<K> &&k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
-                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+                       key_arg<K>&& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
+                       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template try_emplace<K, 0>(hint, std::forward<key_arg<K>>(k),
                                             std::forward<Args>(args)...);
   }
 
   template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>(),
             class... Args>
-  iterator try_emplace(const_iterator, const key_arg<K> &k,
-                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator try_emplace(const_iterator, const key_arg<K>& k,
+                       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace(k, std::forward<Args>(args)...).first;
   }
   template <class K = key_type, class... Args,
             EnableIf<LifetimeBoundK<K, true>> = 0>
   iterator try_emplace(const_iterator hint,
-                       const key_arg<K> &k
-                           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
-                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+                       const key_arg<K>& k
+                           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
+                       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template try_emplace<K, 0>(hint, k,
                                             std::forward<Args>(args)...);
   }
@@ -273,27 +303,25 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   template <class K = key_type, class P = Policy>
   MappedReference<P> at(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end()) {
-      base_internal::ThrowStdOutOfRange(
-          "absl::container_internal::raw_hash_map<>::at");
+    if (this->unchecked_equals(it, this->end())) {
+      ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
-    return Policy::value(&*it);
+    return Policy::value(&this->unchecked_deref(it));
   }
 
   template <class K = key_type, class P = Policy>
   MappedConstReference<P> at(const key_arg<K>& key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end()) {
-      base_internal::ThrowStdOutOfRange(
-          "absl::container_internal::raw_hash_map<>::at");
+    if (this->unchecked_equals(it, this->end())) {
+      ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
-    return Policy::value(&*it);
+    return Policy::value(&this->unchecked_deref(it));
   }
 
   template <class K = key_type, class P = Policy,
-            int = EnableIf<LifetimeBoundK<K, false, K *>>()>
-  MappedReference<P> operator[](key_arg<K> &&key)
+            int = EnableIf<LifetimeBoundK<K, false, !std::is_reference_v<K>>>()>
+  MappedReference<P> operator[](key_arg<K>&& key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     // It is safe to use unchecked_deref here because try_emplace
     // will always return an iterator pointing to a valid item in the table,
@@ -301,32 +329,39 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
     return Policy::value(&this->unchecked_deref(
         try_emplace(std::forward<key_arg<K>>(key)).first));
   }
-  template <class K = key_type, class P = Policy, int &...,
-            EnableIf<LifetimeBoundK<K, true, K *>> = 0>
+  template <class K = key_type, class P = Policy, int&...,
+            EnableIf<LifetimeBoundK<K, true, !std::is_reference_v<K>>> = 0>
   MappedReference<P> operator[](
-      key_arg<K> &&key ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      key_arg<K>&& key ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template operator[]<K, P, 0>(std::forward<key_arg<K>>(key));
   }
 
   template <class K = key_type, class P = Policy,
             int = EnableIf<LifetimeBoundK<K, false>>()>
-  MappedReference<P> operator[](const key_arg<K> &key)
+  MappedReference<P> operator[](const key_arg<K>& key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     // It is safe to use unchecked_deref here because try_emplace
     // will always return an iterator pointing to a valid item in the table,
     // since it inserts if nothing is found for the given key.
     return Policy::value(&this->unchecked_deref(try_emplace(key).first));
   }
-  template <class K = key_type, class P = Policy, int &...,
+  template <class K = key_type, class P = Policy, int&...,
             EnableIf<LifetimeBoundK<K, true>> = 0>
   MappedReference<P> operator[](
-      const key_arg<K> &key ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      const key_arg<K>& key ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template operator[]<K, P, 0>(key);
   }
 
  private:
+  static_assert(
+      std::is_same_v<
+          typename InstantiateRawHashMap<Policy, Hash, Eq, Alloc>::type,
+          raw_hash_map>,
+      "Redundant template parameters were passed. Use InstantiateRawHashMap<> "
+      "instead");
+
   template <class K, class V>
   std::pair<iterator, bool> insert_or_assign_impl(K&& k, V&& v)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -334,9 +369,9 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
     if (res.second) {
       this->emplace_at(res.first, std::forward<K>(k), std::forward<V>(v));
     } else {
-      Policy::value(&*res.first) = std::forward<V>(v);
+      Policy::value(&Policy::element(res.first)) = std::forward<V>(v);
     }
-    return res;
+    return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 
   template <class K = key_type, class... Args>
@@ -344,11 +379,34 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
     if (res.second) {
-      this->emplace_at(res.first, std::piecewise_construct,
-                       std::forward_as_tuple(std::forward<K>(k)),
-                       std::forward_as_tuple(std::forward<Args>(args)...));
+      // Try to avoid using std::tuple since that slows compilation.
+      // (example: https://godbolt.org/z/nefW93T6K)
+
+      if constexpr (type_traits_internal::ShouldPreferPassByValueOverRRef<
+                        std::conditional_t<sizeof...(Args) == 0 &&
+                                               type_traits_internal::
+                                                   IsDefaultAlloc<Alloc>::value,
+                                           mapped_type,
+                                           // Trick to avoid unnecessary
+                                           // template instantiations.
+                                           void>>::value) {
+        // Common case: operator[]
+        // Note: This has a different run-time performance characteristic than
+        // the other branches, due to the usage of a temporary object. In the
+        // event that this causes problems (such as a performance regression or
+        // a stack overflow), this branch should be modified or removed.
+        this->emplace_at(res.first, std::forward<K>(k), mapped_type());
+      } else if constexpr (sizeof...(Args) == 1) {
+        this->emplace_at(res.first, std::forward<K>(k),
+                         std::forward<Args>(args)...);
+      } else {
+        // This is expensive to compile, so only use it as a last resort.
+        this->emplace_at(res.first, std::piecewise_construct,
+                         std::forward_as_tuple(std::forward<K>(k)),
+                         std::forward_as_tuple(std::forward<Args>(args)...));
+      }
     }
-    return res;
+    return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 };
 

@@ -17,15 +17,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <thread>  // NOLINT(build/c++11)
-#include <unordered_map>
-#include <utility>
+
+#include "absl/base/config.h"
+#include "absl/container/node_hash_map.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-
-#include "absl/container/node_hash_map.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -66,7 +66,7 @@ static void RandomizeBlockDesc(BlockDesc *d) {
 
 // Use to indicate to the malloc hooks that
 // this calls is from LowLevelAlloc.
-static bool using_low_level_alloc = false;
+static bool using_low_level_alloc [[maybe_unused]] = false;
 
 // n times, toss a coin, and based on the outcome
 // either allocate a new block or deallocate an old block.

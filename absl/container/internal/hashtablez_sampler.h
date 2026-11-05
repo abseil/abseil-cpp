@@ -44,6 +44,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -51,6 +52,7 @@
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/profiling/internal/sample_recorder.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
@@ -87,7 +89,6 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> total_probe_length;
   std::atomic<size_t> hashes_bitwise_or;
   std::atomic<size_t> hashes_bitwise_and;
-  std::atomic<size_t> hashes_bitwise_xor;
   std::atomic<size_t> max_reserve;
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
@@ -118,8 +119,8 @@ void RecordClearedReservationSlow(HashtablezInfo* info);
 void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                               size_t capacity);
 
-void RecordInsertSlow(HashtablezInfo* info, size_t hash,
-                      size_t distance_from_desired);
+void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
+                          size_t distance_from_desired);
 
 void RecordEraseSlow(HashtablezInfo* info);
 
@@ -174,9 +175,9 @@ class HashtablezInfoHandle {
     RecordClearedReservationSlow(info_);
   }
 
-  inline void RecordInsert(size_t hash, size_t distance_from_desired) {
+  inline void RecordInsertMiss(size_t hash, size_t distance_from_desired) {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
-    RecordInsertSlow(info_, hash, distance_from_desired);
+    RecordInsertMissSlow(info_, hash, distance_from_desired);
   }
 
   inline void RecordErase() {
@@ -207,7 +208,8 @@ class HashtablezInfoHandle {
   inline void RecordRehash(size_t /*total_probe_length*/) {}
   inline void RecordReservation(size_t /*target_capacity*/) {}
   inline void RecordClearedReservation() {}
-  inline void RecordInsert(size_t /*hash*/, size_t /*distance_from_desired*/) {}
+  inline void RecordInsertMiss(size_t /*hash*/,
+                               size_t /*distance_from_desired*/) {}
   inline void RecordErase() {}
 
   friend inline void swap(HashtablezInfoHandle& /*lhs*/,
@@ -236,24 +238,33 @@ inline bool ShouldSampleNextTable() {
 
 // Returns a sampling handle.
 // Must be called only if HashSetShouldBeSampled() returned true.
-// Returned handle still can be unsampled if sampling is not possible.
-HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
-                                     size_t key_size, size_t value_size,
-                                     uint16_t soo_capacity);
+// Returned handle still can be unsampled if sampling is not possible or if
+// `info.is_hashtablez_enabled` is false.
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info);
 
 // In case sampling needs to be disabled and re-enabled in tests, this function
 // can be used to reset the sampling state for the current thread.
 // It is useful to avoid sampling attempts and sampling delays in tests.
 void TestOnlyRefreshSamplingStateForCurrentThread();
 
-// Returns a sampling handle.
-inline HashtablezInfoHandle Sample(size_t inline_element_size, size_t key_size,
-                                   size_t value_size, uint16_t soo_capacity) {
+// Returns a sampling handle. For use in tests only: `raw_hash_set` calls
+// `ShouldSampleNextTable()` and `ForcedTrySample()` directly.
+inline HashtablezInfoHandle SampleForTesting(size_t inline_element_size,
+                                             size_t key_size, size_t value_size,
+                                             uint16_t soo_capacity) {
   if (ABSL_PREDICT_TRUE(!ShouldSampleNextTable())) {
     return HashtablezInfoHandle(nullptr);
   }
-  return ForcedTrySample(inline_element_size, key_size, value_size,
-                         soo_capacity);
+  const HashtableTypeInfo info = {
+      static_cast<uint32_t>(inline_element_size),
+      /*slot_align_mask=*/0,  // Unused by sampling.
+      /*soo_enabled=*/soo_capacity != 0,
+      /*is_hashtablez_enabled=*/true,
+      /*is_custom_alloc=*/false,  // Unused by sampling.
+      static_cast<uint32_t>(key_size),
+      static_cast<uint32_t>(value_size),
+  };
+  return ForcedTrySample(info);
 }
 
 using HashtablezSampler =

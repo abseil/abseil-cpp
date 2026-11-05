@@ -43,6 +43,13 @@
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
 //
+// Floating point values can also be converted to a string which, if passed to
+// `strtod()`, would produce the exact same original double (except in case of
+// NaN; all NaNs are considered the same value) by passing the number to
+// absl::HighPrecision. HighPrecision tries to keep the string short but
+// it's not guaranteed to be as short as possible.
+// See http://go/faster-double-strcat
+//
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using
@@ -102,11 +109,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/port.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/has_absl_stringify.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/resize_and_overwrite.h"
@@ -190,28 +197,24 @@ struct Hex {
   char fill;
 
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint8_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint16_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint32_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
   explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
@@ -306,6 +309,25 @@ struct Dec {
 };
 
 // -----------------------------------------------------------------------------
+// HighPrecision
+// -----------------------------------------------------------------------------
+//
+// Converts floating point values to a string which, if passed to
+// `absl::SimpleAtof`/`absl::SimpleAtod`, would produce the exact same original
+// floating point value (except in case of NaN; all NaNs are considered the same
+// value). Tries to keep the string short but it's not guaranteed to be as short
+// as possible.
+//
+// HighPrecision is conisderably slower than the default formatting, so only use
+// it if you need the string to convert back to the same floating-point value.
+
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(float f);
+
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(double d);
+
+// -----------------------------------------------------------------------------
 // AlphaNum
 // -----------------------------------------------------------------------------
 //
@@ -350,7 +372,8 @@ class AlphaNum {
                             &digits_[0])) {}
 
   AlphaNum(float f)  // NOLINT(runtime/explicit)
-      : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
+      : piece_(digits_, numbers_internal::SixDigitsToBuffer(
+                            static_cast<double>(f), digits_)) {}
   AlphaNum(double f)  // NOLINT(runtime/explicit)
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
 
@@ -373,8 +396,7 @@ class AlphaNum {
       : piece_(pc.data(), pc.size()) {}
 #endif  // !ABSL_USES_STD_STRING_VIEW
 
-  template <typename T, typename = typename std::enable_if<
-                            HasAbslStringify<T>::value>::type>
+  template <typename T, typename = std::enable_if_t<HasAbslStringify<T>::value>>
   AlphaNum(  // NOLINT(runtime/explicit)
       const T& v ABSL_ATTRIBUTE_LIFETIME_BOUND,
       strings_internal::StringifySink&& sink ABSL_ATTRIBUTE_LIFETIME_BOUND = {})
@@ -399,31 +421,29 @@ class AlphaNum {
   // Match unscoped enums.  Use integral promotion so that a `char`-backed
   // enum becomes a wider integral type AlphaNum will accept.
   template <typename T,
-            typename = typename std::enable_if<
-                std::is_enum<T>{} && std::is_convertible<T, int>{} &&
-                !HasAbslStringify<T>::value>::type>
+            typename = std::enable_if_t<std::is_enum<T>{} &&
+                                        std::is_convertible<T, int>{} &&
+                                        !HasAbslStringify<T>::value>>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(+e) {}
 
   // This overload matches scoped enums.  We must explicitly cast to the
   // underlying type, but use integral promotion for the same reason as above.
-  template <typename T,
-            typename std::enable_if<std::is_enum<T>{} &&
-                                        !std::is_convertible<T, int>{} &&
-                                        !HasAbslStringify<T>::value,
-                                    char*>::type = nullptr>
+  template <typename T, std::enable_if_t<std::is_enum<T>{} &&
+                                             !std::is_convertible<T, int>{} &&
+                                             !HasAbslStringify<T>::value,
+                                         char*> = nullptr>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
-      : AlphaNum(+static_cast<typename std::underlying_type<T>::type>(e)) {}
+      : AlphaNum(+static_cast<std::underlying_type_t<T>>(e)) {}
 
   // vector<bool>::reference and const_reference require special help to
   // convert to `AlphaNum` because it requires two user defined conversions.
   template <
       typename T,
-      typename std::enable_if<
-          std::is_class<T>::value &&
-          (std::is_same<T, std::vector<bool>::reference>::value ||
-           std::is_same<T, std::vector<bool>::const_reference>::value)>::type* =
-          nullptr>
+      std::enable_if_t<
+          std::is_class_v<T> &&
+          (std::is_same_v<T, std::vector<bool>::reference> ||
+           std::is_same_v<T, std::vector<bool>::const_reference>)>* = nullptr>
   AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
 
  private:
@@ -466,58 +486,22 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces);
 void AppendPieces(std::string* absl_nonnull dest,
                   std::initializer_list<absl::string_view> pieces);
 
-template <typename Integer>
-std::string IntegerToString(Integer i) {
-  // Any integer (signed/unsigned) up to 64 bits can be formatted into a buffer
-  // with 22 bytes (including NULL at the end).
-  constexpr size_t kMaxDigits10 = 22;
-  std::string result;
-  StringResizeAndOverwrite(
-      result, kMaxDigits10, [i](char* start, size_t buf_size) {
-        // Note: This can be optimized to not write last zero.
-        char* end = numbers_internal::FastIntToBuffer(i, start);
-        auto size = static_cast<size_t>(end - start);
-        ABSL_ASSERT(size < buf_size);
-        return size;
-      });
-  return result;
-}
-
-template <typename Float>
-std::string FloatToString(Float f) {
-  std::string result;
-  StringResizeAndOverwrite(result, numbers_internal::kSixDigitsToBufferSize,
-                           [f](char* start, size_t buf_size) {
-                             size_t size =
-                                 numbers_internal::SixDigitsToBuffer(f, start);
-                             ABSL_ASSERT(size < buf_size);
-                             return size;
-                           });
-  return result;
-}
-
 // `SingleArgStrCat` overloads take built-in `int`, `long` and `long long` types
 // (signed / unsigned) to avoid ambiguity on the call side. If we used int32_t
 // and int64_t, then at least one of the three (`int` / `long` / `long long`)
 // would have been ambiguous when passed to `SingleArgStrCat`.
-inline std::string SingleArgStrCat(int x) { return IntegerToString(x); }
-inline std::string SingleArgStrCat(unsigned int x) {
-  return IntegerToString(x);
-}
+std::string SingleArgStrCat(int x);
+std::string SingleArgStrCat(unsigned int x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long x) { return IntegerToString(x); }
+std::string SingleArgStrCat(long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long x) {
-  return IntegerToString(x);
-}
+std::string SingleArgStrCat(unsigned long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long long x) { return IntegerToString(x); }
+std::string SingleArgStrCat(long long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long long x) {
-  return IntegerToString(x);
-}
-inline std::string SingleArgStrCat(float x) { return FloatToString(x); }
-inline std::string SingleArgStrCat(double x) { return FloatToString(x); }
+std::string SingleArgStrCat(unsigned long long x);
+std::string SingleArgStrCat(float x);
+std::string SingleArgStrCat(double x);
 
 // As of September 2023, the SingleArgStrCat() optimization is only enabled for
 // libc++. The reasons for this are:
@@ -618,14 +602,8 @@ inline void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
 
 // Helper function for the future StrCat default floating-point format, %.6g
 // This is fast.
-inline strings_internal::AlphaNumBuffer<
-    numbers_internal::kSixDigitsToBufferSize>
-SixDigits(double d) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
-      result;
-  result.size = numbers_internal::SixDigitsToBuffer(d, &result.data[0]);
-  return result;
-}
+strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
+SixDigits(double d);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

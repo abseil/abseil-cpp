@@ -15,16 +15,21 @@
 
 #include "absl/flags/reflection.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/flags/config.h"
 #include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
+#include "absl/time/time.h"
 
 ABSL_FLAG(int, int_flag, 1, "int_flag help");
 ABSL_FLAG(std::string, string_flag, "dflt", "string_flag help");
@@ -38,7 +43,7 @@ class ReflectionTest : public testing::Test {
 #if ABSL_FLAGS_STRIP_NAMES
     GTEST_SKIP() << "This test requires flag names to be present";
 #endif
-    flag_saver_ = absl::make_unique<absl::FlagSaver>();
+    flag_saver_ = std::make_unique<absl::FlagSaver>();
   }
   void TearDown() override { flag_saver_.reset(); }
 
@@ -134,6 +139,12 @@ ABSL_FLAG(absl::Duration, test_flag_12, absl::Minutes(10), "");
 static int counter = 0;
 ABSL_FLAG(int, test_flag_13, 200, "").OnUpdate([]() { counter++; });
 ABSL_FLAG(CustomUDT, test_flag_14, {}, "");
+static int runtime_bool_default_eval_count = 0;
+static bool GetRuntimeBoolDefault() {
+  ++runtime_bool_default_eval_count;
+  return true;
+}
+ABSL_FLAG(bool, test_flag_15, GetRuntimeBoolDefault(), "");
 
 namespace {
 
@@ -263,6 +274,18 @@ TEST_F(ReflectionTest, TestMultipleFlagSaversInEnclosedScopes) {
     EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_08), 10);
   }
   EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_08), 9876543);
+}
+
+TEST_F(ReflectionTest, TestFlagSaverEagerlyInitsRuntimeDefaultIntegralFlag) {
+  {
+    absl::FlagSaver s;
+    const int evals_after_save = runtime_bool_default_eval_count;
+    EXPECT_GE(evals_after_save, 1);
+    absl::SetFlag(&FLAGS_test_flag_15, false);
+    EXPECT_EQ(runtime_bool_default_eval_count, evals_after_save);
+    EXPECT_FALSE(absl::GetFlag(FLAGS_test_flag_15));
+  }
+  EXPECT_TRUE(absl::GetFlag(FLAGS_test_flag_15));
 }
 
 }  // namespace

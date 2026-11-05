@@ -14,9 +14,14 @@
 
 #include "absl/strings/internal/cord_rep_btree.h"
 
+#include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <iostream>
+#include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -27,9 +32,11 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/internal/cord_data_edge.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cord_rep_test_util.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -1230,16 +1237,16 @@ TEST(CordRepBtreeTest, Dump) {
 
     if (api != 3) {
       // Does not contain contents
-      EXPECT_THAT(str, Not(AnyOf((HasSubstr("data = \"Hello world\""),
-                                  HasSubstr("data = \"Hello external\""),
-                                  HasSubstr("data = \"ello w\""),
-                                  HasSubstr("data = \"llo ext\"")))));
+      EXPECT_THAT(str, Not(AnyOf(HasSubstr("data = \"Hello world\""),
+                                 HasSubstr("data = \"Hello external\""),
+                                 HasSubstr("data = \"ello w\""),
+                                 HasSubstr("data = \"llo ext\""))));
     } else {
       // Contains contents
-      EXPECT_THAT(str, AllOf((HasSubstr("data = \"Hello world\""),
-                              HasSubstr("data = \"Hello external\""),
-                              HasSubstr("data = \"ello w\""),
-                              HasSubstr("data = \"llo ext\""))));
+      EXPECT_THAT(str, AllOf(HasSubstr("data = \"Hello world\""),
+                             HasSubstr("data = \"Hello external\""),
+                             HasSubstr("data = \"ello w\""),
+                             HasSubstr("data = \"llo ext\"")));
     }
   }
 

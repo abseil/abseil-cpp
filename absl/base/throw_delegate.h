@@ -1,4 +1,3 @@
-//
 // Copyright 2017 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,10 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
 
-#ifndef ABSL_BASE_INTERNAL_THROW_DELEGATE_H_
-#define ABSL_BASE_INTERNAL_THROW_DELEGATE_H_
+#ifndef ABSL_BASE_THROW_DELEGATE_H_
+#define ABSL_BASE_THROW_DELEGATE_H_
 
 #include <string>
 
@@ -23,7 +21,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-namespace base_internal {
 
 // Helper functions that allow throwing exceptions consistently from anywhere.
 // The main use case is for header-based libraries (eg templates), as they will
@@ -60,16 +57,9 @@ namespace base_internal {
 
 [[noreturn]] void ThrowStdBadFunctionCall();
 [[noreturn]] void ThrowStdBadAlloc();
+[[noreturn]] void ThrowStdBadArrayNewLength();
 
-// ThrowStdBadArrayNewLength() cannot be consistently supported because
-// std::bad_array_new_length is missing in libstdc++ until 4.9.0.
-// https://gcc.gnu.org/onlinedocs/gcc-4.8.3/libstdc++/api/a01379_source.html
-// https://gcc.gnu.org/onlinedocs/gcc-4.9.0/libstdc++/api/a01327_source.html
-// libcxx (as of 3.2) and msvc (as of 2015) both have it.
-// [[noreturn]] void ThrowStdBadArrayNewLength();
-
-}  // namespace base_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_BASE_INTERNAL_THROW_DELEGATE_H_
+#endif  // ABSL_BASE_THROW_DELEGATE_H_

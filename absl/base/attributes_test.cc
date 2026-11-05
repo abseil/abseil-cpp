@@ -14,6 +14,10 @@
 
 #include "absl/base/attributes.h"
 
+#include <cstdint>
+#include <type_traits>
+#include <utility>
+
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 
@@ -24,20 +28,73 @@ TEST(Attributes, RequireExplicitInit) {
     int f1;
     int f2 ABSL_REQUIRE_EXPLICIT_INIT;
   };
-  Agg good1 ABSL_ATTRIBUTE_UNUSED = {1, 2};
+  Agg good1 [[maybe_unused]] = {1, 2};
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-  Agg good2 ABSL_ATTRIBUTE_UNUSED(1, 2);
+  Agg good2 [[maybe_unused]] (1, 2);
 #endif
-  Agg good3 ABSL_ATTRIBUTE_UNUSED{1, 2};
-  Agg good4 ABSL_ATTRIBUTE_UNUSED = {1, 2};
-  Agg good5 ABSL_ATTRIBUTE_UNUSED = Agg{1, 2};
-  Agg good6[1] ABSL_ATTRIBUTE_UNUSED = {{1, 2}};
-  Agg good7[1] ABSL_ATTRIBUTE_UNUSED = {Agg{1, 2}};
+  Agg good3 [[maybe_unused]]{1, 2};
+  Agg good4 [[maybe_unused]] = {1, 2};
+  Agg good5 [[maybe_unused]] = Agg{1, 2};
+  Agg good6 [[maybe_unused]][1] = {{1, 2}};
+  Agg good7 [[maybe_unused]][1] = {Agg{1, 2}};
   union {
     Agg agg;
-  } good8 ABSL_ATTRIBUTE_UNUSED = {{1, 2}};
-  constexpr Agg good9 ABSL_ATTRIBUTE_UNUSED = {1, 2};
-  constexpr Agg good10 ABSL_ATTRIBUTE_UNUSED{1, 2};
+  } good8 [[maybe_unused]] = {{1, 2}};
+  constexpr Agg good9 [[maybe_unused]] = {1, 2};
+  constexpr Agg good10 [[maybe_unused]]{1, 2};
+}
+
+TEST(Attributes, MSVCBug) {
+  struct ImplicitlyConstructible {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    ImplicitlyConstructible(const char*) {}
+  };
+  struct Agg {
+    ImplicitlyConstructible f1 ABSL_REQUIRE_EXPLICIT_INIT;
+  };
+  static_assert(std::is_convertible_v<const char*, ImplicitlyConstructible>);
+  Agg good1 [[maybe_unused]] = {ImplicitlyConstructible("hello")};
+}
+
+TEST(Attributes, UnsafeBuffers) {
+  int buffer[10] = {0};
+  int offset = 1;
+
+  // Expression example
+  int* p1 = ABSL_UNSAFE_BUFFERS(buffer + offset);
+  EXPECT_EQ(p1, &buffer[1]);
+
+  // Single-line statement example
+  int* p2 = buffer;
+  ABSL_UNSAFE_BUFFERS(p2 += offset;)
+  EXPECT_EQ(p2, &buffer[1]);
+
+  // Multi-line statement example
+  ABSL_UNSAFE_BUFFERS(int* p3 = buffer + offset; p3[0] = 1;)
+  EXPECT_EQ(buffer[1], 1);
+}
+
+ABSL_ATTRIBUTE_NOINLINE void MustTailVoidCallee(int* out, int x) { *out = x; }
+
+ABSL_ATTRIBUTE_NOINLINE void MustTailVoidCaller(int* out, int x) {
+  ABSL_INTERNAL_MUSTTAIL return MustTailVoidCallee(out, x + 2);
+}
+
+ABSL_ATTRIBUTE_NOINLINE int64_t MustTailCountdown(int64_t n, int64_t acc) {
+  if (n == 0) return acc;
+  ABSL_INTERNAL_MUSTTAIL return MustTailCountdown(n - 1, acc + n);
+}
+
+TEST(Attributes, MustTail) {
+  int out = 0;
+  MustTailVoidCaller(&out, 10);
+  EXPECT_EQ(out, 12);
+
+#if ABSL_INTERNAL_HAVE_MUSTTAIL
+  // A 200,000-deep recursion would overflow the stack without tail-call.
+  constexpr int64_t kDepth = 200000;
+  EXPECT_EQ(MustTailCountdown(kDepth, 0), kDepth * (kDepth + 1) / 2);
+#endif
 }
 
 }  // namespace
