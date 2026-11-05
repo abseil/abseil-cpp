@@ -21,7 +21,9 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
+    absl::core_headers
     absl::synchronization
+    absl::time
 )
 
 absl_cc_test(
@@ -34,6 +36,8 @@ absl_cc_test(
   DEPS
     absl::random_random
     absl::sample_recorder
+    absl::synchronization
+    absl::thread_pool
     absl::time
     GTest::gmock_main
 )
