@@ -1136,8 +1136,6 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED [[clang::uninitialized]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::uninitialized)
-#define ABSL_ATTRIBUTE_UNINITIALIZED [[gnu::uninitialized]]
 #elif ABSL_HAVE_ATTRIBUTE(uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED __attribute__((uninitialized))
 #else
