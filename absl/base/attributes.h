@@ -671,7 +671,9 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 //
 // Tells the compiler to use "initial-exec" mode for a thread-local variable.
 // See http://people.redhat.com/drepper/tls.pdf for the gory details.
-#if ABSL_HAVE_ATTRIBUTE(tls_model)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::tls_model)
+#define ABSL_ATTRIBUTE_INITIAL_EXEC [[gnu::tls_model("initial-exec")]]
+#elif ABSL_HAVE_ATTRIBUTE(tls_model)
 #define ABSL_ATTRIBUTE_INITIAL_EXEC __attribute__((tls_model("initial-exec")))
 #else
 #define ABSL_ATTRIBUTE_INITIAL_EXEC
