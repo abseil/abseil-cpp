@@ -1909,7 +1909,7 @@ class HashSetIteratorBase : private HashSetIteratorGenerationInfo {
   }
 
   template <size_t kSlotSize>
-  void increment() {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void increment() {
     assert_is_full("operator++");
     ++ctrl_;
     slot_ = static_cast<char*>(slot_) + kSlotSize;
@@ -1920,7 +1920,7 @@ class HashSetIteratorBase : private HashSetIteratorGenerationInfo {
   // Fixes up `ctrl_` to point to a full or sentinel by advancing `ctrl_` and
   // `slot_` until they reach one.
   template <size_t kSlotSize>
-  void skip_empty_or_deleted() {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void skip_empty_or_deleted() {
     while (IsEmptyOrDeleted(*ctrl_)) {
       ++ctrl_;
       slot_ = static_cast<char*>(slot_) + kSlotSize;
@@ -2897,7 +2897,7 @@ class raw_hash_set : public raw_hash_set_base {
     }
 
     // PRECONDITION: not an end() iterator.
-    iterator& operator++() {
+    ABSL_ATTRIBUTE_ALWAYS_INLINE iterator& operator++() {
       this->increment<sizeof(slot_type)>();
       return *this;
     }
@@ -2949,7 +2949,7 @@ class raw_hash_set : public raw_hash_set_base {
     reference operator*() const { return *inner_; }
     pointer operator->() const { return inner_.operator->(); }
 
-    const_iterator& operator++() {
+    ABSL_ATTRIBUTE_ALWAYS_INLINE const_iterator& operator++() {
       ++inner_;
       return *this;
     }
