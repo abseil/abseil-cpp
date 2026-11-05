@@ -69,12 +69,16 @@ bool ParseYearAnd(string_view fmt, string_view s, CivilT* c) {
     // end-of-year rollover) can carry into the year. The other fields are taken
     // from `cs`, so the same carry must be applied to the original year;
     // otherwise the reconstructed value would use the wrong (un-carried) year.
-    // `cs.year()` and `normalized_year` both lie in the normalized range, so
-    // the carry is small, but applying it to `y` can overflow civil_year_t when
-    // `y` is at the extreme representable year; reject that rather than wrap.
+    // That carry must itself stay in range: for the maximum year, a leap
+    // second at year end carries into year y + 1, which overflows
+    // civil_year_t (int64) and used to wrap to INT64_MIN, making e.g.
+    // "9223372036854775807-12-31T23:59:60" parse as a valid time in year
+    // -9223372036854775808.  Reject the input instead of wrapping.
     const civil_year_t carry = cs.year() - normalized_year;
-    if ((carry > 0 && y > (std::numeric_limits<civil_year_t>::max)() - carry) ||
-        (carry < 0 && y < (std::numeric_limits<civil_year_t>::min)() - carry)) {
+    if ((carry > 0 &&
+         y > std::numeric_limits<civil_year_t>::max() - carry) ||
+        (carry < 0 &&
+         y < std::numeric_limits<civil_year_t>::min() - carry)) {
       return false;
     }
     const civil_year_t year = y + carry;

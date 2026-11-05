@@ -177,6 +177,24 @@ TEST(CivilTime, RangeLimits) {
             absl::CivilSecond::min());
 }
 
+TEST(CivilTime, ParseLeapSecondAtYearRangeEdgeDoesNotWrap) {
+  // A leap second at the end of the maximum year carries into a year
+  // outside the int64 range.  That input must be rejected, not wrapped
+  // to the minimum year.
+  absl::CivilSecond cs;
+  EXPECT_FALSE(absl::ParseCivilTime(
+      "9223372036854775807-12-31T23:59:60", &cs));
+  // One year below the maximum, the same leap second is fine and carries
+  // into the maximum year.
+  EXPECT_TRUE(absl::ParseCivilTime(
+      "9223372036854775806-12-31T23:59:60", &cs));
+  EXPECT_EQ(cs, absl::CivilSecond(9223372036854775807LL, 1, 1, 0, 0, 0));
+  // And the maximum year without a leap second still parses.
+  EXPECT_TRUE(absl::ParseCivilTime(
+      "9223372036854775807-12-31T23:59:59", &cs));
+  EXPECT_EQ(cs, absl::CivilSecond(9223372036854775807LL, 12, 31, 23, 59, 59));
+}
+
 TEST(CivilTime, ImplicitCrossAlignment) {
   absl::CivilYear year(2015);
   absl::CivilMonth month = year;
@@ -871,19 +889,6 @@ TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
   // The carry also works for negative years crossing zero.
   EXPECT_TRUE(absl::ParseCivilTime("-1-12-31T23:59:60", &ss)) << ss;
   EXPECT_EQ(absl::CivilSecond(0, 1, 1, 0, 0, 0), ss);
-}
-
-TEST(CivilTime, ParseYearCarryDoesNotOverflow) {
-  // A ":60" leap second on the last second of the maximum representable year
-  // carries into the year, which would be civil_year_t(max) + 1 and is not
-  // representable, so the parse must fail cleanly rather than overflow.
-  absl::CivilSecond ss;
-  EXPECT_FALSE(absl::ParseCivilTime("9223372036854775807-12-31T23:59:60", &ss))
-      << ss;
-  // The same year without a carry remains valid and round-trips.
-  EXPECT_TRUE(absl::ParseCivilTime("9223372036854775807-12-31T23:59:59", &ss))
-      << ss;
-  EXPECT_EQ("9223372036854775807-12-31T23:59:59", absl::FormatCivilTime(ss));
 }
 
 TEST(CivilTime, AbslStringify) {
