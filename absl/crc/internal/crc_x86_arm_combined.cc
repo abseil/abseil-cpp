@@ -14,6 +14,7 @@
 
 // Hardware accelerated CRC32 computation on Intel and ARM architecture.
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -525,6 +526,9 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
   static constexpr bool kShouldPrefetchDst = true;
 #endif
   static constexpr size_t kDstPrefetchHorizon = 2 * ABSL_CACHELINE_SIZE;
+  static constexpr size_t kWritePrefetchLines = 5;
+  static constexpr size_t kWritePrefetchHorizon =
+      kWritePrefetchLines * ABSL_CACHELINE_SIZE;
 };
 
 template <size_t num_crc_streams, size_t num_pclmul_streams,
@@ -675,6 +679,9 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
     constexpr StreamCounts kStreams = GetStreamCounts(copy_type);
     constexpr size_t kNumActiveCrcStreams = kStreams.crc;
     constexpr size_t kNumActivePclmulStreams = kStreams.pclmul;
+    constexpr bool kWritePrefetchDst = copy_type == CopyType::kTemporal &&
+                                       kShouldPrefetchDst &&
+                                       num_pclmul_streams > 1;
     const uint8_t* p = static_cast<const uint8_t*>(bytes);
     const uint8_t* e = p + length;
     char* d = static_cast<char*>(dst);
@@ -751,6 +758,23 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       }
     }
 
+    if constexpr (kWritePrefetchDst) {
+      // Prefetch the initial cache lines of each stream before the main loop,
+      // which begins prefetching at offset (1 + kWritePrefetchLines) * 64.
+      static_assert((kMediumCutoff - 63) /
+                        (kNumActiveCrcStreams + kNumActivePclmulStreams) /
+                        ABSL_CACHELINE_SIZE >
+                    kWritePrefetchLines);
+      for (size_t k = 0; k <= kWritePrefetchLines; ++k) {
+        for (size_t s = 0; s < kNumActiveCrcStreams + kNumActivePclmulStreams;
+             ++s) {
+          PrefetchToLocalCache(p + s * stream_size + k * ABSL_CACHELINE_SIZE);
+          PrefetchToLocalCacheForWrite(d + s * stream_size +
+                                       k * ABSL_CACHELINE_SIZE);
+        }
+      }
+    }
+
     // Per stream crc sums.
     uint64_t l64_crc[kMaxStreams] = {l};
     uint64_t l64_pclmul[kMaxStreams] = {0};
@@ -794,17 +818,35 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
     uint32_t magic = ComputeZeroConstant(stream_size);
 
     for (size_t i = 1; i < blocks_per_stream / kBlocksPerIteration; ++i) {
-      // Prefetch data for next iterations.
+      // Prefetch data for next iterations. Clamp the final stream's prefetches
+      // to the end of the buffer so the last iterations prefetch any trailing
+      // bytes without issuing write-prefetches past `dst + length`.
       for (size_t j = 0; j < kNumActiveCrcStreams; ++j) {
-        PrefetchToLocalCache(crc_streams[j] + kPrefetchHorizon);
-        if constexpr (copy_type == CopyType::kTemporal && kShouldPrefetchDst) {
-          PrefetchToLocalCache(dst_crc_streams[j] + kDstPrefetchHorizon);
+        if constexpr (kWritePrefetchDst) {
+          PrefetchToLocalCache(crc_streams[j] + kWritePrefetchHorizon);
+          PrefetchToLocalCacheForWrite(dst_crc_streams[j] +
+                                       kWritePrefetchHorizon);
+        } else {
+          PrefetchToLocalCache(crc_streams[j] + kPrefetchHorizon);
+          if constexpr (copy_type == CopyType::kTemporal &&
+                        kShouldPrefetchDst) {
+            PrefetchToLocalCache(dst_crc_streams[j] + kDstPrefetchHorizon);
+          }
         }
       }
       for (size_t j = 0; j < kNumActivePclmulStreams; ++j) {
-        PrefetchToLocalCache(pclmul_streams[j] + kPrefetchHorizon);
-        if constexpr (copy_type == CopyType::kTemporal && kShouldPrefetchDst) {
-          PrefetchToLocalCache(dst_pclmul_streams[j] + kDstPrefetchHorizon);
+        if constexpr (kWritePrefetchDst) {
+          PrefetchToLocalCache(
+              std::min(pclmul_streams[j] + kWritePrefetchHorizon, e - 1));
+          PrefetchToLocalCacheForWrite(
+              std::min(dst_pclmul_streams[j] + kWritePrefetchHorizon,
+                       static_cast<uint8_t*>(dst) + length - 1));
+        } else {
+          PrefetchToLocalCache(pclmul_streams[j] + kPrefetchHorizon);
+          if constexpr (copy_type == CopyType::kTemporal &&
+                        kShouldPrefetchDst) {
+            PrefetchToLocalCache(dst_pclmul_streams[j] + kDstPrefetchHorizon);
+          }
         }
       }
 
