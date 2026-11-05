@@ -376,6 +376,7 @@ absl_cc_test(
     absl::check
     absl::config
     absl::container_memory
+    absl::core_headers
     absl::flat_hash_set
     absl::hash
     absl::hash_container_defaults
@@ -489,6 +490,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::canonical_hash
     absl::config
     absl::core_headers
     absl::hash
