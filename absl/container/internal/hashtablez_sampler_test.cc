@@ -14,6 +14,7 @@
 
 #include "absl/container/internal/hashtablez_sampler.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstddef>
@@ -63,9 +64,10 @@ using ::testing::UnorderedElementsAre;
 
 std::vector<size_t> GetSizes(HashtablezSampler* s) {
   std::vector<size_t> res;
-  s->Iterate([&](const HashtablezInfo& info) {
+  EXPECT_EQ(s->Iterate([&](const HashtablezInfo& info) {
     res.push_back(info.size.load(std::memory_order_acquire));
-  });
+  }),
+            0);
   return res;
 }
 
@@ -104,7 +106,6 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.total_probe_length.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_and.load(), ~size_t{});
-  EXPECT_EQ(info.hashes_bitwise_xor.load(), 0);
   EXPECT_EQ(info.max_reserve.load(), 0);
   EXPECT_GE(info.create_time, test_start);
   EXPECT_EQ(info.weight, test_stride);
@@ -120,7 +121,6 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   info.total_probe_length.store(1, std::memory_order_relaxed);
   info.hashes_bitwise_or.store(1, std::memory_order_relaxed);
   info.hashes_bitwise_and.store(1, std::memory_order_relaxed);
-  info.hashes_bitwise_xor.store(1, std::memory_order_relaxed);
   info.max_reserve.store(1, std::memory_order_relaxed);
   info.create_time = test_start - absl::Hours(20);
 
@@ -136,7 +136,6 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.total_probe_length.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_and.load(), ~size_t{});
-  EXPECT_EQ(info.hashes_bitwise_xor.load(), 0);
   EXPECT_EQ(info.max_reserve.load(), 0);
   EXPECT_EQ(info.weight, 2 * test_stride);
   EXPECT_EQ(info.inline_element_size, test_element_size);
@@ -166,7 +165,7 @@ TEST(HashtablezInfoTest, RecordStorageChanged) {
   EXPECT_EQ(info.capacity.load(), 20);
 }
 
-TEST(HashtablezInfoTest, RecordInsert) {
+TEST(HashtablezInfoTest, RecordInsertMiss) {
   HashtablezInfo info;
   absl::MutexLock l(info.init_mu);
   const int64_t test_stride = 25;
@@ -179,21 +178,18 @@ TEST(HashtablezInfoTest, RecordInsert) {
                           /*value_size=*/test_value_size,
                           /*soo_capacity_value=*/0);
   EXPECT_EQ(info.max_probe_length.load(), 0);
-  RecordInsertSlow(&info, 0x0000FF00, 6 * kProbeLength);
+  RecordInsertMissSlow(&info, 0x0000FF00, 6 * kProbeLength);
   EXPECT_EQ(info.max_probe_length.load(), 6);
   EXPECT_EQ(info.hashes_bitwise_and.load(), 0x0000FF00);
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0x0000FF00);
-  EXPECT_EQ(info.hashes_bitwise_xor.load(), 0x0000FF00);
-  RecordInsertSlow(&info, 0x000FF000, 4 * kProbeLength);
+  RecordInsertMissSlow(&info, 0x000FF000, 4 * kProbeLength);
   EXPECT_EQ(info.max_probe_length.load(), 6);
   EXPECT_EQ(info.hashes_bitwise_and.load(), 0x0000F000);
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0x000FFF00);
-  EXPECT_EQ(info.hashes_bitwise_xor.load(), 0x000F0F00);
-  RecordInsertSlow(&info, 0x00FF0000, 12 * kProbeLength);
+  RecordInsertMissSlow(&info, 0x00FF0000, 12 * kProbeLength);
   EXPECT_EQ(info.max_probe_length.load(), 12);
   EXPECT_EQ(info.hashes_bitwise_and.load(), 0x00000000);
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0x00FFFF00);
-  EXPECT_EQ(info.hashes_bitwise_xor.load(), 0x00F00F00);
 }
 
 TEST(HashtablezInfoTest, RecordErase) {
@@ -210,7 +206,7 @@ TEST(HashtablezInfoTest, RecordErase) {
                           /*soo_capacity_value=*/1);
   EXPECT_EQ(info.num_erases.load(), 0);
   EXPECT_EQ(info.size.load(), 0);
-  RecordInsertSlow(&info, 0x0000FF00, 6 * kProbeLength);
+  RecordInsertMissSlow(&info, 0x0000FF00, 6 * kProbeLength);
   EXPECT_EQ(info.size.load(), 1);
   RecordEraseSlow(&info);
   EXPECT_EQ(info.size.load(), 0);
@@ -233,10 +229,10 @@ TEST(HashtablezInfoTest, RecordRehash) {
                           /*value_size=*/test_value_size,
 
                           /*soo_capacity_value=*/0);
-  RecordInsertSlow(&info, 0x1, 0);
-  RecordInsertSlow(&info, 0x2, kProbeLength);
-  RecordInsertSlow(&info, 0x4, kProbeLength);
-  RecordInsertSlow(&info, 0x8, 2 * kProbeLength);
+  RecordInsertMissSlow(&info, 0x1, 0);
+  RecordInsertMissSlow(&info, 0x2, kProbeLength);
+  RecordInsertMissSlow(&info, 0x4, kProbeLength);
+  RecordInsertMissSlow(&info, 0x8, 2 * kProbeLength);
   EXPECT_EQ(info.size.load(), 4);
   EXPECT_EQ(info.total_probe_length.load(), 4);
 
@@ -336,10 +332,10 @@ TEST(HashtablezSamplerTest, Sample) {
   double sample_rate = 0.0;
   for (int i = 0; i < 1000000; ++i) {
     HashtablezInfoHandle h =
-        Sample(test_element_size,
-               /*key_size=*/test_key_size, /*value_size=*/test_value_size,
-
-               /*soo_capacity=*/0);
+        SampleForTesting(test_element_size,
+                         /*key_size=*/test_key_size,
+                         /*value_size=*/test_value_size,
+                         /*soo_capacity=*/0);
 
     ++total;
     if (h.IsSampled()) {
@@ -365,19 +361,20 @@ TEST(HashtablezSamplerTest, Handle) {
   info->hashes_bitwise_and.store(0x12345678, std::memory_order_relaxed);
 
   bool found = false;
-  sampler.Iterate([&](const HashtablezInfo& h) {
+  EXPECT_EQ(sampler.Iterate([&](const HashtablezInfo& h) {
     if (&h == info) {
       EXPECT_EQ(h.weight, test_stride);
       EXPECT_EQ(h.hashes_bitwise_and.load(), 0x12345678);
       found = true;
     }
-  });
+  }),
+            0);
   EXPECT_TRUE(found);
 
   h.Unregister();
   h = HashtablezInfoHandle();
   found = false;
-  sampler.Iterate([&](const HashtablezInfo& h) {
+  EXPECT_EQ(sampler.Iterate([&](const HashtablezInfo& h) {
     if (&h == info) {
       // this will only happen if some other thread has resurrected the info
       // the old handle was using.
@@ -385,7 +382,8 @@ TEST(HashtablezSamplerTest, Handle) {
         found = true;
       }
     }
-  });
+  }),
+            0);
   EXPECT_FALSE(found);
 }
 #endif
@@ -471,9 +469,10 @@ TEST(HashtablezSamplerTest, MultiThreaded) {
           }
           case 2: {
             absl::Duration oldest = absl::ZeroDuration();
-            sampler.Iterate([&](const HashtablezInfo& info) {
+            EXPECT_EQ(sampler.Iterate([&](const HashtablezInfo& info) {
               oldest = std::max(oldest, absl::Now() - info.create_time);
-            });
+            }),
+                      0);
             ASSERT_GE(oldest, absl::ZeroDuration());
             break;
           }

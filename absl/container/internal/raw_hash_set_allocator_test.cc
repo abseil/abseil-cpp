@@ -70,13 +70,13 @@ class CheckedAlloc {
   };
 
   using propagate_on_container_copy_assignment =
-      std::integral_constant<bool, (Spec & kPropagateOnCopy) != 0>;
+      std::bool_constant<(Spec & kPropagateOnCopy) != 0>;
 
   using propagate_on_container_move_assignment =
-      std::integral_constant<bool, (Spec & kPropagateOnMove) != 0>;
+      std::bool_constant<(Spec & kPropagateOnMove) != 0>;
 
   using propagate_on_container_swap =
-      std::integral_constant<bool, (Spec & kPropagateOnSwap) != 0>;
+      std::bool_constant<(Spec & kPropagateOnSwap) != 0>;
 
   CheckedAlloc select_on_container_copy_construction() const {
     if (Spec & kPropagateOnCopy) return *this;
@@ -142,6 +142,10 @@ struct Policy {
   using init_type = Tracked<int32_t>;
   using key_type = int32_t;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot,
                         Args&&... args) {
@@ -180,7 +184,7 @@ struct Policy {
 
   static slot_type& element(slot_type* slot) { return *slot; }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -433,6 +437,17 @@ TEST_F(NoPropagateOnMove, MoveAssignmentWithDifferentAlloc) {
   EXPECT_THAT(a2.num_allocs(), AnyOf(1, 2));
   EXPECT_THAT(it->num_moves(), AnyOf(1, 2));
   EXPECT_EQ(0, it->num_copies());
+}
+
+TEST_F(NoPropagateOnMove, MoveAssignmentWithDifferentAllocToNonEmptyTable) {
+  t1.insert(0);
+  Table u(0, a2);
+  for (int32_t i = 1; i <= 16; ++i) u.insert(i);
+  u = std::move(t1);
+  EXPECT_EQ(a2, u.get_allocator());
+  EXPECT_EQ(1, u.size());
+  EXPECT_NE(u.find(0), u.end());
+  EXPECT_EQ(u.find(1), u.end());
 }
 
 TEST_F(PropagateOnAll, Swap) {

@@ -14,9 +14,12 @@
 
 #include "absl/random/log_uniform_int_distribution.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <string>
@@ -24,6 +27,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
@@ -109,6 +113,26 @@ TYPED_TEST(LogUniformIntDistributionTypeTest, SerializeTest) {
       if (sample < sample_min) sample_min = sample;
     }
     LOG(INFO) << "Range: " << sample_min << ", " << sample_max;
+  }
+}
+
+// operator>> must reject input that violates the param_type preconditions
+// (max >= min and base > 1) by setting failbit and leaving the distribution
+// unchanged, rather than constructing an out-of-contract param_type.
+TYPED_TEST(LogUniformIntDistributionTypeTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "0 100 1",  // base == 1
+           "0 100 0",  // base == 0
+           "100 0 2",  // max < min
+       }) {
+    absl::log_uniform_int_distribution<TypeParam> dist(3, 6, 17);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
   }
 }
 

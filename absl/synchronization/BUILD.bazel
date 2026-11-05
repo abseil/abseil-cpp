@@ -49,6 +49,7 @@ cc_library(
     }),
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/algorithm:container",
         "//absl/base",
         "//absl/base:base_internal",
         "//absl/base:config",
@@ -65,16 +66,14 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/thread:__subpackages__",
     ],
     deps = [
-        "//absl/base",
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/time",
-    ] + select({
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_test(
@@ -85,8 +84,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":kernel_timeout_internal",
-        "//absl/base:config",
-        "//absl/random",
         "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -130,6 +127,7 @@ cc_library(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
@@ -149,6 +147,7 @@ cc_library(
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
         "//absl/meta:type_traits",
+        "//absl/strings:string_view",
         "//absl/time",
     ] + select({
         "//conditions:default": [],
@@ -215,7 +214,9 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
+        "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/container:flat_hash_set",
         "//absl/log",
         "//absl/log:check",
         "@googletest//:gtest",
@@ -248,6 +249,7 @@ cc_library(
     ],
     deps = [
         ":synchronization",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/functional:any_invocable",
     ],
@@ -255,7 +257,7 @@ cc_library(
 
 cc_test(
     name = "mutex_test",
-    size = "large",
+    size = "medium",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
     flaky = 1,
@@ -264,12 +266,10 @@ cc_test(
     deps = [
         ":synchronization",
         ":thread_pool",
-        "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/log",
         "//absl/log:check",
-        "//absl/memory",
         "//absl/random",
         "//absl/time",
         "@googletest//:gtest",
@@ -284,7 +284,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
-        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -302,8 +301,8 @@ cc_library(
         ":synchronization",
         ":thread_pool",
         "//absl/base",
-        "//absl/base:config",
         "//absl/base:no_destructor",
+        "//absl/base:raw_logging_internal",
         "@google_benchmark//:benchmark_main",
     ],
     alwayslink = 1,
@@ -345,11 +344,14 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
+        ":kernel_timeout_internal",
         ":synchronization",
         "//absl/base",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
         "//absl/time",
         "@googletest//:gtest",
@@ -369,7 +371,6 @@ cc_test(
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
-        "//absl/strings",
         "//absl/time",
         "@googletest//:gtest_main",
     ],
@@ -381,11 +382,11 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     flaky = 1,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":kernel_timeout_internal",
         ":synchronization",
         ":thread_pool",
-        "//absl/base:config",
         "//absl/random",
         "//absl/time",
         "@googletest//:gtest",

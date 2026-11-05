@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
 #include <string>
+#include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "benchmark/benchmark.h"
@@ -357,12 +360,12 @@ BENCHMARK(BM_StatusOrString_StatusMethodRvalue_Ok);
 // below for the variants.
 bool bm_cond = true;
 
-bool SimpleIntInterface(int64_t* v) ABSL_ATTRIBUTE_NOINLINE;
-bool SimpleIntInterfaceWithErrorMessage(int64_t* v, std::string* msg)
-    ABSL_ATTRIBUTE_NOINLINE;
-absl::Status SimpleIntInterfaceWithErrorStatus(int64_t* v)
-    ABSL_ATTRIBUTE_NOINLINE;
-absl::StatusOr<int64_t> SimpleIntStatusOrInterface() ABSL_ATTRIBUTE_NOINLINE;
+ABSL_ATTRIBUTE_NOINLINE bool SimpleIntInterface(int64_t* v);
+ABSL_ATTRIBUTE_NOINLINE bool SimpleIntInterfaceWithErrorMessage(
+    int64_t* v, std::string* msg);
+ABSL_ATTRIBUTE_NOINLINE absl::Status SimpleIntInterfaceWithErrorStatus(
+    int64_t* v);
+ABSL_ATTRIBUTE_NOINLINE absl::StatusOr<int64_t> SimpleIntStatusOrInterface();
 
 // (a): Just a boolean return value with an out int64* parameter
 bool SimpleIntInterface(int64_t* v) {

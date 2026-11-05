@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -30,6 +31,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/memory/memory.h"
 #include "absl/profiling/internal/exponential_biased.h"
@@ -86,7 +88,6 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   total_probe_length.store(0, std::memory_order_relaxed);
   hashes_bitwise_or.store(0, std::memory_order_relaxed);
   hashes_bitwise_and.store(~size_t{}, std::memory_order_relaxed);
-  hashes_bitwise_xor.store(0, std::memory_order_relaxed);
   max_reserve.store(0, std::memory_order_relaxed);
 
   create_time = absl::Now();
@@ -124,12 +125,11 @@ static bool ShouldForceSampling() {
 }
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
-                                     size_t key_size, size_t value_size,
-                                     uint16_t soo_capacity) {
-  return HashtablezInfoHandle(SampleSlow(global_next_sample,
-                                         inline_element_size, key_size,
-                                         value_size, soo_capacity));
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info) {
+  if (!info.is_hashtablez_enabled) return HashtablezInfoHandle(nullptr);
+  return HashtablezInfoHandle(
+      SampleSlow(global_next_sample, info.slot_size, info.key_size,
+                 info.value_size, info.soo_capacity()));
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.next_sample =
@@ -137,7 +137,7 @@ void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.sample_stride = global_next_sample.next_sample;
 }
 #else
-HashtablezInfoHandle ForcedTrySample(size_t, size_t, size_t, uint16_t) {
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo&) {
   return HashtablezInfoHandle{nullptr};
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {}
@@ -148,7 +148,7 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
                            size_t value_size, uint16_t soo_capacity) {
   if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     next_sample.next_sample = 1;
-    const int64_t old_stride = exchange(next_sample.sample_stride, 1);
+    const int64_t old_stride = std::exchange(next_sample.sample_stride, 1);
     HashtablezInfo* result = GlobalHashtablezSampler().Register(
         old_stride, inline_element_size, key_size, value_size, soo_capacity);
     return result;
@@ -167,7 +167,8 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
 
   next_sample.next_sample = next_stride;
-  const int64_t old_stride = exchange(next_sample.sample_stride, next_stride);
+  const int64_t old_stride =
+      std::exchange(next_sample.sample_stride, next_stride);
   // Small values of interval are equivalent to just sampling next time.
   ABSL_ASSERT(next_stride >= 1);
 
@@ -230,8 +231,8 @@ void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
   }
 }
 
-void RecordInsertSlow(HashtablezInfo* info, size_t hash,
-                      size_t distance_from_desired) {
+void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
+                          size_t distance_from_desired) {
   // SwissTables probe in groups of 16, so scale this to count items probes and
   // not offset from desired.
   size_t probe_length = distance_from_desired;
@@ -243,7 +244,6 @@ void RecordInsertSlow(HashtablezInfo* info, size_t hash,
 
   info->hashes_bitwise_and.fetch_and(hash, std::memory_order_relaxed);
   info->hashes_bitwise_or.fetch_or(hash, std::memory_order_relaxed);
-  info->hashes_bitwise_xor.fetch_xor(hash, std::memory_order_relaxed);
   info->max_probe_length.store(
       std::max(info->max_probe_length.load(std::memory_order_relaxed),
                probe_length),
