@@ -293,7 +293,8 @@ class HashStateBase {
   //   state = H::combine(std::move(state), value2);
   //   state = H::combine(std::move(state), value3);
   template <typename T, typename... Ts>
-  static H combine(H state, const T& value, const Ts&... values);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE inline static H combine(H state, const T& value,
+                                                       const Ts&... values);
   static H combine(H state) { return state; }
 
   // Combines a contiguous array of `size` elements into a hash state, returning
