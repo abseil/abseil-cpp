@@ -28,6 +28,7 @@
 #include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_generator_testing.h"
+#include "absl/container/internal/hash_policy_testing.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
@@ -38,13 +39,15 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
-using ::absl::container_internal::hash_internal::Enum;
-using ::absl::container_internal::hash_internal::EnumClass;
 using ::testing::IsEmpty;
 using ::testing::Pointee;
 using ::testing::UnorderedElementsAre;
@@ -107,11 +110,11 @@ TEST(FlatHashSet, MergeExtractInsert) {
     }
   };
   absl::flat_hash_set<std::unique_ptr<int>, Hash, Eq> set1, set2;
-  set1.insert(absl::make_unique<int>(7));
-  set1.insert(absl::make_unique<int>(17));
+  set1.insert(std::make_unique<int>(7));
+  set1.insert(std::make_unique<int>(17));
 
-  set2.insert(absl::make_unique<int>(7));
-  set2.insert(absl::make_unique<int>(19));
+  set2.insert(std::make_unique<int>(7));
+  set2.insert(std::make_unique<int>(19));
 
   EXPECT_THAT(set1, UnorderedElementsAre(Pointee(7), Pointee(17)));
   EXPECT_THAT(set2, UnorderedElementsAre(Pointee(7), Pointee(19)));
@@ -121,7 +124,7 @@ TEST(FlatHashSet, MergeExtractInsert) {
   EXPECT_THAT(set1, UnorderedElementsAre(Pointee(7), Pointee(17), Pointee(19)));
   EXPECT_THAT(set2, UnorderedElementsAre(Pointee(7)));
 
-  auto node = set1.extract(absl::make_unique<int>(7));
+  auto node = set1.extract(std::make_unique<int>(7));
   EXPECT_TRUE(node);
   EXPECT_THAT(node.value(), Pointee(7));
   EXPECT_THAT(set1, UnorderedElementsAre(Pointee(17), Pointee(19)));
@@ -135,12 +138,12 @@ TEST(FlatHashSet, MergeExtractInsert) {
   EXPECT_NE(insert_result.position->get(), insert_result.node.value().get());
   EXPECT_THAT(set2, UnorderedElementsAre(Pointee(7)));
 
-  node = set1.extract(absl::make_unique<int>(17));
+  node = set1.extract(std::make_unique<int>(17));
   EXPECT_TRUE(node);
   EXPECT_THAT(node.value(), Pointee(17));
   EXPECT_THAT(set1, UnorderedElementsAre(Pointee(19)));
 
-  node.value() = absl::make_unique<int>(23);
+  node.value() = std::make_unique<int>(23);
 
   insert_result = set2.insert(std::move(node));
   EXPECT_FALSE(node);
@@ -386,16 +389,72 @@ TEST(FlatHashSet, MoveOnlyKey) {
 TEST(FlatHashSet, IsDefaultHash) {
   using absl::container_internal::hashtable_debug_internal::
       HashtableDebugAccess;
-  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int>>::kIsDefaultHash, true);
-  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::string>>::kIsDefaultHash,
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int>>::kIsAbslHash, true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::string>>::kIsAbslHash,
             true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::wstring>>::kIsAbslHash,
+            true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int*>>::kIsAbslHash, true);
+  EXPECT_EQ(
+      HashtableDebugAccess<flat_hash_set<std::unique_ptr<int>>>::kIsAbslHash,
+      true);
+  using TransparentStringHashSet =
+      flat_hash_set<std::string,
+                    absl::TransparentHash<std::string, std::string_view>>;
+  EXPECT_EQ(HashtableDebugAccess<TransparentStringHashSet>::kIsAbslHash, true);
 
   struct Hash {
     size_t operator()(size_t i) const { return i; }
   };
-  EXPECT_EQ((HashtableDebugAccess<flat_hash_set<size_t, Hash>>::kIsDefaultHash),
+  EXPECT_EQ((HashtableDebugAccess<flat_hash_set<size_t, Hash>>::kIsAbslHash),
             false);
+
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<StringHash, std::string, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<std::string>, std::string,
+                                        true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<StringHash, std::string, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<
+                absl::TransparentHash<std::string, absl::string_view>,
+                std::string, true, 0>()));
+  EXPECT_EQ(
+      (GetTypeErasedApplyToSlotFn<StringHash, absl::string_view, true, 0>()),
+      (GetTypeErasedApplyToSlotFn<absl::Hash<absl::string_view>,
+                                  absl::string_view, true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<BasicStringHash<wchar_t>, std::wstring,
+                                        true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<std::wstring>, std::wstring,
+                                        true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<HashEq<int*>::Hash, int*, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<int*>, int*, true, 0>()));
 }
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+TEST(FlatHashSet, FromRange) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::flat_hash_set<int> s(std::from_range, v);
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(FlatHashSet, FromRangeWithAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::flat_hash_set<int, absl::container_internal::hash_default_hash<int>,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(FlatHashSet, FromRangeWithHasherAndAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  using TestingHash = absl::container_internal::StatefulTestingHash;
+  absl::flat_hash_set<int, TestingHash,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, TestingHash{}, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

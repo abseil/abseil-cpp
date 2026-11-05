@@ -19,6 +19,7 @@
 #include <random>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
@@ -26,7 +27,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
-namespace hash_internal {
 
 std::string Generator<std::string>::operator()() const {
   absl::InsecureBitGen gen;
@@ -50,7 +50,6 @@ absl::string_view Generator<absl::string_view>::operator()() const {
   return res;
 }
 
-}  // namespace hash_internal
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

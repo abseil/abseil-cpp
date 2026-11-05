@@ -129,6 +129,14 @@ struct BasicStringHash {
   size_t operator()(std::basic_string_view<TChar> v) const {
     return absl::Hash<std::basic_string_view<TChar>>{}(v);
   }
+
+ private:
+  friend struct absl::hash_internal::HashWithSeed;
+
+  size_t hash_with_seed(std::basic_string_view<TChar> v, size_t seed) const {
+    return absl::hash_internal::HashWithSeed().hash(
+        absl::Hash<std::basic_string_view<TChar>>{}, v, seed);
+  }
 };
 
 template <typename TChar>
@@ -140,7 +148,7 @@ struct BasicStringEq {
   }
 };
 
-// Supports heterogeneous lookup for w/u16/u32 string + string_view + char*.
+// Supports heterogeneous lookup for w/u8/u16/u32 string + string_view + char*.
 template <typename TChar>
 struct BasicStringHashEq {
   using Hash = BasicStringHash<TChar>;
@@ -151,6 +159,12 @@ template <>
 struct HashEq<std::wstring> : BasicStringHashEq<wchar_t> {};
 template <>
 struct HashEq<std::wstring_view> : BasicStringHashEq<wchar_t> {};
+#ifdef __cpp_char8_t
+template <>
+struct HashEq<std::u8string> : BasicStringHashEq<char8_t> {};
+template <>
+struct HashEq<std::u8string_view> : BasicStringHashEq<char8_t> {};
+#endif
 template <>
 struct HashEq<std::u16string> : BasicStringHashEq<char16_t> {};
 template <>
@@ -168,6 +182,15 @@ struct HashEq<T*> {
     template <class U>
     size_t operator()(const U& ptr) const {
       return absl::Hash<const T*>{}(HashEq::ToPtr(ptr));
+    }
+
+   private:
+    friend struct absl::hash_internal::HashWithSeed;
+
+    template <class U>
+    size_t hash_with_seed(const U& ptr, size_t seed) const {
+      return absl::hash_internal::HashWithSeed().hash(absl::Hash<const T*>{},
+                                                      HashEq::ToPtr(ptr), seed);
     }
   };
   struct Eq {
@@ -199,14 +222,14 @@ template <typename T, typename E = void>
 struct HasAbslContainerHash : std::false_type {};
 
 template <typename T>
-struct HasAbslContainerHash<T, absl::void_t<typename T::absl_container_hash>>
+struct HasAbslContainerHash<T, std::void_t<typename T::absl_container_hash>>
     : std::true_type {};
 
 template <typename T, typename E = void>
 struct HasAbslContainerEq : std::false_type {};
 
 template <typename T>
-struct HasAbslContainerEq<T, absl::void_t<typename T::absl_container_eq>>
+struct HasAbslContainerEq<T, std::void_t<typename T::absl_container_eq>>
     : std::true_type {};
 
 template <typename T, typename E = void>

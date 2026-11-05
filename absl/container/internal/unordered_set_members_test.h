@@ -15,9 +15,13 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_SET_MEMBERS_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_SET_MEMBERS_TEST_H_
 
+#include <cstddef>
+#include <memory>
 #include <type_traits>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -35,10 +39,10 @@ void UseType() {}
 TYPED_TEST_P(MembersTest, Typedefs) {
   EXPECT_TRUE((std::is_same<typename TypeParam::key_type,
                             typename TypeParam::value_type>()));
-  EXPECT_TRUE((absl::conjunction<
-               absl::negation<std::is_signed<typename TypeParam::size_type>>,
+  EXPECT_TRUE((std::conjunction<
+               std::negation<std::is_signed<typename TypeParam::size_type>>,
                std::is_integral<typename TypeParam::size_type>>()));
-  EXPECT_TRUE((absl::conjunction<
+  EXPECT_TRUE((std::conjunction<
                std::is_signed<typename TypeParam::difference_type>,
                std::is_integral<typename TypeParam::difference_type>>()));
   EXPECT_TRUE((std::is_convertible<

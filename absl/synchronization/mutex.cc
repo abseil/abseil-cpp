@@ -14,6 +14,48 @@
 
 #include "absl/synchronization/mutex.h"
 
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <iterator>
+#include <thread>  // NOLINT(build/c++11)
+
+#include "absl/base/attributes.h"
+#include "absl/base/call_once.h"
+#include "absl/base/config.h"
+#include "absl/base/dynamic_annotations.h"
+#include "absl/base/internal/atomic_hook.h"
+#include "absl/base/internal/cycleclock.h"
+#include "absl/base/internal/hide_ptr.h"
+#include "absl/base/internal/low_level_alloc.h"
+#include "absl/base/internal/low_level_scheduling.h"
+#include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/scheduling_mode.h"
+#include "absl/base/internal/spinlock.h"
+#include "absl/base/internal/sysinfo.h"
+#include "absl/base/internal/thread_identity.h"
+#include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/macros.h"
+#include "absl/base/optimization.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/debugging/stacktrace.h"
+#include "absl/debugging/symbolize.h"
+#include "absl/synchronization/internal/create_thread_identity.h"
+#include "absl/synchronization/internal/graphcycles.h"
+#include "absl/synchronization/internal/kernel_timeout.h"
+#include "absl/synchronization/internal/per_thread_sem.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #ifdef ERROR
@@ -25,40 +67,6 @@
 #include <sched.h>
 #include <sys/time.h>
 #endif
-
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-#include <algorithm>
-#include <atomic>
-#include <cstddef>
-#include <cstdlib>
-#include <cstring>
-#include <thread>  // NOLINT(build/c++11)
-
-#include "absl/base/attributes.h"
-#include "absl/base/call_once.h"
-#include "absl/base/config.h"
-#include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/atomic_hook.h"
-#include "absl/base/internal/cycleclock.h"
-#include "absl/base/internal/hide_ptr.h"
-#include "absl/base/internal/low_level_alloc.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/base/internal/spinlock.h"
-#include "absl/base/internal/sysinfo.h"
-#include "absl/base/internal/thread_identity.h"
-#include "absl/base/internal/tsan_mutex_interface.h"
-#include "absl/base/optimization.h"
-#include "absl/debugging/stacktrace.h"
-#include "absl/debugging/symbolize.h"
-#include "absl/synchronization/internal/graphcycles.h"
-#include "absl/synchronization/internal/per_thread_sem.h"
-#include "absl/time/time.h"
 
 using absl::base_internal::CurrentThreadIdentityIfPresent;
 using absl::base_internal::CycleClock;
@@ -434,10 +442,10 @@ static void PostSynchEvent(void* obj, int ev) {
   // or it explicitly says to log
   if (e == nullptr || e->log) {
     void* pcs[40];
-    int n = absl::GetStackTrace(pcs, ABSL_ARRAYSIZE(pcs), 1);
+    int n = absl::GetStackTrace(pcs, std::size(pcs), 1);
     // A buffer with enough space for the ASCII for all the PCs, even on a
     // 64-bit machine.
-    char buffer[ABSL_ARRAYSIZE(pcs) * 24];
+    char buffer[std::size(pcs) * 24];
     int pos = snprintf(buffer, sizeof(buffer), " @");
     for (int i = 0; i != n; i++) {
       int b = snprintf(&buffer[pos], sizeof(buffer) - static_cast<size_t>(pos),
@@ -530,7 +538,14 @@ struct SynchLocksHeld {
   struct {
     Mutex* mu;      // lock acquired
     int32_t count;  // times acquired
-    GraphId id;     // deadlock_graph id of acquired lock
+    // True iff this thread called mu->ForgetDeadlockInfo() while holding mu.
+    // The entry is then ignored for lock ordering until it is released.
+    bool forgotten;
+    // deadlock_graph id of mu, or InvalidGraphId() until DeadlockCheck()
+    // needs it, which is when this thread acquires another lock while
+    // holding mu. This way, acquiring a lock while holding no others, and
+    // releasing a lock, do not need deadlock_graph_mu.
+    GraphId id;
   } locks[40];
   // If a thread overfills the array during deadlock detection, we
   // continue, discarding information as needed.  If no overflow has
@@ -549,6 +564,14 @@ static SynchLocksHeld* LocksHeldAlloc() {
   ret->n = 0;
   ret->overflow = false;
   return ret;
+}
+
+static void RemoveHeldLockEntry(SynchLocksHeld* held_locks, int i) {
+  const int last = --held_locks->n;
+  held_locks->locks[i] = held_locks->locks[last];
+  held_locks->locks[last].id = InvalidGraphId();
+  held_locks->locks[last].mu =
+      nullptr;  // clear mu to please the leak detector.
 }
 
 // Return the PerThreadSynch-struct for this thread.
@@ -745,9 +768,24 @@ static unsigned TsanFlags(Mutex::MuHow how) {
 Mutex::~Mutex() { Dtor(); }
 #endif
 
-#if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER)
+#if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER) || \
+    defined(ABSL_BUILD_DLL)
 void Mutex::Dtor() {
   if (kDebugMode) {
+    // If this thread is destroying a locked Mutex, remove any held-lock
+    // entries for it so their slots are not leaked.
+    ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+    if (identity != nullptr &&
+        identity->per_thread_synch.all_locks != nullptr) {
+      SynchLocksHeld* held_locks = identity->per_thread_synch.all_locks;
+      for (int i = 0; i < held_locks->n;) {
+        if (held_locks->locks[i].mu == this) {
+          RemoveHeldLockEntry(held_locks, i);
+        } else {
+          i++;
+        }
+      }
+    }
     this->ForgetDeadlockInfo();
   }
   ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static);
@@ -773,7 +811,7 @@ void Mutex::EnableDebugLog(const char* name) {
   // Since it's not possible to take address of a destructor, we move the
   // actual destructor code into the separate Dtor function and force the
   // compiler to emit this function even if it's inline by taking its address.
-  ABSL_ATTRIBUTE_UNUSED volatile auto dtor = &Mutex::Dtor;
+  [[maybe_unused]] volatile auto dtor = &Mutex::Dtor;
   ABSL_ANNOTATE_IGNORE_WRITES_END();
 }
 
@@ -1222,28 +1260,35 @@ static GraphId GetGraphIdLocked(Mutex* mu)
   return deadlock_graph->GetId(mu);
 }
 
-static GraphId GetGraphId(Mutex* mu) ABSL_LOCKS_EXCLUDED(deadlock_graph_mu) {
-  base_internal::SpinLockHolder l(deadlock_graph_mu);
-  GraphId id = GetGraphIdLocked(mu);
-  return id;
+// Returns the index of the entry for mu in held_locks, or -1 if there is none.
+// Prefers the entry that is not marked forgotten (there is at most one), and
+// otherwise returns the first entry that is.
+static int FindHeldLock(const SynchLocksHeld* held_locks, const Mutex* mu) {
+  int forgotten_index = -1;
+  for (int i = 0; i != held_locks->n; i++) {
+    if (held_locks->locks[i].mu == mu) {
+      if (!held_locks->locks[i].forgotten) return i;
+      if (forgotten_index == -1) forgotten_index = i;
+    }
+  }
+  return forgotten_index;
 }
 
 // Record a lock acquisition.  This is used in debug mode for deadlock
 // detection.  The held_locks pointer points to the relevant data
 // structure for each case.
-static void LockEnter(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
+static void LockEnter(Mutex* mu, SynchLocksHeld* held_locks) {
   int n = held_locks->n;
-  int i = 0;
-  while (i != n && held_locks->locks[i].id != id) {
-    i++;
-  }
-  if (i == n) {
-    if (n == ABSL_ARRAYSIZE(held_locks->locks)) {
+  int i = FindHeldLock(held_locks, mu);
+  // A forgotten hold stays ignored, so a new hold of mu gets its own entry.
+  if (i == -1 || held_locks->locks[i].forgotten) {
+    if (n == static_cast<int>(std::size(held_locks->locks))) {
       held_locks->overflow = true;  // lost some data
     } else {                        // we have room for lock
-      held_locks->locks[i].mu = mu;
-      held_locks->locks[i].count = 1;
-      held_locks->locks[i].id = id;
+      held_locks->locks[n].mu = mu;
+      held_locks->locks[n].count = 1;
+      held_locks->locks[n].forgotten = false;
+      held_locks->locks[n].id = InvalidGraphId();
       held_locks->n = n + 1;
     }
   } else {
@@ -1251,39 +1296,28 @@ static void LockEnter(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
   }
 }
 
-// Record a lock release.  Each call to LockEnter(mu, id, x) should be
-// eventually followed by a call to LockLeave(mu, id, x) by the same thread.
+// Record a lock release.  Each call to LockEnter(mu, x) should be
+// eventually followed by a call to LockLeave(mu, x) by the same thread.
 // It does not process the event if is not needed when deadlock detection is
 // disabled.
-static void LockLeave(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
-  int n = held_locks->n;
-  int i = 0;
-  while (i != n && held_locks->locks[i].id != id) {
-    i++;
-  }
-  if (i == n) {
-    if (!held_locks->overflow) {
-      // The deadlock id may have been reassigned after ForgetDeadlockInfo,
-      // but in that case mu should still be present.
-      i = 0;
-      while (i != n && held_locks->locks[i].mu != mu) {
-        i++;
-      }
-      if (i == n) {  // mu missing means releasing unheld lock
-        SynchEvent* mu_events = GetSynchEvent(mu);
-        ABSL_RAW_LOG(FATAL,
-                     "thread releasing lock it does not hold: %p %s; "
-                     ,
-                     static_cast<void*>(mu),
-                     mu_events == nullptr ? "" : mu_events->name);
-      }
+static void LockLeave(Mutex* mu, SynchLocksHeld* held_locks) {
+  // If mu was forgotten while held, this releases the forgotten entry.
+  int i = FindHeldLock(held_locks, mu);
+  if (i == -1) {
+    // The thread does not hold mu, unless held_locks was full when mu was
+    // acquired.
+    if (held_locks->overflow) {
+      return;
     }
-  } else if (held_locks->locks[i].count == 1) {
-    held_locks->n = n - 1;
-    held_locks->locks[i] = held_locks->locks[n - 1];
-    held_locks->locks[n - 1].id = InvalidGraphId();
-    held_locks->locks[n - 1].mu =
-        nullptr;  // clear mu to please the leak detector.
+    SynchEvent* mu_events = GetSynchEvent(mu);
+    ABSL_RAW_LOG(FATAL,
+                 "thread releasing lock it does not hold: %p %s; "
+                 ,
+                 static_cast<void*>(mu),
+                 mu_events == nullptr ? "" : mu_events->name);
+  }
+  if (held_locks->locks[i].count == 1) {
+    RemoveHeldLockEntry(held_locks, i);
   } else {
     assert(held_locks->locks[i].count > 0);
     held_locks->locks[i].count--;
@@ -1295,17 +1329,7 @@ static inline void DebugOnlyLockEnter(Mutex* mu) {
   if (kDebugMode) {
     if (synch_deadlock_detection.load(std::memory_order_acquire) !=
         OnDeadlockCycle::kIgnore) {
-      LockEnter(mu, GetGraphId(mu), Synch_GetAllLocks());
-    }
-  }
-}
-
-// Call LockEnter() if in debug mode and deadlock detection is enabled.
-static inline void DebugOnlyLockEnter(Mutex* mu, GraphId id) {
-  if (kDebugMode) {
-    if (synch_deadlock_detection.load(std::memory_order_acquire) !=
-        OnDeadlockCycle::kIgnore) {
-      LockEnter(mu, id, Synch_GetAllLocks());
+      LockEnter(mu, Synch_GetAllLocks());
     }
   }
 }
@@ -1315,7 +1339,7 @@ static inline void DebugOnlyLockLeave(Mutex* mu) {
   if (kDebugMode) {
     if (synch_deadlock_detection.load(std::memory_order_acquire) !=
         OnDeadlockCycle::kIgnore) {
-      LockLeave(mu, GetGraphId(mu), Synch_GetAllLocks());
+      LockLeave(mu, Synch_GetAllLocks());
     }
   }
 }
@@ -1344,7 +1368,7 @@ static char* StackString(void** pcs, int n, char* buf, int maxlen,
 
 static char* CurrentStackString(char* buf, int maxlen, bool symbolize) {
   void* pcs[40];
-  return StackString(pcs, absl::GetStackTrace(pcs, ABSL_ARRAYSIZE(pcs), 2), buf,
+  return StackString(pcs, absl::GetStackTrace(pcs, std::size(pcs), 2), buf,
                      maxlen, symbolize);
 }
 
@@ -1375,26 +1399,55 @@ int GetStack(void** stack, int max_depth) {
 }
 }  // anonymous namespace
 
+// Returns true iff held_locks has an entry that counts for lock ordering, that
+// is, one that is not marked forgotten.
+static bool HoldsUnforgottenLock(const SynchLocksHeld* held_locks) {
+  for (int i = 0; i != held_locks->n; i++) {
+    if (!held_locks->locks[i].forgotten) return true;
+  }
+  return false;
+}
+
+// Looks up ids for the entries in held_locks that are not marked forgotten and
+// do not have a current id, because this thread has not needed it yet, or
+// because another thread called ForgetDeadlockInfo() on that Mutex.
+static void UpdateHeldLockIds(SynchLocksHeld* held_locks)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
+  for (int i = 0; i != held_locks->n; i++) {
+    if (held_locks->locks[i].forgotten) continue;
+    const GraphId id = held_locks->locks[i].id;
+    if (id == InvalidGraphId() || deadlock_graph->Ptr(id) == nullptr) {
+      held_locks->locks[i].id = GetGraphIdLocked(held_locks->locks[i].mu);
+    }
+  }
+}
+
 // Called in debug mode when a thread is about to acquire a lock in a way that
 // may block.
-static GraphId DeadlockCheck(Mutex* mu) {
+static void DeadlockCheck(Mutex* mu) {
   if (synch_deadlock_detection.load(std::memory_order_acquire) ==
       OnDeadlockCycle::kIgnore) {
-    return InvalidGraphId();
+    return;
   }
 
   SynchLocksHeld* all_locks = Synch_GetAllLocks();
 
-  absl::base_internal::SpinLockHolder lock(deadlock_graph_mu);
-  const GraphId mu_id = GetGraphIdLocked(mu);
-
-  if (all_locks->n == 0) {
-    // There are no other locks held. Return now so that we don't need to
-    // call GetSynchEvent(). This way we do not record the stack trace
-    // for this Mutex. It's ok, since if this Mutex is involved in a deadlock,
-    // it can't always be the first lock acquired by a thread.
-    return mu_id;
+  if (!HoldsUnforgottenLock(all_locks)) {
+    // There are no other locks held, so there are no edges to add. Return now
+    // so that we don't need to take deadlock_graph_mu or call GetSynchEvent().
+    // This way we do not record the stack trace for this Mutex. It's ok, since
+    // if this Mutex is involved in a deadlock, it can't always be the first
+    // lock acquired by a thread.
+    return;
   }
+
+  absl::base_internal::SpinLockHolder lock(deadlock_graph_mu);
+
+  // Look up the held locks' ids before mu's, so that when both need new graph
+  // slots, the held lock's slot ranks below mu's and the edge between them is
+  // already in rank order.
+  UpdateHeldLockIds(all_locks);
+  const GraphId mu_id = GetGraphIdLocked(mu);
 
   // We prefer to keep stack traces that show a thread holding and acquiring
   // as many locks as possible.  This increases the chances that a given edge
@@ -1404,6 +1457,7 @@ static GraphId DeadlockCheck(Mutex* mu) {
 
   // For each other mutex already held by this thread:
   for (int i = 0; i != all_locks->n; i++) {
+    if (all_locks->locks[i].forgotten) continue;
     const GraphId other_node_id = all_locks->locks[i].id;
     const Mutex* other =
         static_cast<const Mutex*>(deadlock_graph->Ptr(other_node_id));
@@ -1424,6 +1478,7 @@ static GraphId DeadlockCheck(Mutex* mu) {
                    CurrentStackString(b->buf, sizeof (b->buf), symbolize));
       size_t len = 0;
       for (int j = 0; j != all_locks->n; j++) {
+        if (all_locks->locks[j].forgotten) continue;
         void* pr = deadlock_graph->Ptr(all_locks->locks[j].id);
         if (pr != nullptr) {
           snprintf(b->buf + len, sizeof(b->buf) - len, " %p", pr);
@@ -1435,9 +1490,10 @@ static GraphId DeadlockCheck(Mutex* mu) {
                    "historical lock ordering graph has been observed",
                    static_cast<void*>(mu), b->buf);
       ABSL_RAW_LOG(ERROR, "Cycle: ");
-      int path_len = deadlock_graph->FindPath(mu_id, other_node_id,
-                                              ABSL_ARRAYSIZE(b->path), b->path);
-      for (int j = 0; j != path_len && j != ABSL_ARRAYSIZE(b->path); j++) {
+      int path_len = deadlock_graph->FindPath(
+          mu_id, other_node_id, static_cast<int>(std::size(b->path)), b->path);
+      for (int j = 0;
+           j != path_len && j != static_cast<int>(std::size(b->path)); j++) {
         GraphId id = b->path[j];
         Mutex* path_mu = static_cast<Mutex*>(deadlock_graph->Ptr(id));
         if (path_mu == nullptr) continue;
@@ -1450,36 +1506,44 @@ static GraphId DeadlockCheck(Mutex* mu) {
                     symbolize);
         ABSL_RAW_LOG(ERROR, "%s", b->buf);
       }
-      if (path_len > static_cast<int>(ABSL_ARRAYSIZE(b->path))) {
+      if (path_len > static_cast<int>(std::size(b->path))) {
         ABSL_RAW_LOG(ERROR, "(long cycle; list truncated)");
       }
       if (synch_deadlock_detection.load(std::memory_order_acquire) ==
           OnDeadlockCycle::kAbort) {
         deadlock_graph_mu.unlock();  // avoid deadlock in fatal sighandler
         ABSL_RAW_LOG(FATAL, "dying due to potential deadlock");
-        return mu_id;
       }
       break;  // report at most one potential deadlock per acquisition
     }
   }
-
-  return mu_id;
 }
 
 // Invoke DeadlockCheck() iff we're in debug mode and
 // deadlock checking has been enabled.
-static inline GraphId DebugOnlyDeadlockCheck(Mutex* mu) {
+static inline void DebugOnlyDeadlockCheck(Mutex* mu) {
   if (kDebugMode && synch_deadlock_detection.load(std::memory_order_acquire) !=
                         OnDeadlockCycle::kIgnore) {
-    return DeadlockCheck(mu);
-  } else {
-    return InvalidGraphId();
+    DeadlockCheck(mu);
   }
 }
 
 void Mutex::ForgetDeadlockInfo() {
   if (kDebugMode && synch_deadlock_detection.load(std::memory_order_acquire) !=
                         OnDeadlockCycle::kIgnore) {
+    // If this thread holds this Mutex, ignore that hold from now on (see
+    // SynchLocksHeld::forgotten). Holds by other threads keep counting:
+    // RemoveNode() makes their ids stale, and DeadlockCheck() looks up the
+    // new id when they are next needed.
+    ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+    if (identity != nullptr &&
+        identity->per_thread_synch.all_locks != nullptr) {
+      SynchLocksHeld* held_locks = identity->per_thread_synch.all_locks;
+      int i = FindHeldLock(held_locks, this);
+      if (i != -1) {
+        held_locks->locks[i].forgotten = true;
+      }
+    }
     deadlock_graph_mu.lock();
     if (deadlock_graph != nullptr) {
       deadlock_graph->RemoveNode(this);
@@ -1495,10 +1559,9 @@ void Mutex::AssertNotHeld() const {
       (mu_.load(std::memory_order_relaxed) & (kMuWriter | kMuReader)) != 0 &&
       synch_deadlock_detection.load(std::memory_order_acquire) !=
           OnDeadlockCycle::kIgnore) {
-    GraphId id = GetGraphId(const_cast<Mutex*>(this));
     SynchLocksHeld* locks = Synch_GetAllLocks();
     for (int i = 0; i != locks->n; i++) {
-      if (locks->locks[i].id == id) {
+      if (locks->locks[i].mu == this) {
         SynchEvent* mu_events = GetSynchEvent(this);
         ABSL_RAW_LOG(FATAL, "thread should not hold mutex %p %s",
                      static_cast<const void*>(this),
@@ -1528,7 +1591,7 @@ static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
 
 void Mutex::lock() {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
-  GraphId id = DebugOnlyDeadlockCheck(this);
+  DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
   // try fast acquire, then spin loop
   if (ABSL_PREDICT_FALSE((v & (kMuWriter | kMuReader | kMuEvent)) != 0) ||
@@ -1540,13 +1603,13 @@ void Mutex::lock() {
       this->LockSlow(kExclusive, nullptr, 0);
     }
   }
-  DebugOnlyLockEnter(this, id);
+  DebugOnlyLockEnter(this);
   ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
 }
 
 void Mutex::lock_shared() {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
-  GraphId id = DebugOnlyDeadlockCheck(this);
+  DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
   for (;;) {
     // If there are non-readers holding the lock, use the slow loop.
@@ -1562,7 +1625,7 @@ void Mutex::lock_shared() {
       break;
     }
   }
-  DebugOnlyLockEnter(this, id);
+  DebugOnlyLockEnter(this);
   ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
 }
 
@@ -1571,9 +1634,9 @@ bool Mutex::LockWhenCommon(const Condition& cond,
                            bool write) {
   MuHow how = write ? kExclusive : kShared;
   ABSL_TSAN_MUTEX_PRE_LOCK(this, TsanFlags(how));
-  GraphId id = DebugOnlyDeadlockCheck(this);
+  DebugOnlyDeadlockCheck(this);
   bool res = LockSlowWithDeadline(how, &cond, t, 0);
-  DebugOnlyLockEnter(this, id);
+  DebugOnlyLockEnter(this);
   ABSL_TSAN_MUTEX_POST_LOCK(this, TsanFlags(how), 0);
   return res;
 }
@@ -2138,6 +2201,8 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
   intptr_t wr_wait = 0;  // set to kMuWrWait if we wake a reader and a
                          // later writer could have acquired the lock
                          // (starvation avoidance)
+  // When non-null, clear its "woken_has_waiters" field before returning.
+  absl::base_internal::ThreadIdentity* clear_waking_des_waker = nullptr;
   ABSL_RAW_CHECK(waitp == nullptr || waitp->thread->waitp == nullptr ||
                      waitp->thread->suppress_fatal_errors,
                  "detected illegal recursion into Mutex code");
@@ -2381,6 +2446,13 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
         h->readers = 0;
         h->maybe_unlocking = false;  // finished unlocking
         nv |= wr_wait | kMuWait | reinterpret_cast<intptr_t>(h);
+
+        // Signal to any Scheduler that we are waking from Mutex Unlock
+        // and there are more waiters left, signaling possible contention.
+        ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
+        clear_waking_des_waker = GetOrCreateCurrentThreadIdentity();
+        ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
+        clear_waking_des_waker->scheduler_state.waking_designated_waker = true;
       }
 
       // release both spinlock & lock
@@ -2415,6 +2487,10 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
       submit_profile_data(total_wait_cycles);
       ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
     }
+  }
+
+  if (clear_waking_des_waker) {
+    clear_waking_des_waker->scheduler_state.waking_designated_waker = false;
   }
 }
 
@@ -2765,7 +2841,9 @@ void ReleasableMutexLock::Release() {
 }
 
 #ifdef ABSL_HAVE_THREAD_SANITIZER
+#pragma GCC visibility push(default)
 extern "C" void __tsan_read1(void* addr);
+#pragma GCC visibility pop
 #else
 #define __tsan_read1(addr)  // do nothing if TSan not enabled
 #endif

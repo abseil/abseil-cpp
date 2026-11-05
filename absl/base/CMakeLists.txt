@@ -32,11 +32,38 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
+    base_cpu_detect
+  HDRS
+    "internal/cpu_detect.h"
+  SRCS
+    "internal/cpu_detect.cc"
+  DEPS
+    absl::base
+    absl::config
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
     errno_saver
   HDRS
     "internal/errno_saver.h"
   DEPS
     absl::config
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
+absl_cc_library(
+  NAME
+    hardening
+  HDRS
+    "internal/hardening.h"
+  DEPS
+    absl::config
+    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -263,6 +290,7 @@ absl_cc_library(
     "internal/unscaledcycleclock.h"
     "internal/unscaledcycleclock_config.h"
   SRCS
+    "casts.cc"
     "internal/cycleclock.cc"
     "internal/spinlock.cc"
     "internal/sysinfo.cc"
@@ -289,14 +317,13 @@ absl_cc_library(
   PUBLIC
 )
 
-# Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
     throw_delegate
   HDRS
-    "internal/throw_delegate.h"
+    "throw_delegate.h"
   SRCS
-    "internal/throw_delegate.cc"
+    "throw_delegate.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -340,9 +367,11 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
-    absl::pretty_function
+    absl::core_headers
     absl::memory
     absl::meta
+    absl::pretty_function
+    absl::string_view
     absl::strings
     absl::utility
     GTest::gtest
@@ -384,8 +413,8 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::atomic_hook_test_helper
     absl::atomic_hook
+    absl::atomic_hook_test_helper
     absl::core_headers
     GTest::gmock
     GTest::gtest_main
@@ -401,6 +430,20 @@ absl_cc_test(
   DEPS
     absl::config
     absl::core_headers
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
+    hardening_test
+  SRCS
+    "internal/hardening_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::hardening
     GTest::gtest_main
 )
 
@@ -468,8 +511,8 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
-    absl::config
     absl::base_internal
+    absl::config
     absl::core_headers
     absl::synchronization
     GTest::gtest
@@ -489,6 +532,23 @@ absl_cc_test(
     absl::base_internal
     absl::config
     absl::core_headers
+    absl::synchronization
+    GTest::gtest_main
+  SHARD_COUNT
+    4
+)
+
+absl_cc_test(
+  NAME
+    spinlock_profiling_test
+  SRCS
+    "spinlock_profiling_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::base_internal
+    absl::config
     absl::synchronization
     GTest::gtest_main
 )
@@ -559,8 +619,8 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::no_destructor
     absl::config
+    absl::no_destructor
     absl::raw_logging_internal
     GTest::gmock
     GTest::gtest_main
@@ -589,6 +649,19 @@ absl_cc_test(
   DEPS
     absl::base
     absl::synchronization
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
+    cpu_detect_test
+  SRCS
+    "internal/cpu_detect_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base_cpu_detect
+    absl::config
     GTest::gtest_main
 )
 
@@ -624,10 +697,10 @@ absl_cc_test(
 absl_cc_library(
   NAME
     scoped_set_env
-  SRCS
-    "internal/scoped_set_env.cc"
   HDRS
     "internal/scoped_set_env.h"
+  SRCS
+    "internal/scoped_set_env.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -667,6 +740,7 @@ absl_cc_test(
     absl::flags_internal
     absl::flags_marshalling
     absl::log_severity
+    absl::string_view
     absl::strings
     GTest::gmock
     GTest::gtest_main
@@ -676,10 +750,10 @@ absl_cc_test(
 absl_cc_library(
   NAME
     strerror
-  SRCS
-    "internal/strerror.cc"
   HDRS
     "internal/strerror.h"
+  SRCS
+    "internal/strerror.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -765,17 +839,16 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::core_headers
-    absl::optional
     GTest::gtest_main
 )
 
 absl_cc_library(
   NAME
     poison
-  SRCS
-    "internal/poison.cc"
   HDRS
     "internal/poison.h"
+  SRCS
+    "internal/poison.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS

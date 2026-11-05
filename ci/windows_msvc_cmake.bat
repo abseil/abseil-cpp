@@ -15,9 +15,14 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 :: The version of GoogleTest to be used in the CMake tests in this directory.
-:: Keep this in sync with the version in the WORKSPACE file.
-SET ABSL_GOOGLETEST_VERSION=1.17.0
-SET ABSL_GOOGLETEST_DOWNLOAD_URL=https://github.com/google/googletest/releases/download/v%ABSL_GOOGLETEST_VERSION%/googletest-%ABSL_GOOGLETEST_VERSION%.tar.gz
+:: Keep this in sync with the version in the MODULE.bazel file.
+SET ABSL_GOOGLETEST_VERSION=1.18.0
+
+IF EXIST %KOKORO_GFILE_DIR%\distdir\googletest-%ABSL_GOOGLETEST_VERSION%.tar.gz (
+  SET ABSL_GOOGLETEST_DOWNLOAD_URL=file://%KOKORO_GFILE_DIR%\distdir\googletest-%ABSL_GOOGLETEST_VERSION%.tar.gz
+) ELSE (
+  SET ABSL_GOOGLETEST_DOWNLOAD_URL=https://github.com/google/googletest/releases/download/v%ABSL_GOOGLETEST_VERSION%/googletest-%ABSL_GOOGLETEST_VERSION%.tar.gz
+)
 
 :: Replace '\' with '/' in Windows paths for CMake.
 :: Note that this cannot go inside the IF block above, because BAT files are weird.
@@ -35,6 +40,17 @@ SET CTEST_OUTPUT_ON_FAILURE=1
 SET CMAKE_BUILD_PARALLEL_LEVEL=16
 SET CTEST_PARALLEL_LEVEL=16
 
+:: Set the standard version, [c++17|c++latest]
+:: https://msdn.microsoft.com/en-us/library/mt490614.aspx
+:: The default is c++17 if not set on command line.
+IF NOT DEFINED STD SET STD=17
+
+IF NOT DEFINED ABSL_CMAKE_BUILD_SHARED SET ABSL_CMAKE_BUILD_SHARED=OFF
+
+IF NOT DEFINED ABSL_CMAKE_BUILD_TYPE SET ABSL_CMAKE_BUILD_TYPE=Debug
+
+IF NOT DEFINED ABSL_CMAKE_GENERATOR SET "ABSL_CMAKE_GENERATOR=Visual Studio 17 2022"
+
 :: Change directory to the root of the project.
 CD %~dp0\..
 if %errorlevel% neq 0 EXIT /B 1
@@ -48,9 +64,9 @@ SET CXXFLAGS="/WX"
 
 %CMAKE_BIN% ^
   -DABSL_BUILD_TESTING=ON ^
-  -DABSL_GOOGLETEST_DOWNLOAD_URL=%ABSL_GOOGLETEST_DOWNLOAD_URL% ^
-  -DBUILD_SHARED_LIBS=%ABSL_CMAKE_BUILD_SHARED% ^
-  -DCMAKE_CXX_STANDARD=%ABSL_CMAKE_CXX_STANDARD% ^
+  -DABSL_GOOGLETEST_DOWNLOAD_URL="%ABSL_GOOGLETEST_DOWNLOAD_URL%" ^
+  -DBUILD_SHARED_LIBS="%ABSL_CMAKE_BUILD_SHARED%" ^
+  -DCMAKE_CXX_STANDARD="%STD%" ^
   -G "%ABSL_CMAKE_GENERATOR%" ^
   ..
 IF %errorlevel% neq 0 EXIT /B 1

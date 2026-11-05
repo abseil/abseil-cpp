@@ -49,10 +49,6 @@
 //
 // Arithmetic overflows/underflows to +/- infinity and saturates.
 
-#if defined(_MSC_VER)
-#include <winsock2.h>  // for timeval
-#endif
-
 #include <algorithm>
 #include <cassert>
 #include <chrono>  // NOLINT(build/c++11)
@@ -68,10 +64,15 @@
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "absl/time/time.h"
+
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -417,9 +418,15 @@ int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
 Duration& Duration::operator+=(Duration rhs) {
   if (time_internal::IsInfiniteDuration(*this)) return *this;
   if (time_internal::IsInfiniteDuration(rhs)) return *this = rhs;
+  // Once we know the operands are finite, we can assume the low (subsecond)
+  // part of the representation is less than kTicksPerSecond.
+  ABSL_ASSUME(rep_lo_ < kTicksPerSecond);
+  ABSL_ASSUME(rhs.rep_lo_ < kTicksPerSecond);
   const int64_t orig_rep_hi = rep_hi_.Get();
   rep_hi_ = DecodeTwosComp(EncodeTwosComp(rep_hi_.Get()) +
                            EncodeTwosComp(rhs.rep_hi_.Get()));
+  // The ABSL_ASSUMEs above prevent the compiler from emitting unreachable carry
+  // logic for the next line.
   if (rep_lo_ >= kTicksPerSecond - rhs.rep_lo_) {
     rep_hi_ = DecodeTwosComp(EncodeTwosComp(rep_hi_.Get()) + 1);
     rep_lo_ -= kTicksPerSecond;
@@ -834,7 +841,7 @@ bool ConsumeDurationUnit(const char** start, const char* end, Duration* unit) {
         default:
           break;
       }
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 1:
       switch (**start) {
         case 's':
@@ -897,7 +904,16 @@ bool ParseDuration(absl::string_view dur_sv, Duration* d) {
       return false;
     }
     if (int_part != 0) dur += sign * int_part * unit;
-    if (frac_part != 0) dur += sign * frac_part * unit / frac_scale;
+    if (frac_part != 0) {
+      // Scale the unit's tick count directly rather than forming
+      // frac_part * unit as a Duration first: for a long fraction of a large
+      // unit (e.g. "0.3000000000000000h") that product saturates to infinity
+      // before the division by frac_scale can bring it back into range.
+      const uint128 ticks = MakeU128Ticks(unit) *
+                            static_cast<uint64_t>(frac_part) /
+                            static_cast<uint64_t>(frac_scale);
+      dur += MakeDurationFromU128(ticks, sign < 0);
+    }
   }
   *d = dur;
   return true;

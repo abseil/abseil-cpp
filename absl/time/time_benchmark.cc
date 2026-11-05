@@ -11,22 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <ctime>
+#include <string>
+
+#include "absl/time/civil_time.h"
+#include "absl/time/clock.h"
+#include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
+#include "benchmark/benchmark.h"
 
 #if !defined(_WIN32)
 #include <sys/time.h>
 #endif  // _WIN32
-#include <algorithm>
-#include <cmath>
-#include <cstddef>
-#include <cstring>
-#include <ctime>
-#include <memory>
-#include <string>
-
-#include "absl/time/clock.h"
-#include "absl/time/internal/test_util.h"
-#include "benchmark/benchmark.h"
 
 namespace {
 

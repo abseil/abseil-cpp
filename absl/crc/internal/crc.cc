@@ -41,12 +41,17 @@
 
 #include "absl/crc/internal/crc.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <iterator>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/prefetch.h"
 #include "absl/crc/internal/crc_internal.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -205,7 +210,7 @@ void CRC32::InitTables() {
   }
 
   int j = FillZeroesTable(kCrc32cPoly, t);
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->zeroes_)), "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->zeroes_)), "");
   for (int i = 0; i < j; i++) {
     this->zeroes_[i] = t[0][i];
   }
@@ -249,8 +254,7 @@ void CRC32::InitTables() {
   FillWordTable(kCrc32cUnextendPoly, kCrc32cUnextendPoly, 1, &reverse_table0_);
 
   j = FillZeroesTable(kCrc32cUnextendPoly, &reverse_zeroes_);
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->reverse_zeroes_)),
-                 "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->reverse_zeroes_)), "");
 }
 
 void CRC32::Extend(uint32_t* crc, const void* bytes, size_t length) const {
@@ -288,8 +292,7 @@ void CRC32::Extend(uint32_t* crc, const void* bytes, size_t length) const {
     // starting at `ptr` and twelve zero bytes, so that four CRCs can be
     // built incrementally and combined at the end.
     const auto step_swath = [this](uint32_t crc_in, const std::uint8_t* ptr) {
-      return absl::little_endian::Load32(ptr) ^
-             this->table_[3][crc_in & 0xff] ^
+      return absl::little_endian::Load32(ptr) ^ this->table_[3][crc_in & 0xff] ^
              this->table_[2][(crc_in >> 8) & 0xff] ^
              this->table_[1][(crc_in >> 16) & 0xff] ^
              this->table_[0][crc_in >> 24];
@@ -410,27 +413,41 @@ void CRC32::Scramble(uint32_t* crc) const {
   // Rotate by near half the word size plus 1.  See the scramble comment in
   // crc_internal.h for an explanation.
   constexpr int scramble_rotate = (32 / 2) + 1;
-  *crc = RotateRight<uint32_t>(static_cast<unsigned int>(*crc + kScrambleLo),
-                               32, scramble_rotate) &
-         MaskOfLength<uint32_t>(32);
+  *crc = absl::rotr(static_cast<uint32_t>(*crc + kScrambleLo), scramble_rotate);
 }
 
 void CRC32::Unscramble(uint32_t* crc) const {
   constexpr int scramble_rotate = (32 / 2) + 1;
-  uint64_t rotated = RotateRight<uint32_t>(static_cast<unsigned int>(*crc), 32,
-                                           32 - scramble_rotate);
-  *crc = (rotated - kScrambleLo) & MaskOfLength<uint32_t>(32);
+  uint64_t rotated = absl::rotl(*crc, scramble_rotate);
+  *crc = static_cast<uint32_t>(rotated - kScrambleLo);
 }
 
 // Constructor and destructor for base class CRC.
 CRC::~CRC() {}
 CRC::CRC() {}
 
+void CRC::ExtendAndCopy(uint32_t* crc, void* __restrict dst,
+                        const void* __restrict src, size_t length,
+                        bool /*non_temporal*/) const {
+  std::memcpy(dst, src, length);
+  Extend(crc, dst, length);
+}
+
 // The "constructor" for a CRC32C with a standard polynomial.
 CRC* CRC::Crc32c() {
   static CRC* singleton = CRCImpl::NewInternal();
   return singleton;
 }
+
+#ifndef NDEBUG
+ABSL_ATTRIBUTE_WEAK
+#endif
+void DebugReportNonTemporalStore() {}
+
+#ifndef NDEBUG
+ABSL_ATTRIBUTE_WEAK
+#endif
+void DebugReportStoreFence() {}
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END

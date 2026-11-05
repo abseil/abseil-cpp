@@ -19,8 +19,10 @@
 #include <cstdio>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/checker.h"
@@ -116,7 +118,7 @@ class FormatSpecTemplate
   }
 
   template <FormatConversionCharSet... C, size_t... I>
-  static bool CheckMatches(absl::index_sequence<I...>) {
+  static bool CheckMatches(std::index_sequence<I...>) {
     bool res[] = {true, CheckMatch<Args, C, I + 1>()...};
     (void)res;
     return true;
@@ -126,23 +128,17 @@ class FormatSpecTemplate
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
   // Honeypot overload for when the string is not constexpr.
-  // We use the 'unavailable' attribute to give a better compiler error than
-  // just 'method is deleted'.
   FormatSpecTemplate(...)  // NOLINT
-      __attribute__((unavailable("Format string is not constexpr.")));
+      ABSL_BAD_CALL_IF(true, "Format string is not constexpr.");
 
   // Honeypot overload for when the format is constexpr and invalid.
-  // We use the 'unavailable' attribute to give a better compiler error than
-  // just 'method is deleted'.
   // To avoid checking the format twice, we just check that the format is
   // constexpr. If it is valid, then the overload below will kick in.
   // We add the template here to make this overload have lower priority.
   template <typename = void>
   FormatSpecTemplate(const char* s)  // NOLINT
-      __attribute__((
-          enable_if(str_format_internal::EnsureConstexpr(s), "constexpr trap"),
-          unavailable(
-              "Format specified does not match the arguments passed.")));
+      ABSL_BAD_CALL_IF(str_format_internal::EnsureConstexpr(s),
+                       "Format specified does not match the arguments passed.");
 
   template <typename T = void>
   FormatSpecTemplate(string_view s)  // NOLINT
@@ -173,7 +169,7 @@ class FormatSpecTemplate
   FormatSpecTemplate(const ExtendedParsedFormat<C...>& pc)  // NOLINT
       : Base(&pc) {
     CheckArity<sizeof...(C), sizeof...(Args)>();
-    CheckMatches<C...>(absl::make_index_sequence<sizeof...(C)>{});
+    CheckMatches<C...>(std::make_index_sequence<sizeof...(C)>{});
   }
 };
 

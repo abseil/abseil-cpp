@@ -20,6 +20,21 @@
 //
 // Defines the following utilities:
 //
+//   =================
+//   ABSL_EXPECT_OK(s)
+//
+//   ABSL_ASSERT_OK(s)
+//   =================
+//   Convenience macros for `EXPECT_THAT(s, IsOk())`, where `s` is either
+//   a `Status` or a `StatusOr<T>`.
+//
+//   There are no EXPECT_NOT_OK/ASSERT_NOT_OK macros.
+//   Prefer to check for the specific expected error:
+//
+//   EXPECT_THAT(s, StatusIs(expected_error));
+//   EXPECT_THAT(s, StatusIs(_, _, HasSubstr("expected error")));
+//
+//
 //   ===============
 //   `IsOkAndHolds(m)`
 //   ===============
@@ -61,6 +76,9 @@
 //   Status s = ...;
 //   EXPECT_THAT(s, IsOk());
 //   ```
+//
+//   There is no NotOk() matcher. Prefer to check for the specific expected
+//   error.
 
 #ifndef ABSL_STATUS_STATUS_MATCHERS_H_
 #define ABSL_STATUS_STATUS_MATCHERS_H_
@@ -76,13 +94,19 @@
 namespace absl_testing {
 ABSL_NAMESPACE_BEGIN
 
+// Macros for testing the results of functions that return absl::Status or
+// absl::StatusOr<T> (for any type T).
+#define ABSL_EXPECT_OK(expression) \
+  EXPECT_THAT(expression, ::absl_testing::IsOk())
+#define ABSL_ASSERT_OK(expression) \
+  ASSERT_THAT(expression, ::absl_testing::IsOk())
+
 // Returns a gMock matcher that matches a StatusOr<> whose status is
 // OK and whose value matches the inner matcher.
 template <typename InnerMatcherT>
-status_internal::IsOkAndHoldsMatcher<typename std::decay<InnerMatcherT>::type>
-IsOkAndHolds(InnerMatcherT&& inner_matcher) {
-  return status_internal::IsOkAndHoldsMatcher<
-      typename std::decay<InnerMatcherT>::type>(
+status_internal::IsOkAndHoldsMatcher<std::decay_t<InnerMatcherT>> IsOkAndHolds(
+    InnerMatcherT&& inner_matcher) {
+  return status_internal::IsOkAndHoldsMatcher<std::decay_t<InnerMatcherT>>(
       std::forward<InnerMatcherT>(inner_matcher));
 }
 
@@ -104,13 +128,37 @@ status_internal::StatusIsMatcher StatusIs(
 // code matches code_matcher.  See above for details.
 template <typename StatusCodeMatcherT>
 status_internal::StatusIsMatcher StatusIs(StatusCodeMatcherT&& code_matcher) {
-  return StatusIs(std::forward<StatusCodeMatcherT>(code_matcher), ::testing::_);
+  return absl_testing::StatusIs(std::forward<StatusCodeMatcherT>(code_matcher),
+                                ::testing::_);
 }
 
 // Returns a gMock matcher that matches a Status or StatusOr<> which is OK.
 inline status_internal::IsOkMatcher IsOk() {
   return status_internal::IsOkMatcher();
 }
+
+// By defining ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS, this library also
+// provides unqualified versions of macros
+//
+// Unqualified macro names are likely to collide with those other projects, and
+// so are not recommended.  Further, this is true of any transitive dependency
+// of Abseil; it is impossible to be confident no downstream library will not
+// also define these macros itself nor depend on a different library that also
+// defines them.
+//
+// To enable this, define `ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS`
+// preferably at the command line, e.g.
+// `-DABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS` or
+// `local_defines = ["ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS"]` if using
+// Bazel.
+//
+// These are turned on by default inside Google's internal codebase where their
+// use is historically ubiquitous.  Other OSS Google projects should use the
+// qualified versions or the `EXPECT_THAT(..., IsOk())` form.
+#ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+#define EXPECT_OK(expression) ABSL_EXPECT_OK(expression)
+#define ASSERT_OK(expression) ABSL_ASSERT_OK(expression)
+#endif  // ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
 
 ABSL_NAMESPACE_END
 }  // namespace absl_testing

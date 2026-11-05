@@ -28,6 +28,7 @@
 #ifndef ABSL_BASE_MACROS_H_
 #define ABSL_BASE_MACROS_H_
 
+#include <atomic>
 #include <cassert>
 #include <cstddef>
 
@@ -42,6 +43,9 @@
 // Returns the number of elements in an array as a compile-time constant, which
 // can be used in defining new arrays. If you use this macro on a pointer by
 // mistake, you will get a compile-time error.
+//
+// NOTE: Avoid using this macro. Instead, use std::size(a) if possible, or
+// std::extent_v<decltype(a)> otherwise.
 #define ABSL_ARRAYSIZE(array) \
   (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
 
@@ -53,8 +57,39 @@ namespace macros_internal {
 template <typename T, size_t N>
 auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
+
+namespace base_internal {
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::nomerge)
+[[clang::nomerge]]  // Needed when this function is not inlined
+#endif
+[[noreturn]] inline void HardeningAbort() {
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::nomerge)
+  [[clang::nomerge]]  // Needed when this function is inlined
+#endif
+  ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL();
+  ABSL_INTERNAL_UNREACHABLE_IMPL();
+}
+}  // namespace base_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+// ABSL_INTERNAL_UNEVALUATED()
+//
+// Expands into a no-op expression that contains the given expression. Used to
+// avoid unused-variable warnings in configurations that don't need to evaluate
+// the given expression (e.g., NDEBUG).
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+// We use `decltype` here to avoid generating unnecessary code that the
+// optimizer then has to optimize away.
+// This not only improves compilation performance by reducing codegen bloat
+// and optimization work, but also guarantees fast run-time performance without
+// having to rely on the optimizer.
+#define ABSL_INTERNAL_UNEVALUATED(expr) (decltype((void)(expr))())
+#else
+// Pre-C++20, lambdas can't be inside unevaluated operands, so we're forced to
+// rely on the optimizer.
+#define ABSL_INTERNAL_UNEVALUATED(expr) (false ? (void)(expr) : void())
+#endif
 
 // ABSL_BAD_CALL_IF()
 //
@@ -81,10 +116,9 @@ ABSL_NAMESPACE_END
 
 // ABSL_ASSERT()
 //
-// In C++11, `assert` can't be used portably within constexpr functions.
-// `assert` also generates spurious unused-symbol warnings.
-// ABSL_ASSERT functions as a runtime assert but works in C++11 constexpr
-// functions, and maintains references to symbols.  Example:
+// `assert` generates spurious unused-symbol warnings when NDEBUG is defined.
+// ABSL_ASSERT functions as a runtime assert but maintains references to
+// symbols even under NDEBUG.  Example:
 //
 // constexpr double Divide(double a, double b) {
 //   return ABSL_ASSERT(b != 0), a / b;
@@ -93,33 +127,26 @@ ABSL_NAMESPACE_END
 // This macro is inspired by
 // https://akrzemi1.wordpress.com/2017/05/18/asserts-in-constexpr-functions/
 #if defined(NDEBUG)
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-// We use `decltype` here to avoid generating unnecessary code that the
-// optimizer then has to optimize away.
-// This not only improves compilation performance by reducing codegen bloat
-// and optimization work, but also guarantees fast run-time performance without
-// having to rely on the optimizer.
-#define ABSL_ASSERT(expr) (decltype((expr) ? void() : void())())
-#else
-// Pre-C++20, lambdas can't be inside unevaluated operands, so we're forced to
-// rely on the optimizer.
-#define ABSL_ASSERT(expr) (false ? ((expr) ? void() : void()) : void())
-#endif
+#define ABSL_ASSERT(expr) ABSL_INTERNAL_UNEVALUATED((expr) ? void() : void())
 #else
 #define ABSL_ASSERT(expr)                           \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { assert(false && #expr); }())  // NOLINT
+                             : assert(false && #expr))  // NOLINT
 #endif
 
 // `ABSL_INTERNAL_HARDENING_ABORT()` controls how `ABSL_HARDENING_ASSERT()`
 // aborts the program in release mode (when NDEBUG is defined). The
 // implementation should abort the program as quickly as possible and ideally it
 // should not be possible to ignore the abort request.
+#if defined(__CUDACC__) || defined(__CUDA_ARCH__) || defined(__CUDA__)
 #define ABSL_INTERNAL_HARDENING_ABORT()   \
   do {                                    \
     ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(); \
     ABSL_INTERNAL_UNREACHABLE_IMPL();     \
   } while (false)
+#else
+#define ABSL_INTERNAL_HARDENING_ABORT() ::absl::base_internal::HardeningAbort()
+#endif
 
 // ABSL_HARDENING_ASSERT()
 //
@@ -133,9 +160,12 @@ ABSL_NAMESPACE_END
 // See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
 // hardened mode.
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
-#define ABSL_HARDENING_ASSERT(expr)                 \
-  (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+#define ABSL_HARDENING_ASSERT(expr)    \
+  do {                                 \
+    if (!ABSL_PREDICT_TRUE((expr))) {  \
+      ABSL_INTERNAL_HARDENING_ABORT(); \
+    }                                  \
+  } while (false)
 #else
 #define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
 #endif
@@ -152,9 +182,7 @@ ABSL_NAMESPACE_END
 // See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
 // hardened mode.
 #if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
-#define ABSL_HARDENING_ASSERT_SLOW(expr)            \
-  (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+#define ABSL_HARDENING_ASSERT_SLOW(expr) ABSL_HARDENING_ASSERT(expr)
 #else
 #define ABSL_HARDENING_ASSERT_SLOW(expr) ABSL_ASSERT(expr)
 #endif
@@ -169,41 +197,81 @@ ABSL_NAMESPACE_END
 #define ABSL_INTERNAL_RETHROW do {} while (false)
 #endif  // ABSL_HAVE_EXCEPTIONS
 
-// ABSL_DEPRECATE_AND_INLINE()
+// ABSL_REFACTOR_INLINE
 //
-// Marks a function or type alias as deprecated and tags it to be picked up for
-// automated refactoring by go/cpp-inliner. It can added to inline function
-// definitions or type aliases. It should only be used within a header file. It
-// differs from `ABSL_DEPRECATED` in the following ways:
+// Marks a function or type for automated refactoring by go/cpp-inliner. It can
+// be used on inline function definitions or type aliases in header files and
+// should be combined with the `[[deprecated]]` attribute.
+//
+// Using `ABSL_REFACTOR_INLINE` differs from using the `[[deprecated]]` alone in
+// the following ways:
 //
 // 1. New uses of the function or type will be discouraged via Tricorder
 //    warnings.
 // 2. If enabled via `METADATA`, automated changes will be sent out inlining the
 //    functions's body or replacing the type where it is used.
 //
-// For example:
+// Examples:
 //
-// ABSL_DEPRECATE_AND_INLINE() inline int OldFunc(int x) {
+// [[deprecated("Use NewFunc() instead")]] ABSL_REFACTOR_INLINE
+// inline int OldFunc(int x) {
 //   return NewFunc(x, 0);
 // }
 //
-// will mark `OldFunc` as deprecated, and the go/cpp-inliner service will
-// replace calls to `OldFunc(x)` with calls to `NewFunc(x, 0)`. Once all calls
-// to `OldFunc` have been replaced, `OldFunc` can be deleted.
+// using OldType [[deprecated("Use NewType instead")]] ABSL_REFACTOR_INLINE =
+//     NewType;
+//
+// will mark `OldFunc` and `OldType` as deprecated, and the go/cpp-inliner
+// service will replace calls to `OldFunc(x)` with calls to `NewFunc(x, 0)` and
+// `OldType` with `NewType`. Once all replacements have been completed, the old
+// function or type can be deleted.
+//
+// Internal note: Clang also allows `ABSL_REFACTOR_INLINE` to be used on
+// using-declarations, but attributes on using-declarations are invalid in C++.
+// (NOTE: This note refers to `using a::b ABSL_REFACTOR_INLINE;` and not
+// `using b ABSL_REFACTOR_INLINE = a::b;`, which is OK.) Therefore:
+//
+// 1. In OSS: Do not use this on using-declarations. Such usage is invalid and
+//    unsupported usage, and may break at any time.
+// 2. In Google: Avoid such usage except as a last resort. Instead, prefer other
+//    inlining approaches (such as type aliases or forwarding functions,
+//    illustrated above) whenever possible. This is because Clang (currently)
+//    does not honor the [[deprecated]] attribute on using-declarations, and
+//    therefore cannot surface the deprecation to users in the middle of a
+//    migration.
 //
 // See go/cpp-inliner for more information.
 //
 // Note: go/cpp-inliner is Google-internal service for automated refactoring.
 // While open-source users do not have access to this service, the macro is
-// provided for compatibility, and so that users receive deprecation warnings.
-#if ABSL_HAVE_CPP_ATTRIBUTE(deprecated) && \
-    ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate)
-#define ABSL_DEPRECATE_AND_INLINE() [[deprecated, clang::annotate("inline-me")]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(deprecated)
-#define ABSL_DEPRECATE_AND_INLINE() [[deprecated]]
+// provided for compatibility.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate) && !defined(__NVCC__)
+#define ABSL_REFACTOR_INLINE                                                \
+  _Pragma("clang diagnostic push") /* Avoid errors on using-declarations */ \
+      _Pragma("clang diagnostic ignored \"-Wcxx-attribute-extension\"")     \
+          [[clang::annotate("inline-me")]] _Pragma("clang diagnostic pop")
 #else
-#define ABSL_DEPRECATE_AND_INLINE()
+#define ABSL_REFACTOR_INLINE
 #endif
+
+// ABSL_DEPRECATE_AND_INLINE()
+//
+// This is the original macro used by go/cpp-inliner that combines
+// [[deprecated]] and ABSL_REFACTOR_INLINE.
+//
+// Examples:
+//
+// ABSL_DEPRECATE_AND_INLINE() inline int OldFunc(int x) {
+//   return NewFunc(x, 0);
+// }
+//
+// using OldType ABSL_DEPRECATE_AND_INLINE() = NewType;
+//
+// The combination of `[[deprecated("Use X instead")]]` and
+// `ABSL_REFACTOR_INLINE` is preferred because it provides a more informative
+// deprecation message to developers, especially those that do not have access
+// to the automated refactoring capabilities of go/cpp-inliner.
+#define ABSL_DEPRECATE_AND_INLINE() [[deprecated]] ABSL_REFACTOR_INLINE
 
 // Requires the compiler to prove that the size of the given object is at least
 // the expected amount.

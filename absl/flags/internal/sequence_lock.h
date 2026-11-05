@@ -23,6 +23,7 @@
 #include <cassert>
 #include <cstring>
 
+#include "absl/base/config.h"
 #include "absl/base/optimization.h"
 
 namespace absl {
@@ -63,6 +64,12 @@ class SequenceLock {
   void MarkInitialized() {
     assert(lock_.load(std::memory_order_relaxed) == kUninitialized);
     lock_.store(0, std::memory_order_release);
+  }
+
+  // Returns true if the flag is either uninitialized or initialized with zero
+  // modifications.
+  bool IsUnmodified() const {
+    return lock_.load(std::memory_order_acquire) <= 0;
   }
 
   // Copy "size" bytes of data from "src" to "dst", protected as a read-side

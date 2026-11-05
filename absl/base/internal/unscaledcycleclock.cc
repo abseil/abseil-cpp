@@ -14,6 +14,9 @@
 
 #include "absl/base/internal/unscaledcycleclock.h"
 
+#include "absl/base/config.h"
+#include "absl/base/internal/unscaledcycleclock_config.h"
+
 #if ABSL_USE_UNSCALED_CYCLECLOCK
 
 #if defined(_WIN32)
@@ -62,7 +65,7 @@ double UnscaledCycleClock::Frequency() {
 
 int64_t UnscaledCycleClock::Now() {
 #ifdef __GLIBC__
-  return __ppc_get_timebase();
+  return static_cast<int64_t>(__ppc_get_timebase());
 #else
 #ifdef __powerpc64__
   int64_t tbr;
@@ -97,9 +100,12 @@ double UnscaledCycleClock::Frequency() {
   static once_flag init_timebase_frequency_once;
   static double timebase_frequency = 0.0;
   base_internal::LowLevelCallOnce(&init_timebase_frequency_once, [&]() {
-    size_t length = sizeof(timebase_frequency);
-    sysctlbyname("kern.timecounter.tc.timebase.frequency", &timebase_frequency,
-                 &length, nullptr, 0);
+    uint64_t freq = 0;
+    size_t length = sizeof(freq);
+    if (sysctlbyname("kern.timecounter.tc.timebase.frequency", &freq, &length,
+                     nullptr, 0) == 0) {
+      timebase_frequency = static_cast<double>(freq);
+    }
   });
   return timebase_frequency;
 #else

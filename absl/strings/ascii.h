@@ -52,7 +52,6 @@
 #ifndef ABSL_STRINGS_ASCII_H_
 #define ABSL_STRINGS_ASCII_H_
 
-#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <utility>
@@ -60,8 +59,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
-#include "absl/strings/internal/resize_uninitialized.h"
-#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -131,7 +128,7 @@ inline bool ascii_iscntrl(unsigned char c) {
 // ascii_isxdigit()
 //
 // Determines whether the given character can be represented as a hexadecimal
-// digit character (i.e. {0-9} or {A-F}).
+// digit character (i.e. {0-9} or {A-F} or {a-f}).
 inline bool ascii_isxdigit(unsigned char c) {
   return (ascii_internal::kPropertyBits[c] & 0x80) != 0;
 }
@@ -189,14 +186,7 @@ inline char ascii_tolower(unsigned char c) {
 void AsciiStrToLower(std::string* absl_nonnull s);
 
 // Creates a lowercase string from a given absl::string_view.
-[[nodiscard]] inline std::string AsciiStrToLower(absl::string_view s) {
-  std::string result;
-  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
-    ascii_internal::AsciiStrToLower(buf, s.data(), s.size());
-    return buf_size;
-  });
-  return result;
-}
+[[nodiscard]] std::string AsciiStrToLower(absl::string_view s);
 
 // Creates a lowercase string from a given std::string&&.
 //
@@ -220,14 +210,7 @@ inline char ascii_toupper(unsigned char c) {
 void AsciiStrToUpper(std::string* absl_nonnull s);
 
 // Creates an uppercase string from a given absl::string_view.
-[[nodiscard]] inline std::string AsciiStrToUpper(absl::string_view s) {
-  std::string result;
-  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
-    ascii_internal::AsciiStrToUpper(buf, s.data(), s.size());
-    return buf_size;
-  });
-  return result;
-}
+[[nodiscard]] std::string AsciiStrToUpper(absl::string_view s);
 
 // Creates an uppercase string from a given std::string&&.
 //
@@ -241,44 +224,27 @@ template <int&... DoNotSpecify>
 
 // Returns absl::string_view with whitespace stripped from the beginning of the
 // given string_view.
-[[nodiscard]] inline absl::string_view StripLeadingAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  auto it = std::find_if_not(str.begin(), str.end(), absl::ascii_isspace);
-  return str.substr(static_cast<size_t>(it - str.begin()));
-}
+[[nodiscard]] absl::string_view StripLeadingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from the beginning of the given string.
-inline void StripLeadingAsciiWhitespace(std::string* absl_nonnull str) {
-  auto it = std::find_if_not(str->begin(), str->end(), absl::ascii_isspace);
-  str->erase(str->begin(), it);
-}
+void StripLeadingAsciiWhitespace(std::string* absl_nonnull str);
 
 // Returns absl::string_view with whitespace stripped from the end of the given
 // string_view.
-[[nodiscard]] inline absl::string_view StripTrailingAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  auto it = std::find_if_not(str.rbegin(), str.rend(), absl::ascii_isspace);
-  return str.substr(0, static_cast<size_t>(str.rend() - it));
-}
+[[nodiscard]] absl::string_view StripTrailingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from the end of the given string
-inline void StripTrailingAsciiWhitespace(std::string* absl_nonnull str) {
-  auto it = std::find_if_not(str->rbegin(), str->rend(), absl::ascii_isspace);
-  str->erase(static_cast<size_t>(str->rend() - it));
-}
+void StripTrailingAsciiWhitespace(std::string* absl_nonnull str);
 
 // Returns absl::string_view with whitespace stripped from both ends of the
 // given string_view.
-[[nodiscard]] inline absl::string_view StripAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  return StripTrailingAsciiWhitespace(StripLeadingAsciiWhitespace(str));
-}
+[[nodiscard]] absl::string_view StripAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from both ends of the given string
-inline void StripAsciiWhitespace(std::string* absl_nonnull str) {
-  StripTrailingAsciiWhitespace(str);
-  StripLeadingAsciiWhitespace(str);
-}
+void StripAsciiWhitespace(std::string* absl_nonnull str);
 
 // Removes leading, trailing, and consecutive internal whitespace.
 void RemoveExtraAsciiWhitespace(std::string* absl_nonnull str);

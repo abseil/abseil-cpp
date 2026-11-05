@@ -22,6 +22,7 @@
 // Including this will define the __GLIBC__ macro if glibc is being
 // used.
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 
 #include "absl/base/config.h"
@@ -41,10 +42,20 @@
 
 #ifdef ABSL_HAVE_ELF_MEM_IMAGE
 
+#if __has_include(<link.h>)
 #include <link.h>  // for ElfW
+#else
+#include <elf.h>
+#endif
 
-#if defined(__FreeBSD__) && !defined(ElfW)
-#define ElfW(x) __ElfN(x)
+#ifndef ElfW
+#if defined(__FreeBSD__)
+#define ElfW(type) __ElfN(type)
+#elif __SIZEOF_POINTER__ == 8
+#define ElfW(type) Elf64_##type
+#else
+#define ElfW(type) Elf32_##type
+#endif
 #endif
 
 namespace absl {

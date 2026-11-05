@@ -29,6 +29,7 @@ load(
 
 default_package_visibility = [
     "//absl/random:__pkg__",
+    "@do_not_use_for_gloop_visibility_only//gloop/util/random:__subpackages__",
 ]
 
 package(
@@ -115,6 +116,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
+        "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/numeric:int128",
     ],
@@ -129,6 +131,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
+        "//absl/random:mocking_access",
         "//absl/utility",
     ],
 )
@@ -171,6 +174,7 @@ cc_library(
         "//absl/base:dynamic_annotations",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/types:optional",
         "//absl/types:span",
     ],
@@ -185,12 +189,14 @@ cc_library(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
         ":randen",
         ":seed_material",
+        "//absl/algorithm:container",
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -233,6 +239,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":seed_material",
+        "//absl/base:config",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
         "//absl/types:optional",
@@ -262,6 +269,7 @@ cc_library(
     deps = [
         ":fastmath",
         ":traits",
+        "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
     ],
@@ -274,7 +282,10 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = ["//absl/numeric:bits"],
+    deps = [
+        "//absl/base:config",
+        "//absl/numeric:bits",
+    ],
 )
 
 cc_library(
@@ -330,6 +341,7 @@ cc_library(
     deps = [
         ":iostream_state_saver",
         ":randen",
+        "//absl/base:config",
         "//absl/base:endian",
         "//absl/meta:type_traits",
     ],
@@ -364,8 +376,9 @@ cc_library(
     deps = [
         ":platform",
         ":randen_hwaes",
+        ":randen_hwaes_impl",
         ":randen_slow",
-        "//absl/base:raw_logging_internal",
+        "//absl/base:config",
     ],
 )
 
@@ -391,15 +404,12 @@ cc_library(
     ],
     hdrs = [
         "randen_detect.h",
-        "randen_hwaes.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
-        ":randen_hwaes_impl",
         "//absl/base:config",
-        "//absl/types:optional",
     ],
 )
 
@@ -408,6 +418,8 @@ cc_library(
     name = "randen_hwaes_impl",
     srcs = [
         "randen_hwaes.cc",
+    ],
+    hdrs = [
         "randen_hwaes.h",
     ],
     copts = ABSL_DEFAULT_COPTS + ABSL_RANDOM_RANDEN_COPTS + select({
@@ -431,6 +443,7 @@ cc_binary(
     ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/random:distributions",
     ],
@@ -455,6 +468,7 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
@@ -535,7 +549,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":explicit_seed_seq",
-        "//absl/random:seed_sequences",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -549,6 +564,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":salted_seed_seq",
+        ":seed_material",
+        "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -564,6 +581,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distribution_test_util",
+        "//absl/algorithm:container",
         "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -580,6 +598,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":fast_uniform_bits",
+        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -592,7 +611,7 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/base:fast_type_id",
-        "//absl/types:optional",
+        "//absl/random:mocking_access",
     ],
 )
 
@@ -619,8 +638,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":nonsecure_base",
+        "//absl/algorithm:container",
         "//absl/container:flat_hash_set",
-        "//absl/meta:type_traits",
         "//absl/random",
         "//absl/random:distributions",
         "//absl/synchronization",
@@ -670,7 +689,6 @@ cc_test(
     deps = [
         ":explicit_seed_seq",
         ":pcg_engine",
-        "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -688,7 +706,6 @@ cc_test(
         ":explicit_seed_seq",
         ":randen_engine",
         "//absl/log",
-        "//absl/strings",
         "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -703,7 +720,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":randen",
-        "//absl/meta:type_traits",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -718,7 +734,6 @@ cc_test(
     deps = [
         ":platform",
         ":randen_slow",
-        "//absl/base:endian",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -736,7 +751,6 @@ cc_test(
         ":randen_hwaes",
         ":randen_hwaes_impl",  # build_cleaner: keep
         "//absl/log",
-        "//absl/strings:str_format",
         "@googletest//:gtest",
     ],
 )
@@ -748,6 +762,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":traits",
         ":wide_multiply",
         "//absl/numeric:int128",
         "@googletest//:gtest",
@@ -763,6 +778,7 @@ cc_library(
     deps = [
         ":platform",
         ":randen_engine",
+        "//absl/algorithm:container",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
@@ -809,6 +825,7 @@ cc_test(
     ],
     deps = [
         ":nanobenchmark",
+        "//absl/base:config",
         "//absl/log",
         "//absl/log:check",
         "//absl/strings",
@@ -827,7 +844,6 @@ cc_test(
     tags = ABSL_RANDOM_NONPORTABLE_TAGS + ["benchmark"],
     deps = [
         ":nanobenchmark",
-        ":platform",
         ":randen",
         ":randen_engine",
         ":randen_hwaes",
