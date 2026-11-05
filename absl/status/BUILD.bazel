@@ -227,7 +227,6 @@ cc_library(
         ":statusor",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/meta:type_traits",
         "//absl/types:source_location",
     ],
 )
