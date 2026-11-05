@@ -2388,24 +2388,24 @@ constexpr size_t OptimalMemcpySizeForSooSlotTransfer(
   return 8;
 }
 
-using HashForKeyFn = size_t (*)(void* hasher, size_t seed);
-
 // Resizes SOO table to the NextCapacity(SooCapacity()) and prepares insert for
 // the given new_hash. Returns the new slot.
 // All possible template combinations are defined in cc file to improve
 // compilation time.
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
-void* GrowSooTableToNextCapacityAndPrepareInsert(
-    CommonFields& common, const PolicyFunctions& policy, void* hasher,
-    HashForKeyFn get_hash, bool force_sampling);
+void* GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
+                                                 const PolicyFunctions& policy,
+                                                 EncodedHashKey hasher,
+                                                 HashForKeyFn get_hash,
+                                                 bool force_sampling);
 
 // PrepareInsert for small tables (is_small()==true).
 // Returns the new slot.
 // Hash is only computed if the table is sampled or grew to large size
 // (is_small()==false).
 void* PrepareInsertSmallNonSoo(CommonFields& common,
-                               const PolicyFunctions& policy, void* hasher,
-                               HashForKeyFn get_hash);
+                               const PolicyFunctions& policy,
+                               EncodedHashKey hasher, HashForKeyFn get_hash);
 
 // Resizes table with allocated slots and change the table seed.
 // Tables with SOO enabled must have capacity > policy.soo_capacity.
@@ -2504,7 +2504,7 @@ void* PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
-    absl::FunctionRef<size_t(size_t)> recompute_hash);
+    EncodedHashKey hasher, HashForKeyFn recompute_hash);
 
 template <typename Policy, typename Hash, typename Eq, typename Alloc>
 struct InstantiateRawHashSet {
@@ -2769,6 +2769,15 @@ class raw_hash_set : public raw_hash_set_base {
   // be passed directly without a right shift.
   constexpr static size_t kSeedShift =
       kIsAbslHash ? 0 : HashtableInlineData::kSeedShift;
+
+  // When `kIsAbslHash` is true, `hasher` hashes `key_type` identically to
+  // `absl::Hash<key_type>` (see `GetTypeErasedApplyToSlotFn`), but may convert
+  // other lookup keys first (e.g. `const char*` for `StringHash`).
+  template <class K>
+  using HashKeyFor =
+      HashKey<hasher, absl::remove_cvref_t<K>, kIsAbslHash, kSeedShift,
+              /*kUseCanonical=*/kIsAbslHash &&
+                  std::is_same_v<absl::remove_cvref_t<K>, key_type>>;
 
   constexpr static bool SooEnabled() {
     return FitsInSooSlot(sizeof(slot_type), alignof(slot_type));
@@ -4075,14 +4084,14 @@ class raw_hash_set : public raw_hash_set_base {
     }
     constexpr bool kUseMemcpy =
         PolicyTraits::transfer_uses_memcpy() && SooEnabled();
-    using Hasher = HashKey<hasher, K, kIsAbslHash, kSeedShift>;
+    using Hasher = HashKeyFor<K>;
     Hasher hash_key{hash_ref(), key};
     slot = to_slot(
         GrowSooTableToNextCapacityAndPrepareInsert<
             kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type))
                        : 0,
-            kUseMemcpy>(common(), GetPolicyFunctions(), &hash_key,
-                        &Hasher::GetHash, force_sampling));
+            kUseMemcpy>(common(), GetPolicyFunctions(), hash_key.data(),
+                        Hasher::get_hash_fn(), force_sampling));
     return {slot, true};
   }
 
@@ -4097,10 +4106,11 @@ class raw_hash_set : public raw_hash_set_base {
         return {single_slot(), false};
       }
     }
-    using Hasher = HashKey<hasher, K, kIsAbslHash, kSeedShift>;
+    using Hasher = HashKeyFor<K>;
     Hasher hash_key{hash_ref(), key};
     return {to_slot(PrepareInsertSmallNonSoo(common(), GetPolicyFunctions(),
-                                             &hash_key, &Hasher::GetHash)),
+                                             hash_key.data(),
+                                             Hasher::get_hash_fn())),
             true};
   }
 
@@ -4131,15 +4141,17 @@ class raw_hash_set : public raw_hash_set_base {
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
         size_t target_group_offset = seq.offset();
-        void* slot =
-            SwisstableGenerationsEnabled()
-                ? PrepareInsertLargeGenerationsEnabled(
-                      common(), GetPolicyFunctions(), hash, mask_empty,
-                      target_group_offset,
-                      HashKey<hasher, absl::remove_cvref_t<K>, kIsAbslHash,
-                              kSeedShift>{hash_ref(), key})
-                : PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
-                                     mask_empty, target_group_offset);
+        void* slot;
+        if constexpr (SwisstableGenerationsEnabled()) {
+          using Hasher = HashKeyFor<K>;
+          Hasher hash_key{hash_ref(), key};
+          slot = PrepareInsertLargeGenerationsEnabled(
+              common(), GetPolicyFunctions(), hash, mask_empty,
+              target_group_offset, hash_key.data(), Hasher::get_hash_fn());
+        } else {
+          slot = PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
+                                    mask_empty, target_group_offset);
+        }
         return {to_slot(slot), true};
       }
       seq.next();
@@ -4650,18 +4662,14 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
 // Extern template instantiations reduce binary size and linker input size.
 // Function definition is in raw_hash_set.cc.
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<1, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<4, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
 #if UINTPTR_MAX == UINT64_MAX
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
 #endif
 
 extern template void

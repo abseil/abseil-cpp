@@ -1121,52 +1121,6 @@ TEST(IsUniquelyRepresentedTest, SanityTest) {
   EXPECT_FALSE(is_uniquely_represented<int*>::value);
 }
 
-TEST(CanonicalHasherTest, UniquelyRepresentedTypesShareHasher) {
-  using absl::hash_internal::CanonicalHasher;
-  enum class Enum8 : uint8_t { kA = 1 };
-  enum class Enum16 : uint16_t { kA = 1 };
-  enum class Enum32 : uint32_t { kA = 1 };
-  enum class SignedEnum32 : int32_t { kA = -1 };
-  enum class Enum64 : uint64_t { kA = 1 };
-
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<int8_t>()),
-                              absl::Hash<uint8_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<uint8_t>()),
-                              absl::Hash<uint8_t>>));
-  EXPECT_TRUE((
-      std::is_same_v<decltype(CanonicalHasher<Enum8>()), absl::Hash<uint8_t>>));
-
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<int16_t>()),
-                              absl::Hash<uint16_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<uint16_t>()),
-                              absl::Hash<uint16_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<Enum16>()),
-                              absl::Hash<uint16_t>>));
-
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<int32_t>()),
-                              absl::Hash<uint32_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<uint32_t>()),
-                              absl::Hash<uint32_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<Enum32>()),
-                              absl::Hash<uint32_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<SignedEnum32>()),
-                              absl::Hash<uint32_t>>));
-
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<int64_t>()),
-                              absl::Hash<uint64_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<uint64_t>()),
-                              absl::Hash<uint64_t>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<Enum64>()),
-                              absl::Hash<uint64_t>>));
-
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::string>()),
-                              absl::Hash<std::string>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::array<char, 3>>()),
-                              absl::Hash<std::array<char, 3>>>));
-  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::array<char, 5>>()),
-                              absl::Hash<std::array<char, 5>>>));
-}
-
 struct IntAndString {
   int i;
   std::string s;

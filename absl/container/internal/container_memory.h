@@ -28,6 +28,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/hash/hash.h"
+#include "absl/hash/internal/canonical_hash.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
@@ -592,20 +593,36 @@ struct HashElement {
   size_t seed;
 };
 
-// No arguments function hash function for a specific key.
-template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
+using EncodedHashKey = absl::hash_internal::EncodedHashKey;
+using HashForKeyFn = absl::hash_internal::HashForKeyFn;
+
+// No arguments hash function for a specific key.
+// If `kUseCanonical` is true, `Hash` must hash `Key` identically to
+// `absl::Hash<Key>`, and `CanonicalHashKey` is used so that `get_hash_fn()` is
+// shared across key types with the same canonical hasher.
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift,
+          bool kUseCanonical>
 struct HashKey {
-  size_t operator()(size_t seed) const {
-    return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
+  static size_t GetHash(EncodedHashKey data, size_t seed) {
+    const auto& self = *data.ToPtr<HashKey>();
+    return HashElement<Hash, kIsAbsl, kSeedShift>{self.hash, seed}(self.key);
   }
 
-  // Static version of the above to pass to type erased functions.
-  static size_t GetHash(void* data, size_t seed) {
-    return (*static_cast<const HashKey*>(data))(seed);
-  }
+  // `data()` and `get_hash_fn()` are passed to type erased functions.
+  EncodedHashKey data() const { return EncodedHashKey::FromPtr(this); }
+  static constexpr HashForKeyFn get_hash_fn() { return &GetHash; }
+
   ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
   type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
   type_traits_internal::AddConstRefIfExpensiveToCopy<Key> key;
+};
+
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
+struct HashKey<Hash, Key, kIsAbsl, kSeedShift, /*kUseCanonical=*/true>
+    : absl::hash_internal::CanonicalHashKey<Key> {
+  static_assert(kIsAbsl, "kUseCanonical requires kIsAbsl");
+  HashKey(const Hash&, const absl::remove_cvref_t<Key>& k)
+      : absl::hash_internal::CanonicalHashKey<Key>(k) {}
 };
 
 // Variadic arguments equality function that ignore the rest of the arguments.

@@ -158,6 +158,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "functional/internal/function_ref.h"
   "functional/overload.h"
   "hash/hash.h"
+  "hash/internal/canonical_hash.h"
   "hash/internal/city.cc"
   "hash/internal/city.h"
   "hash/internal/hash.cc"
