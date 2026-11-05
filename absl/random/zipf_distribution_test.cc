@@ -24,6 +24,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -107,6 +108,31 @@ TYPED_TEST(ZipfDistributionTypedTest, SerializeTest) {
       if (sample < sample_min) sample_min = sample;
     }
     LOG(INFO) << "Range: " << sample_min << ", " << sample_max;
+  }
+}
+
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(ZipfDistributionTypedTest, DeserializeRejectsInvalidParams) {
+  std::vector<std::string> inputs = {
+      "100 1 1",    // q == 1
+      "100 0.5 1",  // q < 1
+      "100 2 0",    // v == 0
+      "100 2 -1",   // v < 0
+  };
+  if (std::is_signed_v<TypeParam>) {
+    inputs.push_back("-5 2 1");  // k < 0
+  }
+
+  for (const std::string& input : inputs) {
+    absl::zipf_distribution<TypeParam> dist(50, 2.5, 3);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
   }
 }
 

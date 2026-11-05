@@ -84,6 +84,62 @@ TYPED_TEST(DiscreteDistributionTypeTest, ParamSerializeTest) {
   EXPECT_EQ(before, after);
 }
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged, however many weights
+// the input claims to hold.
+TYPED_TEST(DiscreteDistributionTypeTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "2 -1 2",                  // negative weight
+           "2 -1 -1",                 // normalizing would hide the signs
+           "2 0 0",                   // cannot be normalized
+           "2 1e308 1e308",           // the sum overflows
+           "1099511627776 1",         // count not backed by the input
+           "18446744073709551615 1",  // count exceeds any allocation
+       }) {
+    absl::discrete_distribution<TypeParam> dist({1.0, 3.0});
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
+// IntType limits the number of outcomes, so the weight count in the stream has
+// to be compared against that limit without truncating either value.
+TEST(DiscreteDistributionTest, DeserializeAtIntTypeLimit) {
+  const std::vector<double> weights(256, 1.0);
+  absl::discrete_distribution<uint8_t> before(weights.begin(), weights.end());
+
+  std::stringstream ss;
+  ss << before;
+  absl::discrete_distribution<uint8_t> after;
+  ss >> after;
+
+  EXPECT_FALSE(ss.fail());
+  EXPECT_EQ(before, after);
+
+  std::stringstream too_many_u8;
+  too_many_u8 << 257;
+  for (int i = 0; i < 257; ++i) too_many_u8 << " 1";
+  absl::discrete_distribution<uint8_t> dist_u8;
+  too_many_u8 >> dist_u8;
+
+  EXPECT_TRUE(too_many_u8.fail());
+  EXPECT_EQ(dist_u8, absl::discrete_distribution<uint8_t>());
+
+  std::stringstream too_many_i8;
+  too_many_i8 << 129;
+  for (int i = 0; i < 129; ++i) too_many_i8 << " 1";
+  absl::discrete_distribution<int8_t> dist_i8;
+  too_many_i8 >> dist_i8;
+
+  EXPECT_TRUE(too_many_i8.fail());
+  EXPECT_EQ(dist_i8, absl::discrete_distribution<int8_t>());
+}
+
 TYPED_TEST(DiscreteDistributionTypeTest, Constructor) {
   auto fn = [](double x) { return x; };
   {

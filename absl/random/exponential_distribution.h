@@ -157,7 +157,13 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   lambda = random_internal::read_floating_point<result_type>(is);
   if (!is.fail()) {
-    x.param(param_type(lambda));
+    if (!(lambda > 0)) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(lambda));
+    }
   }
   return is;
 }

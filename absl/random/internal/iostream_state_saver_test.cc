@@ -359,6 +359,22 @@ TEST(IOStreamStateSaver, RoundTripLongDoubles) {
   }
 }
 
+template <typename T>
+void ExpectReadFailsOnEmptyStream() {
+  std::stringstream ss;
+  const T result = absl::random_internal::read_floating_point<T>(ss);
+  EXPECT_TRUE(ss.fail());
+  EXPECT_EQ(result, T{0});
+}
+
+// Nothing is parsed from an empty stream, so the subnormal handling in
+// read_floating_point() must not clear failbit based on the destination.
+TEST(IOStreamStateSaver, ReadFloatingPointFailsOnEmptyStream) {
+  ExpectReadFailsOnEmptyStream<float>();
+  ExpectReadFailsOnEmptyStream<double>();
+  ExpectReadFailsOnEmptyStream<long double>();
+}
+
 TEST(StrToDTest, DoubleMin) {
   const char kV[] = "2.22507385850720138e-308";
   char* end;

@@ -251,7 +251,15 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   double mean = random_internal::read_floating_point<double>(is);
   if (!is.fail()) {
-    x.param(param_type(mean));
+    const double max_result =
+        static_cast<double>((std::numeric_limits<IntType>::max)());
+    if (!(mean >= 0 && mean <= max_result && mean <= 1e10)) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(mean));
+    }
   }
   return is;
 }

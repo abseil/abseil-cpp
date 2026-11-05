@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <istream>
 #include <limits>
@@ -228,16 +229,33 @@ std::basic_istream<CharT, Traits>& operator>>(
 
   size_t n;
   std::vector<double> p;
+  double sum = 0;
 
   is >> n;
   if (is.fail()) return is;
-  if (n > 0) {
-    p.reserve(n);
-    for (IntType i = 0; i < n && !is.fail(); ++i) {
-      auto tmp = random_internal::read_floating_point<double>(is);
-      if (is.fail()) return is;
-      p.push_back(tmp);
+  // A distribution over IntType holds at most max(IntType) + 1 weights.
+  if (n > 0 &&
+      static_cast<uintmax_t>(n - 1) >
+          static_cast<uintmax_t>((std::numeric_limits<IntType>::max)())) {
+    is.setstate(is.rdstate() | std::ios_base::failbit);
+    return is;
+  }
+  // `n` is only a claim until the weights have been read, so `p` is not sized
+  // from it.
+  for (size_t i = 0; i < n; ++i) {
+    auto tmp = random_internal::read_floating_point<double>(is);
+    if (is.fail()) return is;
+    if (!(tmp >= 0)) {
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+      return is;
     }
+    sum += tmp;
+    p.push_back(tmp);
+  }
+  if (n > 0 && !(sum > 0 && sum <= (std::numeric_limits<double>::max)())) {
+    // The weights cannot be normalized.
+    is.setstate(is.rdstate() | std::ios_base::failbit);
+    return is;
   }
   x.param(param_type(p.begin(), p.end()));
   return is;

@@ -262,7 +262,14 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   is >> k >> q >> v;
   if (!is.fail()) {
-    x.param(param_type(static_cast<result_type>(k), q, v));
+    const result_type k_val = static_cast<result_type>(k);
+    if (k_val < 0 || !(q > 1) || !(v > 0)) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(k_val, q, v));
+    }
   }
   return is;
 }
