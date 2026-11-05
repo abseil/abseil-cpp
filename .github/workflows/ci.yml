@@ -17,8 +17,8 @@ name: Tests
 on:
   # continuous runs
   schedule:
-    # Run every hour
-    - cron: "0 * * * *"
+    # Run every hour (staggered to avoid top-of-the-hour runner queue spikes)
+    - cron: "30 * * * *"
 
   # postsubmit runs
   push:
