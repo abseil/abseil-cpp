@@ -5526,6 +5526,71 @@ TEST(Table, GrowExtremelyLargeTable) {
   EXPECT_EQ(t.capacity(), kTargetCapacity);
 }
 
+TEST(Table, PointerConversionCount) {
+  DisableSampling();
+
+  struct Base {};
+  struct Derived : Base {};
+
+  struct ConvertibleToPtr {
+    explicit ConvertibleToPtr(Derived* v) : value(v) {}
+    ConvertibleToPtr(const ConvertibleToPtr&) = delete;
+    ConvertibleToPtr& operator=(const ConvertibleToPtr&) = delete;
+
+    operator Derived*() const {
+      ++num_conversions;
+      return value;
+    }
+
+    Derived* value;
+    mutable int num_conversions = 0;
+  };
+
+  Derived a, b, c, z;
+  absl::flat_hash_set<const Base*> t;
+
+  // Empty table: no conversion to pointer.
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 0);
+  }
+
+  // Single-element table: 1 conversion to pointer.
+  t.insert(&a);
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_NE(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&b};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+
+  // Many-element table: 1 conversion to pointer (would be 2 on hits without
+  // FindLargeKey canonicalization).
+  t.insert(&b);
+  t.insert(&c);
+  ASSERT_FALSE(RawHashSetTestOnlyAccess::GetCommon(t).is_small());
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_NE(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&z};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_FALSE(t.emplace(k).second);
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

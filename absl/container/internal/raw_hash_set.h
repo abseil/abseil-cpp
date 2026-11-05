@@ -4167,14 +4167,16 @@ class raw_hash_set : public raw_hash_set_base {
   template <class K>
   void AssertHashEqConsistent(const K& key) {
     // If the hash/eq functors are known to be consistent, then skip
-    // validation.
+    // validation. This improves debug performance, but also is important for
+    // correctness of the *ConversionCount tests, which fail if we call hash/eq
+    // on the lookup keys extra times (which triggers additional conversions).
     constexpr bool kIsStringAbslHashEq =
         std::is_same_v<hasher, absl::container_internal::StringHash> &&
         std::is_same_v<key_equal, absl::container_internal::StringEq>;
     constexpr bool kIsScalarAbslHashEq =
         std::is_scalar_v<key_type> &&
-        std::is_same_v<hasher, absl::Hash<key_type>> &&
-        std::is_same_v<key_equal, std::equal_to<key_type>>;
+        std::is_same_v<hasher, typename HashEq<key_type>::Hash> &&
+        std::is_same_v<key_equal, typename HashEq<key_type>::Eq>;
     if constexpr (kIsDebug && !kIsStringAbslHashEq && !kIsScalarAbslHashEq) {
       if (empty()) return;
       AssertHashEqConsistentImpl(common(), &hash_ref(), get_hash_slot_fn(),
@@ -4256,20 +4258,31 @@ class raw_hash_set : public raw_hash_set_base {
 
   // For string-like keys, we convert to string_view when calling find*_large()
   // operations to (a) avoid repeatedly (i) branching on SSO or (ii) calling
-  // strlen(), (b) share code between the string-like types. Note that we don't
-  // pass FindLargeKey to find*_small() to avoid unnecessarily constructing
-  // string_view for small empty tables. Note: we use type_identity_t and
-  // static_asserts to ensure that the key type in find*_large is FindLargeKey.
-  // (type_identity_t ensures that the template argument is not deduced and must
-  // be specified explicitly.)
-  template <class K>
+  // strlen(), (b) share code between the string-like types. For pointer keys,
+  // we similarly convert to `const T*` to share code between `T*`, `const T*`,
+  // and derived-pointer lookups. Note that we don't pass FindLargeKey to
+  // find*_small() to avoid unnecessarily constructing string_view for small
+  // empty tables. Note: we use type_identity_t and static_asserts to ensure
+  // that the key type in find*_large is FindLargeKey. (type_identity_t ensures
+  // that the template argument is not deduced and must be specified
+  // explicitly.)
+  template <class K, class RemoveCvrefK = absl::remove_cvref_t<K>,
+            bool IsStringHashEqAndConvertibleToStringView =
+                std::is_same_v<hasher, absl::container_internal::StringHash> &&
+                std::is_same_v<key_equal, absl::container_internal::StringEq> &&
+                std::is_convertible_v<const RemoveCvrefK&, absl::string_view>,
+            class Ptr = std::remove_pointer_t<key_type>*,
+            class ConstPtr = const std::remove_pointer_t<key_type>*,
+            bool IsPointerHashEqAndConvertibleToPtr =
+                std::is_pointer_v<key_type> &&
+                std::is_same_v<hasher, typename HashEq<Ptr>::Hash> &&
+                std::is_same_v<key_equal, typename HashEq<Ptr>::Eq> &&
+                std::is_convertible_v<const RemoveCvrefK&, ConstPtr>>
   using FindLargeKey =
       type_traits_internal::AddConstRefIfExpensiveToCopy<std::conditional_t<
-          std::is_same_v<hasher, absl::container_internal::StringHash> &&
-              std::is_same_v<key_equal, absl::container_internal::StringEq> &&
-              std::is_convertible_v<const absl::remove_cvref_t<K>&,
-                                    absl::string_view>,
-          absl::string_view, absl::remove_cvref_t<K>>>;
+          IsStringHashEqAndConvertibleToStringView, absl::string_view,
+          std::conditional_t<IsPointerHashEqAndConvertibleToPtr, ConstPtr,
+                             RemoveCvrefK>>>;
 
   bool is_soo() const { return raw_hash_set_base::is_soo<SooEnabled()>(); }
   bool is_full_soo() const {
