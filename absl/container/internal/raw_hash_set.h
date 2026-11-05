@@ -1872,6 +1872,8 @@ inline void AssertSameContainer(const ctrl_t* const& ctrl_a,
 // raw_hash_set::iterator does not evaluate sizeof(slot_type) when the value
 // type is incomplete (b/299109480).
 class HashSetIteratorBase : private HashSetIteratorGenerationInfo {
+  friend class raw_hash_set_base;
+
  public:
   // We use DefaultIterSlot() for default-constructed iterators so that
   // they can be distinguished from end iterators, which have nullptr slot_.
@@ -2529,6 +2531,150 @@ using PreferredMoveParamType = typename std::conditional_t<
         T, std::enable_if_t<!static_cast<bool>(Dummy), Alloc>>::value,
     AddConstRefIfExpensiveToMove<T>, std::add_rvalue_reference<T>>::type;
 
+// Base class of raw_hash_set for operations that only depend on CommonFields.
+//
+// Note: kSooEnabled/kSlotSize are function template parameters to support
+// incomplete `mapped_type`s (b/299109480).
+class raw_hash_set_base {
+  template <class Container, typename Enabler>
+  friend struct absl::container_internal::hashtable_debug_internal::
+      HashtableDebugAccess;
+  friend struct absl::container_internal::HashtableFreeFunctionsAccess;
+  friend struct RawHashSetTestOnlyAccess;
+
+ public:
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+
+  bool empty() const {
+    AssertNotDebugCapacity();
+    return common().empty();
+  }
+  size_t bucket_count() const { return common().capacity(); }
+  float load_factor() const {
+    const size_t cap = common().capacity();
+    return cap ? static_cast<float>(common().size()) / cap : 0.0f;
+  }
+  float max_load_factor() const { return 1.0f; }
+  void max_load_factor(float) {
+    // Does nothing.
+  }
+
+ protected:
+  // `raw_hash_set` stores `common_` at offset 0 for standard-layout while
+  // `raw_hash_set_base` accesses `CommonFields` by casting `this`.
+  CommonFields& common() { return *reinterpret_cast<CommonFields*>(this); }
+  const CommonFields& common() const {
+    return *reinterpret_cast<const CommonFields*>(this);
+  }
+
+  // For use when the capacity is potentially invalid we return
+  // HashtableCapacity directly.
+  HashtableCapacity maybe_invalid_capacity() const {
+    return common().maybe_invalid_capacity();
+  }
+
+  bool is_small() const { return common().is_small(); }
+  bool empty_when_small() const { return common().empty_when_small(); }
+
+  // Asserts that the capacity is not a sentinel invalid value.
+  void AssertNotDebugCapacity() const { common().AssertNotDebugCapacity(); }
+
+  template <bool kIsDefaultAlloc>
+  ctrl_t* control() const {
+    ctrl_t* ctrl = common().control();
+    if constexpr (kIsDefaultAlloc) {
+      // Assume that the control bytes don't alias `this`. Example benefit: when
+      // a caller mutates an element via an iterator returned by find(), the
+      // compiler can now prove that the store to the slot does not clobber
+      // CommonFields metadata (size, capacity, etc.).
+      // Example of benefitting user code:
+      //   if (auto it = m.find(k1); it != m.end()) it->second = v;
+      //   if (auto it = m.find(k2); it != m.end()) it->second = v;
+      // With this assumption, the second lookup avoids reloading capacity.
+      // Note: for custom allocators, `this` may be part of the same allocation
+      // as the control bytes so we cannot make this assumption.
+      // Note: we could move this assumption into CommonFields::control()
+      // if we template the type-erased functions on whether the allocator is
+      // default or not, but it adds a lot of complexity, and we can avoid
+      // reloads in raw_hash_set.cc functions in other ways.
+      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
+    }
+    return ctrl;
+  }
+
+  template <bool kIsDefaultAlloc>
+  void* slot_array(size_t capacity) const {
+    // Note: we don't use common().slot_array(capacity) here because it misses
+    // the separate storage assumption in control().
+    return common().slot_array(control<kIsDefaultAlloc>(), capacity);
+  }
+
+  // Prefetch the heap-allocated memory region to resolve potential TLB and
+  // cache misses. This is intended to overlap with execution of calculating the
+  // hash for a key.
+  template <bool kIsDefaultAlloc>
+  void prefetch_heap_block() const {
+    ABSL_SWISSTABLE_ASSERT(!is_small());
+#if ABSL_HAVE_BUILTIN(__builtin_prefetch) || defined(__GNUC__)
+    __builtin_prefetch(control<kIsDefaultAlloc>(), 0, 1);
+#endif
+  }
+
+  // Whether this table is in SOO mode or non-SOO mode.
+  template <bool kSooEnabled>
+  bool is_soo() const {
+    static_assert(SooCapacity() == kMaxSmallCapacity);
+    return kSooEnabled && maybe_invalid_capacity().is_small();
+  }
+  template <bool kSooEnabled>
+  bool is_full_soo() const {
+    return is_soo<kSooEnabled>() && !empty_when_small();
+  }
+
+  template <bool kSooEnabled, bool kIsDefaultAlloc>
+  void* single_slot() {
+    ABSL_SWISSTABLE_ASSERT(is_small());
+    // Note: we don't use common().single_non_soo_slot() here because it misses
+    // the separate storage assumption in control().
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(
+        kSooEnabled ? common().soo_data() : control<kIsDefaultAlloc>());
+  }
+  template <bool kSooEnabled, bool kIsDefaultAlloc>
+  const void* single_slot() const {
+    return const_cast<raw_hash_set_base*>(this)
+        ->single_slot<kSooEnabled, kIsDefaultAlloc>();
+  }
+
+  // Erases, but does not destroy, the value pointed to by `it`.
+  //
+  // This merely updates the pertinent control byte. This can be used in
+  // conjunction with Policy::transfer to move the object to another slot.
+  template <bool kSooEnabled, size_t kSlotSize, bool kIsDefaultAlloc>
+  void erase_meta_only(const HashSetIteratorBase& it) {
+    if (is_small()) {
+      erase_meta_only_small<kSooEnabled, kSlotSize>();
+      return;
+    }
+    erase_meta_only_large<kSlotSize, kIsDefaultAlloc>(it);
+  }
+  template <bool kSooEnabled, size_t kSlotSize>
+  void erase_meta_only_small() {
+    EraseMetaOnlySmall(common(), kSooEnabled, kSlotSize);
+  }
+  template <size_t kSlotSize, bool kIsDefaultAlloc>
+  void erase_meta_only_large(const HashSetIteratorBase& it) {
+    using SlotBytes = char[kSlotSize];
+    const size_t cap = common().capacity();
+    const auto* slot_ptr =
+        static_cast<const SlotBytes*>(slot_array<kIsDefaultAlloc>(cap));
+    // `it` can be non-iterable iterator, so we can't use it.control().
+    const size_t index =
+        static_cast<size_t>(static_cast<const SlotBytes*>(it.slot_) - slot_ptr);
+    EraseMetaOnlyLarge(common(), index, kSlotSize);
+  }
+};
+
 // A SwissTable.
 //
 // Policy: a policy defines how to perform different operations on
@@ -2561,7 +2707,7 @@ using PreferredMoveParamType = typename std::conditional_t<
 // This is the third element in `Params...` if it exists, or
 // Policy::DefaultAlloc otherwise.
 template <class Policy, class... Params>
-class raw_hash_set {
+class raw_hash_set : public raw_hash_set_base {
   using PolicyTraits = hash_policy_traits<Policy>;
   using Hash = GetFromListOr<typename Policy::DefaultHash, 0, Params...>;
   using Eq = GetFromListOr<typename Policy::DefaultEq, 1, Params...>;
@@ -2580,8 +2726,6 @@ class raw_hash_set {
   using init_type = typename PolicyTraits::init_type;
   using key_type = typename PolicyTraits::key_type;
   using allocator_type = Alloc;
-  using size_type = size_t;
-  using difference_type = ptrdiff_t;
   using hasher = Hash;
   using key_equal = Eq;
   using policy_type = Policy;
@@ -2645,16 +2789,6 @@ class raw_hash_set {
   constexpr static size_t MaxValidCapacity() {
     return SizeToCapacity(MaxValidSize());
   }
-
-  // Whether this table is in SOO mode or non-SOO mode.
-  bool is_soo() const {
-    static_assert(SooCapacity() == kMaxSmallCapacity);
-    return SooEnabled() && maybe_invalid_capacity().is_small();
-  }
-  bool is_full_soo() const { return is_soo() && !empty_when_small(); }
-
-  bool is_small() const { return common().is_small(); }
-  bool empty_when_small() const { return common().empty_when_small(); }
 
   // Give an early error when key_type is not hashable/eq.
   auto KeyTypeCanBeHashed(const Hash& h, const key_type& k) -> decltype(h(k));
@@ -3094,7 +3228,6 @@ class raw_hash_set {
   }
   const_iterator cend() const ABSL_ATTRIBUTE_LIFETIME_BOUND { return end(); }
 
-  bool empty() const { return !size(); }
   size_t size() const {
     AssertNotDebugCapacity();
     const size_t size = common().size();
@@ -3396,7 +3529,7 @@ class raw_hash_set {
     AssertNotDebugCapacity();
     it.assert_is_full("erase()");
     destroy(it.slot());
-    erase_meta_only(it);
+    erase_meta_only<SooEnabled(), sizeof(slot_type), kIsDefaultAlloc>(it);
   }
 
   // TODO(b/515666499): Type erase entire function or begin/end case.
@@ -3409,7 +3542,7 @@ class raw_hash_set {
     if (first == last) return last.inner_;
     if (is_small()) {
       destroy(single_slot());
-      erase_meta_only_small();
+      erase_meta_only_small<SooEnabled(), sizeof(slot_type)>();
       return end();
     }
     if (first == begin() && last == end()) {
@@ -3447,12 +3580,14 @@ class raw_hash_set {
     if (src.is_small()) {
       if (src.empty_when_small()) return;
       if (insert_slot(src.single_slot()))
-        src.erase_meta_only_small();
+        src.template erase_meta_only_small<SooEnabled(), sizeof(slot_type)>();
       return;
     }
     for (auto it = src.begin(), e = src.end(); it != e;) {
       auto next = std::next(it);
-      if (insert_slot(it.slot())) src.erase_meta_only_large(it);
+      if (insert_slot(it.slot()))
+        src.template erase_meta_only_large<sizeof(slot_type),
+                                           kIsDefaultAlloc>(it);
       it = next;
     }
   }
@@ -3470,7 +3605,8 @@ class raw_hash_set {
     position.inner_.assert_is_full("extract()");
     allocator_type alloc(char_alloc_ref());
     auto node = CommonAccess::Transfer<node_type>(alloc, position.slot());
-    erase_meta_only(position);
+    erase_meta_only<SooEnabled(), sizeof(slot_type), kIsDefaultAlloc>(
+        position.inner_);
     return node;
   }
 
@@ -3527,11 +3663,10 @@ class raw_hash_set {
   // specific benchmarks indicating its importance.
   template <class K = key_type>
   void prefetch([[maybe_unused]] const key_arg<K>& key) const {
-    if (capacity() == DefaultCapacity()) return;
+    if (is_small()) return;
     // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
     prefetch_heap_block();
-    if (is_small()) return;
     auto seq = probe(common(), hash_of(key));
     PrefetchToLocalCache(control() + seq.offset());
     PrefetchToLocalCache(slot_array(capacity()) + seq.offset());
@@ -3587,15 +3722,6 @@ class raw_hash_set {
     auto it = find(key);
     if (!it.unchecked_equals(end())) return {it, std::next(it)};
     return {it, it};
-  }
-
-  size_t bucket_count() const { return capacity(); }
-  float load_factor() const {
-    return capacity() ? static_cast<double>(size()) / capacity() : 0.0;
-  }
-  float max_load_factor() const { return 1.0f; }
-  void max_load_factor(float) {
-    // Does nothing.
   }
 
   hasher hash_function() const { return hash_ref(); }
@@ -3803,28 +3929,6 @@ class raw_hash_set {
       Destruct<SooEnabled()>(common(), GetDtorPolicy(),
                              get_dealloc_backing_array_fn(), &char_alloc_ref());
     }
-  }
-
-  // Erases, but does not destroy, the value pointed to by `it`.
-  //
-  // This merely updates the pertinent control byte. This can be used in
-  // conjunction with Policy::transfer to move the object to another place.
-  void erase_meta_only(const_iterator it) {
-    if (is_small()) {
-      erase_meta_only_small();
-      return;
-    }
-    erase_meta_only_large(it);
-  }
-  void erase_meta_only_small() {
-    EraseMetaOnlySmall(common(), SooEnabled(), sizeof(slot_type));
-  }
-  void erase_meta_only_large(const_iterator it) {
-    EraseMetaOnlyLarge(common(),
-                       // `it` can be non-iterable iterator, so we can't use
-                       // it.control().
-                       static_cast<size_t>(it.slot() - slot_array(capacity())),
-                       sizeof(slot_type));
   }
 
   template <class K>
@@ -4052,9 +4156,6 @@ class raw_hash_set {
     AssertNotDebugCapacity();
   }
 
-  // Asserts that the capacity is not a sentinel invalid value.
-  void AssertNotDebugCapacity() const { common().AssertNotDebugCapacity(); }
-
   template <class K>
   static bool equal_to_key_fn(void* set, const void* key, void* slot) {
     return static_cast<const raw_hash_set*>(set)->equal_to(
@@ -4145,12 +4246,8 @@ class raw_hash_set {
       const_iterator it) {
     return it.unchecked_deref();
   }
-  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(iterator a,
-                                                            iterator b) {
-    return a.unchecked_equals(b);
-  }
-  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(const_iterator a,
-                                                            const_iterator b) {
+  template <class Iter>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(Iter a, Iter b) {
     return a.unchecked_equals(b);
   }
 
@@ -4174,50 +4271,20 @@ class raw_hash_set {
                                     absl::string_view>,
           absl::string_view, absl::remove_cvref_t<K>>>;
 
-  // Prefetch the heap-allocated memory region to resolve potential TLB and
-  // cache misses. This is intended to overlap with execution of calculating the
-  // hash for a key.
+  bool is_soo() const { return raw_hash_set_base::is_soo<SooEnabled()>(); }
+  bool is_full_soo() const {
+    return raw_hash_set_base::is_full_soo<SooEnabled()>();
+  }
   void prefetch_heap_block() const {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
-#if ABSL_HAVE_BUILTIN(__builtin_prefetch) || defined(__GNUC__)
-    __builtin_prefetch(control(), 0, 1);
-#endif
+    raw_hash_set_base::prefetch_heap_block<kIsDefaultAlloc>();
   }
 
-  CommonFields& common() { return common_; }
-  const CommonFields& common() const { return common_; }
-
-  // For use when the capacity is potentially invalid we return
-  // HashtableCapacity directly.
-  HashtableCapacity maybe_invalid_capacity() const {
-    return common().maybe_invalid_capacity();
-  }
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
-    ctrl_t* ctrl = common().control();
-    if constexpr (kIsDefaultAlloc) {
-      // Assume that the control bytes don't alias `this`. Example benefit: when
-      // a caller mutates an element via an iterator returned by find(), the
-      // compiler can now prove that the store to the slot does not clobber
-      // CommonFields metadata (size, capacity, etc.).
-      // Example of benefitting user code:
-      //   if (auto it = m.find(k1); it != m.end()) it->second = v;
-      //   if (auto it = m.find(k2); it != m.end()) it->second = v;
-      // With this assumption, the second lookup avoids reloading capacity.
-      // Note: for custom allocators, `this` may be part of the same allocation
-      // as the control bytes so we cannot make this assumption.
-      // Note: we could move this assumption into CommonFields::control()
-      // if we template the type-erased functions on whether the allocator is
-      // default or not, but it adds a lot of complexity, and we can avoid
-      // reloads in raw_hash_set.cc functions in other ways.
-      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
-    }
-    return ctrl;
+    return raw_hash_set_base::control<kIsDefaultAlloc>();
   }
   slot_type* slot_array(size_t capacity) const {
-    // Note: we don't use common().slot_array(capacity) here because it misses
-    // the separate storage assumption in raw_hash_set::control().
-    return static_cast<slot_type*>(common().slot_array(control(), capacity));
+    return to_slot(raw_hash_set_base::slot_array<kIsDefaultAlloc>(capacity));
   }
   slot_type* soo_slot() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
@@ -4229,30 +4296,17 @@ class raw_hash_set {
         const_cast<raw_hash_set*>(this)->soo_slot());
   }
   slot_type* single_slot() {
-    ABSL_SWISSTABLE_ASSERT(is_small());
-    // Note: we don't use common().single_non_soo_slot() here because it misses
-    // the separate storage assumption in raw_hash_set::control().
-    return SooEnabled() ? soo_slot() : to_slot(control());
+    return to_slot(
+        raw_hash_set_base::single_slot<SooEnabled(), kIsDefaultAlloc>());
   }
   const slot_type* single_slot() const {
     return const_cast<raw_hash_set*>(this)->single_slot();
-  }
-  void decrement_small_size() {
-    ABSL_SWISSTABLE_ASSERT(is_small());
-    SooEnabled() ? common().set_empty_soo() : common().decrement_size();
-    if (!SooEnabled()) {
-      SanitizerPoisonObject(single_slot());
-    }
   }
   iterator single_iterator() {
     return {SooControl(), single_slot(), common().generation_ptr()};
   }
   const_iterator single_iterator() const {
     return const_cast<raw_hash_set*>(this)->single_iterator();
-  }
-  HashtablezInfoHandle infoz() {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
-    return common().infoz();
   }
 
   hasher& hash_ref() { return hash_; }
@@ -4274,9 +4328,11 @@ class raw_hash_set {
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #endif
   static constexpr size_t HasherOffset() {
+    static_assert(offsetof(raw_hash_set, common_) == 0);
     return offsetof(raw_hash_set, hash_) - offsetof(raw_hash_set, common_);
   }
   static constexpr size_t AllocOffset() {
+    static_assert(offsetof(raw_hash_set, common_) == 0);
     return offsetof(raw_hash_set, alloc_) - offsetof(raw_hash_set, common_);
   }
 #if defined(__GNUC__) || defined(__clang__)
@@ -4462,7 +4518,8 @@ struct HashtableFreeFunctionsAccess {
         return 0;
       }
       c->destroy(it.slot());
-      c->erase_meta_only_small();
+      c->template erase_meta_only_small<Set::SooEnabled(),
+                                        sizeof(typename Set::slot_type)>();
       return 1;
     }
     [[maybe_unused]] const size_t original_size_for_assert = c->size();

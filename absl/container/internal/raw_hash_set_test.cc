@@ -1391,6 +1391,39 @@ TEST(Table, EmptyFunctorOptimization) {
                        std::equal_to<absl::string_view>, std::allocator<int>>));
 }
 
+TEST(Table, StandardLayout) {
+  struct StatelessHash {
+    size_t operator()(absl::string_view) const { return 0; }
+  };
+  struct StatefulHash : StatelessHash {
+    uint64_t dummy;
+  };
+
+  // CommonFields is not standard-layout when generations are enabled because
+  // both CommonFields and its base class CommonFieldsGenerationInfoEnabled
+  // have non-static data members.
+  // TODO(b/556853247): Consider using composition with
+  // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS instead of inheritance for
+  // CommonFieldsGenerationInfo to satisfy standard layout in ASan/MSan as well.
+  const bool expected = !SwisstableGenerationsEnabled();
+  EXPECT_EQ(std::is_standard_layout_v<CommonFields>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<raw_hash_set<IntPolicy>>, expected);
+  EXPECT_EQ(
+      (std::is_standard_layout_v<
+          raw_hash_set<StringPolicy, StatelessHash,
+                       std::equal_to<absl::string_view>, std::allocator<int>>>),
+      expected);
+  EXPECT_EQ(
+      (std::is_standard_layout_v<
+          raw_hash_set<StringPolicy, StatefulHash,
+                       std::equal_to<absl::string_view>, std::allocator<int>>>),
+      expected);
+  EXPECT_EQ(std::is_standard_layout_v<IntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<SooIntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<NonSooIntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<ChangingSizeAllocIntTable>, expected);
+}
+
 TEST(InstantiateRawHashSetTest, VerifyTypes) {
   using P = ValuePolicy<int>;
   using DA = typename P::DefaultHash;
