@@ -187,6 +187,58 @@ TEST(SampleRecorderTest, Callback) {
   sampler.Unregister(info2);
 }
 
+TEST(SampleRecorderTest, ReentrantIterate) {
+  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+  SampleRecorder<Info> sampler;
+
+  Info* a = Register(&sampler, 1, 1);
+  sampler.Unregister(a);
+  a = Register(&sampler, 1, 1);
+
+  Info* b = nullptr;
+  EXPECT_EQ(sampler.Iterate([&](const Info&) {
+    if (b == nullptr) {
+      b = Register(&sampler, 2, 2);
+    }
+  }),
+            0);
+  ASSERT_NE(b, nullptr);
+
+  sampler.Unregister(b);
+  sampler.Unregister(a);
+  EXPECT_THAT(GetSizes(&sampler), IsEmpty());
+
+#if !defined(ABSL_HAVE_THREAD_SANITIZER)
+  a = Register(&sampler, 1, 1);
+  b = Register(&sampler, 2, 2);
+  sampler.Unregister(b);
+
+  Info* r1 = nullptr;
+  EXPECT_EQ(sampler.Iterate([&](const Info&) {
+    if (r1 == nullptr) {
+      r1 = Register(&sampler, 3, 3);
+    }
+  }),
+            0);
+  ASSERT_NE(r1, nullptr);
+
+  sampler.Unregister(a);
+
+  Info* r2 = nullptr;
+  EXPECT_EQ(sampler.Iterate([&](const Info&) {
+    if (r2 == nullptr) {
+      r2 = Register(&sampler, 4, 4);
+    }
+  }),
+            0);
+  ASSERT_NE(r2, nullptr);
+
+  sampler.Unregister(r1);
+  sampler.Unregister(r2);
+  EXPECT_THAT(GetSizes(&sampler), IsEmpty());
+#endif
+}
+
 }  // namespace
 }  // namespace profiling_internal
 ABSL_NAMESPACE_END
