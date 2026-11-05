@@ -3848,6 +3848,779 @@ TEST_P(CordTest, ChecksummedEmptyCord) {
   EXPECT_EQ(absl::HashOf(c3), absl::HashOf(absl::string_view()));
 }
 
+#ifndef ABSL_INTERNAL_HAVE_CLEAR_CORD_PRESERVING_CAPACITY
+#error ABSL_INTERNAL_HAVE_CLEAR_CORD_PRESERVING_CAPACITY must be defined.
+#endif
+static_assert(ABSL_INTERNAL_HAVE_CLEAR_CORD_PRESERVING_CAPACITY == 1, "");
+
+namespace {
+
+void ExpectEmptyClearedFlat(absl::Cord& mutable_cord,
+                            const char* expected_ptr) {
+  const absl::Cord& cord = mutable_cord;
+  EXPECT_TRUE(absl::CordTestPeer::IsTree(cord));
+  EXPECT_GT(cord.EstimatedMemoryUsage(), sizeof(absl::Cord));
+  EXPECT_TRUE(cord.empty());
+  EXPECT_EQ(cord.size(), 0);
+  EXPECT_EQ(cord, "");
+  EXPECT_EQ(cord, absl::Cord());
+  EXPECT_EQ(absl::Cord(), cord);
+  EXPECT_EQ(cord.Compare(""), 0);
+  EXPECT_EQ(cord.Compare(absl::Cord()), 0);
+  EXPECT_LT(cord.Compare("a"), 0);
+  EXPECT_GT(absl::Cord("a").Compare(cord), 0);
+  EXPECT_TRUE(cord.StartsWith(""));
+  EXPECT_TRUE(cord.StartsWith(absl::Cord()));
+  EXPECT_FALSE(cord.StartsWith("a"));
+  EXPECT_TRUE(cord.EndsWith(""));
+  EXPECT_TRUE(cord.EndsWith(absl::Cord()));
+  EXPECT_FALSE(cord.EndsWith("a"));
+  EXPECT_TRUE(cord.Contains(""));
+  EXPECT_TRUE(cord.Contains(absl::Cord()));
+  EXPECT_FALSE(cord.Contains("a"));
+  EXPECT_EQ(cord.Find(""), cord.char_begin());
+  EXPECT_EQ(cord.Find(absl::Cord()), cord.char_begin());
+  EXPECT_EQ(cord.Find("a"), cord.char_end());
+  ASSERT_TRUE(cord.TryFlat().has_value());
+  EXPECT_NE(cord.TryFlat()->data(), nullptr);
+  if (expected_ptr != nullptr) {
+    EXPECT_EQ(cord.TryFlat()->data(), expected_ptr);
+  }
+  EXPECT_EQ(cord.TryFlat()->size(), 0);
+  EXPECT_EQ(cord.TryFlat(), "");
+  absl::string_view flattened = mutable_cord.Flatten();
+  EXPECT_NE(flattened.data(), nullptr);
+  if (expected_ptr != nullptr) {
+    EXPECT_EQ(flattened.data(), expected_ptr);
+  }
+  EXPECT_EQ(flattened.size(), 0);
+  EXPECT_EQ(flattened, "");
+  char zero_dst = 'z';
+  std::memcpy(&zero_dst, flattened.data(), flattened.size());
+  EXPECT_EQ(zero_dst, 'z');
+  EXPECT_EQ(std::string(cord), "");
+  EXPECT_EQ(absl::StrCat(cord), "");
+  EXPECT_EQ(absl::StrCat("pre:", cord, ":post"), "pre::post");
+  EXPECT_EQ(absl::StrFormat("%v", cord), "");
+  EXPECT_EQ(absl::StrFormat("[%v]", cord), "[]");
+
+  std::string copied = "non-empty";
+  absl::CopyCordToString(cord, &copied);
+  EXPECT_EQ(copied, "");
+  copied = "prefix";
+  absl::AppendCordToString(cord, &copied);
+  EXPECT_EQ(copied, "prefix");
+  EXPECT_EQ(absl::CopyCordToSpan(cord, absl::Span<char>()), 0);
+  char span_buf[8] = {'x'};
+  EXPECT_EQ(absl::CopyCordToSpan(cord, absl::MakeSpan(span_buf)), 0);
+  EXPECT_EQ(span_buf[0], 'x');
+
+  int chunk_count = 0;
+  for (absl::string_view chunk : cord.Chunks()) {
+    static_cast<void>(chunk);
+    ++chunk_count;
+  }
+  EXPECT_EQ(chunk_count, 0);
+  EXPECT_EQ(cord.chunk_begin(), cord.chunk_end());
+  int chunk_callbacks = 0;
+  absl::CordTestPeer::ForEachChunk(
+      cord, [&](absl::string_view) { ++chunk_callbacks; });
+  EXPECT_EQ(chunk_callbacks, 0);
+
+  int char_count = 0;
+  for (char ch : cord.Chars()) {
+    static_cast<void>(ch);
+    ++char_count;
+  }
+  EXPECT_EQ(char_count, 0);
+  EXPECT_EQ(cord.char_begin(), cord.char_end());
+  auto char_it = cord.char_begin();
+  absl::Cord::Advance(&char_it, 0);
+  EXPECT_EQ(char_it, cord.char_end());
+  EXPECT_EQ(absl::Cord::AdvanceAndRead(&char_it, 0), "");
+  EXPECT_EQ(char_it, cord.char_end());
+
+  EXPECT_EQ(absl::HashOf(cord), absl::HashOf(absl::Cord()));
+  EXPECT_EQ(absl::HashOf(cord), absl::HashOf(absl::string_view()));
+}
+
+void ExpectResetToInlineEmpty(const absl::Cord& cord) {
+  EXPECT_TRUE(cord.empty());
+  EXPECT_FALSE(absl::CordTestPeer::IsTree(cord));
+  EXPECT_EQ(cord.EstimatedMemoryUsage(), sizeof(absl::Cord));
+}
+
+absl::Cord MakeClearedFlat(size_t size, const char** data_ptr = nullptr) {
+  const std::string data(size, 'a');
+  absl::Cord cord(data);
+  if (data_ptr != nullptr) *data_ptr = cord.TryFlat()->data();
+  absl::cord_internal::ClearCordPreservingCapacity(cord);
+  return cord;
+}
+
+}  // namespace
+
+TEST_P(CordTest, ClearCordPreservingCapacityBasicAndReuse) {
+  for (size_t flat_size : {size_t{16}, size_t{19}, size_t{64}, size_t{256},
+                           size_t{1024}, kMaxFlatLength}) {
+    SCOPED_TRACE(flat_size);
+    const std::string data(flat_size, 'a');
+    absl::Cord cord(data);
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(cord));
+    absl::cord_internal::CordRep* tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(tree, nullptr);
+    ASSERT_TRUE(tree->IsFlat());
+    const size_t capacity = tree->flat()->Capacity();
+    ASSERT_GE(capacity, flat_size);
+    const char* old_ptr = cord.TryFlat()->data();
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    ExpectEmptyClearedFlat(cord, old_ptr);
+
+    // Subsequent string_view assignments up to Capacity() reuse `old_ptr`.
+    std::string rewrite1(flat_size, 'b');
+    cord = absl::string_view(rewrite1);
+    ASSERT_TRUE(cord.TryFlat().has_value());
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, rewrite1);
+    EXPECT_EQ(absl::StrCat(cord), rewrite1);
+    EXPECT_EQ(absl::StrFormat("%v", cord), rewrite1);
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    std::string rewrite2(capacity, 'c');
+    cord = absl::string_view(rewrite2);
+    ASSERT_TRUE(cord.TryFlat().has_value());
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, rewrite2);
+
+    MaybeHarden(cord);
+    EXPECT_EQ(cord, rewrite2);
+  }
+}
+
+TEST(CordClearPreservingCapacityTest, DoesNotRetainOtherReps) {
+  // 1. Shared flat (refcount > 1): `copy` keeps old data, `cord` resets inline.
+  {
+    std::string payload(128, 's');
+    absl::Cord cord(payload);
+    const char* old_ptr = cord.TryFlat()->data();
+    absl::Cord copy = cord;
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    ExpectResetToInlineEmpty(cord);
+    EXPECT_EQ(copy, payload);
+    EXPECT_EQ(copy.TryFlat()->data(), old_ptr);
+  }
+
+  // 2. EXTERNAL cord: releaser runs immediately during clear.
+  {
+    bool released = false;
+    std::string external_data(64, 'e');
+    absl::Cord cord = absl::MakeCordFromExternal(
+        external_data, [&](absl::string_view) { released = true; });
+    ASSERT_FALSE(released);
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    EXPECT_TRUE(released);
+    ExpectResetToInlineEmpty(cord);
+  }
+
+  // 3. SUBSTRING cord (over external and over flat): backing node is released.
+  {
+    bool released = false;
+    std::string external_data(128, 'u');
+    absl::Cord sub;
+    {
+      absl::Cord ext = absl::MakeCordFromExternal(
+          external_data, [&](absl::string_view) { released = true; });
+      sub = ext.Subcord(8, 64);
+    }
+    ASSERT_FALSE(released);
+    absl::cord_internal::CordRep* sub_tree = absl::CordTestPeer::Tree(sub);
+    ASSERT_NE(sub_tree, nullptr);
+    ASSERT_TRUE(sub_tree->IsSubstring());
+    absl::cord_internal::ClearCordPreservingCapacity(sub);
+    EXPECT_TRUE(released);
+    ExpectResetToInlineEmpty(sub);
+
+    absl::Cord flat_sub = absl::CordTestPeer::MakeSubstring(
+        absl::Cord(std::string(64, 'f')), 4, 32);
+    absl::cord_internal::CordRep* flat_sub_tree =
+        absl::CordTestPeer::Tree(flat_sub);
+    ASSERT_NE(flat_sub_tree, nullptr);
+    ASSERT_TRUE(flat_sub_tree->IsSubstring());
+    absl::cord_internal::ClearCordPreservingCapacity(flat_sub);
+    ExpectResetToInlineEmpty(flat_sub);
+  }
+
+  // 4. BTREE cord (> kMaxFlatLength, e.g. 16 KiB).
+  {
+    const std::string btree_data(16 << 10, 't');
+    absl::Cord btree_cord(btree_data);
+    absl::cord_internal::CordRep* btree = absl::CordTestPeer::Tree(btree_cord);
+    ASSERT_NE(btree, nullptr);
+    ASSERT_TRUE(btree->IsBtree());
+    absl::cord_internal::ClearCordPreservingCapacity(btree_cord);
+    ExpectResetToInlineEmpty(btree_cord);
+  }
+
+  // 5. Large flat (> kMaxFlatSize, e.g. 32 KiB via CreateWithCustomLimit).
+  {
+    absl::CordBuffer large_buf =
+        absl::CordBuffer::CreateWithCustomLimit(64 << 10, 32 << 10);
+    const size_t fill_len = large_buf.capacity();
+    std::memset(large_buf.data(), 'L', fill_len);
+    large_buf.SetLength(fill_len);
+    absl::Cord large_flat;
+    large_flat.Append(std::move(large_buf));
+    absl::cord_internal::CordRep* large_tree =
+        absl::CordTestPeer::Tree(large_flat);
+    ASSERT_NE(large_tree, nullptr);
+    ASSERT_TRUE(large_tree->IsFlat());
+    ASSERT_GT(large_tree->flat()->AllocatedSize(),
+              absl::cord_internal::kMaxFlatSize);
+    absl::cord_internal::ClearCordPreservingCapacity(large_flat);
+    ExpectResetToInlineEmpty(large_flat);
+  }
+
+  // 6. Immortal MakeStringConstant cords (short inline and long external).
+  {
+    constexpr auto kShortConst =
+        absl::strings_internal::MakeStringConstant(ShortView{});
+    constexpr auto kLongConst =
+        absl::strings_internal::MakeStringConstant(LongView{});
+    absl::Cord c_short(kShortConst);
+    absl::Cord c_long(kLongConst);
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(c_long));
+    absl::cord_internal::ClearCordPreservingCapacity(c_short);
+    absl::cord_internal::ClearCordPreservingCapacity(c_long);
+    ExpectResetToInlineEmpty(c_short);
+    ExpectResetToInlineEmpty(c_long);
+  }
+
+  // 7. Inline cords (0..15 bytes) and CRC cords.
+  {
+    absl::Cord empty_cord;
+    absl::Cord inline_cord("0123456789abcde");
+    absl::cord_internal::ClearCordPreservingCapacity(empty_cord);
+    absl::cord_internal::ClearCordPreservingCapacity(inline_cord);
+    ExpectResetToInlineEmpty(empty_cord);
+    ExpectResetToInlineEmpty(inline_cord);
+
+    absl::Cord crc_flat(std::string(64, 'k'));
+    crc_flat.SetExpectedChecksum(12345);
+    absl::cord_internal::ClearCordPreservingCapacity(crc_flat);
+    ExpectResetToInlineEmpty(crc_flat);
+    EXPECT_FALSE(crc_flat.ExpectedChecksum().has_value());
+
+    absl::Cord crc_empty;
+    crc_empty.SetExpectedChecksum(67890);
+    absl::cord_internal::ClearCordPreservingCapacity(crc_empty);
+    ExpectResetToInlineEmpty(crc_empty);
+    EXPECT_FALSE(crc_empty.ExpectedChecksum().has_value());
+  }
+}
+
+TEST(CordClearPreservingCapacityTest, CopyMoveSwapAndExplicitClear) {
+  // Explicit Clear() releases the retained flat.
+  {
+    absl::Cord cord = MakeClearedFlat(128);
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(cord));
+    ASSERT_GT(cord.EstimatedMemoryUsage(), sizeof(absl::Cord));
+    cord.Clear();
+    ExpectResetToInlineEmpty(cord);
+  }
+
+  // Copy construction and copy assignment do NOT share the empty flat or bump
+  // its refcount, preserving unique ownership for subsequent in-place reuse.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+
+    absl::Cord copy_constructed(cord);
+    ExpectResetToInlineEmpty(copy_constructed);
+
+    absl::Cord copy_dsts[] = {
+        absl::Cord(),
+        absl::Cord("inline"),
+        absl::Cord(std::string(200, 'x')),
+        MakeClearedFlat(96),
+    };
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(copy_dsts[3]));
+    for (absl::Cord& dst : copy_dsts) {
+      dst = cord;
+      ExpectResetToInlineEmpty(dst);
+    }
+
+    absl::cord_internal::CordRep* cord_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(cord_tree, nullptr);
+    ASSERT_TRUE(cord_tree->refcount.IsOne());
+    std::string next_payload(100, 'z');
+    cord = absl::string_view(next_payload);
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, next_payload);
+  }
+
+  // Short (0..15 B) string_view assignments on a cleared Cord retain `old_ptr`,
+  // while non-cleared Cords still drop their tree and transition to inline.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(256, &old_ptr);
+
+    cord = "";
+    EXPECT_TRUE(cord.empty());
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(cord));
+    ASSERT_TRUE(cord.TryFlat().has_value());
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+
+    cord = "0123456789";
+    EXPECT_EQ(cord, "0123456789");
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(cord));
+    ASSERT_TRUE(cord.TryFlat().has_value());
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+
+    for (absl::string_view short_val : {"", "0123456789"}) {
+      absl::cord_internal::ClearCordPreservingCapacity(cord);
+      cord = short_val;
+      EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+      cord = std::string(200, 'z');
+      ASSERT_TRUE(cord.TryFlat().has_value());
+      EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+      EXPECT_EQ(cord, std::string(200, 'z'));
+    }
+
+    // Non-cleared Cords (size == 200) assigned short or empty strings (even
+    // self-aliasing views) drop their tree and become inline.
+    cord = cord.TryFlat()->substr(0, 10);
+    EXPECT_EQ(cord, std::string(10, 'z'));
+    EXPECT_FALSE(absl::CordTestPeer::IsTree(cord));
+
+    absl::Cord non_cleared(std::string(200, 'z'));
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(non_cleared));
+    non_cleared = "";
+    ExpectResetToInlineEmpty(non_cleared);
+  }
+
+  // Assigning inline/tree Cords and rvalue strings onto a cleared Cord.
+  {
+    absl::Cord c1 = MakeClearedFlat(64);
+    c1 = absl::Cord("short");
+    EXPECT_EQ(c1, "short");
+
+    absl::Cord c2 = MakeClearedFlat(64);
+    c2 = absl::Cord(std::string(200, 'b'));
+    EXPECT_EQ(c2, std::string(200, 'b'));
+
+    absl::Cord c3 = MakeClearedFlat(64);
+    c3 = std::string(2048, 'm');
+    EXPECT_EQ(c3, std::string(2048, 'm'));
+
+    // Large rvalue string with wasteful capacity (size < capacity / 2) is not
+    // stolen as external and copies into the cached flat in place.
+    const char* old_ptr = nullptr;
+    absl::Cord c4 = MakeClearedFlat(2048, &old_ptr);
+    std::string wasteful(1024, 'q');
+    wasteful.reserve(8192);
+    c4 = std::move(wasteful);
+    ASSERT_TRUE(c4.TryFlat().has_value());
+    EXPECT_EQ(c4.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(c4, std::string(1024, 'q'));
+  }
+
+  // Move construction, move assignment, and self-move assignment.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+
+    absl::Cord move_constructed(std::move(cord));
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_FALSE(absl::CordTestPeer::IsTree(cord));
+    EXPECT_TRUE(move_constructed.empty());
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(move_constructed));
+
+    absl::Cord move_assigned(std::string(256, 'q'));
+    move_assigned = std::move(move_constructed);
+    EXPECT_TRUE(move_assigned.empty());
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(move_assigned));
+
+    std::string payload(100, 'r');
+    move_assigned = absl::string_view(payload);
+    EXPECT_EQ(move_assigned.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(move_assigned, payload);
+
+    absl::Cord self_cord = MakeClearedFlat(128);
+    ASSERT_TRUE(absl::CordTestPeer::IsTree(self_cord));
+    absl::Cord& ref = self_cord;
+    self_cord = std::move(ref);
+    EXPECT_TRUE(self_cord.empty());
+    self_cord = "after_self_move";
+    EXPECT_EQ(self_cord, "after_self_move");
+  }
+
+  // Swap with empty, inline, and tree cords transfers the retained flat.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+
+    absl::Cord empty_cord;
+    cord.swap(empty_cord);
+    EXPECT_FALSE(absl::CordTestPeer::IsTree(cord));
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(empty_cord));
+
+    absl::Cord inline_cord("hello");
+    swap(empty_cord, inline_cord);
+    EXPECT_EQ(empty_cord, "hello");
+    EXPECT_TRUE(inline_cord.empty());
+
+    const std::string tree_data(512, 't');
+    absl::Cord tree_cord(tree_data);
+    swap(inline_cord, tree_cord);
+    EXPECT_EQ(inline_cord, std::string(512, 't'));
+    EXPECT_TRUE(tree_cord.empty());
+
+    std::string payload(96, 'w');
+    tree_cord = absl::string_view(payload);
+    EXPECT_EQ(tree_cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(tree_cord, payload);
+  }
+}
+
+TEST(CordClearPreservingCapacityTest, AppendAndPrepend) {
+  // Append(string_view): empty, fitting capacity (reuses old_ptr), exceeding
+  // capacity into B-tree, and 2600 B / 5000 B onto undersized or max flats.
+  {
+    absl::Cord cord(std::string(128, 'a'));
+    const char* old_ptr = cord.TryFlat()->data();
+    absl::cord_internal::CordRep* cord_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(cord_tree, nullptr);
+    ASSERT_TRUE(cord_tree->IsFlat());
+    const size_t cap = cord_tree->flat()->Capacity();
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+
+    cord.Append(absl::string_view());
+    EXPECT_TRUE(cord.empty());
+    cord.Append("hello");
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    cord.Append(std::string(cap - 5, 'x'));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord.size(), cap);
+
+    std::string extra(4096, 'y');
+    cord.Append(extra);
+    EXPECT_EQ(cord, absl::StrCat("hello", std::string(cap - 5, 'x'), extra));
+
+    const std::string s2600(2600, 'x');
+    absl::Cord small_cleared(std::string(100, 'a'));
+    absl::cord_internal::CordRep* small_tree =
+        absl::CordTestPeer::Tree(small_cleared);
+    ASSERT_NE(small_tree, nullptr);
+    ASSERT_TRUE(small_tree->IsFlat());
+    ASSERT_LT(small_tree->flat()->Capacity(), s2600.size());
+    absl::cord_internal::ClearCordPreservingCapacity(small_cleared);
+    small_cleared.Append(absl::string_view(s2600));
+    EXPECT_TRUE(small_cleared.TryFlat().has_value());
+    small_tree = absl::CordTestPeer::Tree(small_cleared);
+    ASSERT_NE(small_tree, nullptr);
+    EXPECT_TRUE(small_tree->IsFlat());
+    EXPECT_EQ(small_cleared, s2600);
+
+    const std::string s5000(5000, 'y');
+    absl::Cord small_to_btree = MakeClearedFlat(100);
+    small_to_btree.Append(absl::string_view(s5000));
+    EXPECT_EQ(small_to_btree.chunk_begin()->size(), kMaxFlatLength);
+    EXPECT_EQ(small_to_btree, s5000);
+
+    const std::string w5000(5000, 'w');
+    const char* max_ptr = nullptr;
+    absl::Cord max_cleared = MakeClearedFlat(kMaxFlatLength, &max_ptr);
+    max_cleared.Append(absl::string_view(w5000));
+    EXPECT_EQ(max_cleared.chunk_begin()->data(), max_ptr);
+    EXPECT_EQ(max_cleared.chunk_begin()->size(), kMaxFlatLength);
+    EXPECT_EQ(max_cleared, w5000);
+  }
+
+  // Append(const Cord&) and Append(Cord&&): empty, self-append, inline,
+  // fitting flat, fragmented small, larger flat, and large B-tree.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+
+    cord.Append(absl::Cord());
+    absl::Cord empty_crc;
+    empty_crc.SetExpectedChecksum(42);
+    cord.Append(empty_crc);
+    absl::Cord other_cleared = MakeClearedFlat(64);
+    cord.Append(other_cleared);
+    cord.Append(std::move(other_cleared));
+    cord.Append(cord);
+    EXPECT_TRUE(cord.empty());
+    EXPECT_TRUE(absl::CordTestPeer::IsTree(cord));
+
+    absl::Cord frag_src =
+        absl::MakeFragmentedCord({"frag_", "one_", "two_", "three"});
+    cord.Append(frag_src);
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, "frag_one_two_three");
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    cord.Append(absl::MakeFragmentedCord({"rval_", "four_", "five"}));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, "rval_four_five");
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    absl::Cord inline_src("hello ");
+    cord.Append(inline_src);
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    cord.Append(absl::Cord(std::string(32, 'f')));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    cord.Append(absl::MakeFragmentedCord({"1234", "5678"}));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, absl::StrCat("hello ", std::string(32, 'f'), "12345678"));
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    std::string medium(300, 'm');
+    cord.Append(absl::Cord(medium));
+    EXPECT_EQ(cord, medium);
+    absl::cord_internal::CordRep* medium_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(medium_tree, nullptr);
+    EXPECT_TRUE(medium_tree->IsFlat());
+
+    std::string big(16 << 10, 'B');
+    absl::Cord big_cord(big);
+    absl::Cord c_lval = MakeClearedFlat(64);
+    c_lval.Append(big_cord);
+    EXPECT_EQ(c_lval, big);
+
+    absl::Cord c_rval = MakeClearedFlat(64);
+    c_rval.Append(std::move(big_cord));
+    EXPECT_EQ(c_rval, big);
+  }
+
+  // Append(std::string&&): short, medium fitting capacity, and large.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+    cord.Append(std::string("short"));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    cord.Append(std::string(60, 'm'));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, absl::StrCat("short", std::string(60, 'm')));
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    cord.Append(std::string(4096, 'S'));
+    EXPECT_EQ(cord, std::string(4096, 'S'));
+  }
+
+  // Append(CordBuffer) and Prepend(CordBuffer): empty, inline (8 B), flat (64).
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+    cord.Append(absl::CordBuffer());
+    cord.Prepend(absl::CordBuffer());
+    EXPECT_TRUE(cord.empty());
+    cord = absl::string_view(std::string(64, 'z'));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+
+    for (bool prepend : {false, true}) {
+      SCOPED_TRACE(prepend);
+      const char* in_old_ptr = nullptr;
+      absl::Cord c_in = MakeClearedFlat(128, &in_old_ptr);
+      absl::CordBuffer in_buf = absl::CordBuffer::CreateWithDefaultLimit(8);
+      std::memcpy(in_buf.data(), "12345678", 8);
+      in_buf.SetLength(8);
+      if (prepend) {
+        c_in.Prepend(std::move(in_buf));
+      } else {
+        c_in.Append(std::move(in_buf));
+      }
+      ASSERT_TRUE(c_in.TryFlat().has_value());
+      EXPECT_EQ(c_in.TryFlat()->data(), in_old_ptr);
+      EXPECT_EQ(c_in, "12345678");
+
+      absl::Cord c_flat = MakeClearedFlat(128);
+      absl::CordBuffer flat_buf = absl::CordBuffer::CreateWithDefaultLimit(64);
+      const char* flat_buf_ptr = flat_buf.data();
+      std::memset(flat_buf.data(), 'F', 64);
+      flat_buf.SetLength(64);
+      if (prepend) {
+        c_flat.Prepend(std::move(flat_buf));
+      } else {
+        c_flat.Append(std::move(flat_buf));
+      }
+      ASSERT_TRUE(c_flat.TryFlat().has_value());
+      EXPECT_EQ(c_flat.TryFlat()->data(), flat_buf_ptr);
+      EXPECT_EQ(c_flat, std::string(64, 'F'));
+    }
+  }
+
+  // Prepend(string_view), Prepend(const Cord&), Prepend(Cord&&),
+  // Prepend(std::string&&).
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+
+    cord.Prepend(absl::string_view());
+    cord.Prepend(absl::Cord());
+    cord.Prepend(cord);
+    EXPECT_TRUE(cord.empty());
+
+    const std::string prep_sv(64, 'p');
+    cord.Prepend(absl::string_view(prep_sv));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, prep_sv);
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    cord.Prepend(absl::Cord("inline_prep"));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, "inline_prep");
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    std::string big_sv(8192, 'X');
+    cord.Prepend(big_sv);
+    EXPECT_EQ(cord, big_sv);
+
+    absl::Cord c_flat = MakeClearedFlat(64);
+    absl::Cord src_flat(std::string(200, 'Q'));
+    c_flat.Prepend(src_flat);
+    EXPECT_EQ(c_flat, std::string(200, 'Q'));
+
+    absl::Cord c_btree = MakeClearedFlat(64);
+    const std::string btree_prep(16 << 10, 'R');
+    c_btree.Prepend(absl::Cord(btree_prep));
+    EXPECT_EQ(c_btree, std::string(16 << 10, 'R'));
+
+    const char* str_ptr = nullptr;
+    absl::Cord c_str = MakeClearedFlat(128, &str_ptr);
+    c_str.Prepend(std::string(40, 's'));
+    EXPECT_EQ(c_str.TryFlat()->data(), str_ptr);
+    EXPECT_EQ(c_str, std::string(40, 's'));
+
+    absl::cord_internal::ClearCordPreservingCapacity(c_str);
+    c_str.Prepend(std::string(4096, 'L'));
+    EXPECT_EQ(c_str, std::string(4096, 'L'));
+  }
+}
+
+TEST(CordClearPreservingCapacityTest, GetAppendBufferSubcordAndCrc) {
+  // GetAppendBuffer with capacity <= cached capacity extracts `old_ptr`.
+  {
+    absl::Cord cord(std::string(128, 'a'));
+    const char* old_ptr = cord.TryFlat()->data();
+    absl::cord_internal::CordRep* cord_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(cord_tree, nullptr);
+    ASSERT_TRUE(cord_tree->IsFlat());
+    const size_t old_cap = cord_tree->flat()->Capacity();
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+
+    absl::CordBuffer buf = cord.GetAppendBuffer(64);
+    ExpectResetToInlineEmpty(cord);
+    EXPECT_EQ(buf.length(), 0);
+    EXPECT_EQ(buf.capacity(), old_cap);
+    EXPECT_EQ(buf.data(), old_ptr);
+
+    std::memset(buf.data(), 'g', 64);
+    buf.SetLength(64);
+    cord.Append(std::move(buf));
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(cord, std::string(64, 'g'));
+  }
+
+  // GetAppendBuffer(10000) and GetCustomAppendBuffer(64 << 10, 5000) on a
+  // kMaxFlatLength cached flat reuse `old_ptr`.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(kMaxFlatLength, &old_ptr);
+    absl::CordBuffer buf = cord.GetAppendBuffer(10000);
+    ExpectResetToInlineEmpty(cord);
+    EXPECT_EQ(buf.data(), old_ptr);
+    EXPECT_EQ(buf.capacity(), kMaxFlatLength);
+
+    const char* custom_ptr = nullptr;
+    absl::Cord cord2 = MakeClearedFlat(kMaxFlatLength, &custom_ptr);
+    absl::CordBuffer custom_buf = cord2.GetCustomAppendBuffer(64 << 10, 5000);
+    ExpectResetToInlineEmpty(cord2);
+    EXPECT_EQ(custom_buf.data(), custom_ptr);
+    EXPECT_EQ(custom_buf.capacity(), kMaxFlatLength);
+  }
+
+  // GetAppendBuffer(2600) on a 100-byte cached flat drops the too-small flat
+  // and allocates a single contiguous 2600+ byte buffer (no B-tree split).
+  {
+    absl::Cord cord(std::string(100, 'a'));
+    absl::cord_internal::CordRep* cord_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(cord_tree, nullptr);
+    ASSERT_TRUE(cord_tree->IsFlat());
+    ASSERT_LT(cord_tree->flat()->Capacity(), 2600);
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+
+    absl::CordBuffer buf = cord.GetAppendBuffer(2600);
+    ExpectResetToInlineEmpty(cord);
+    EXPECT_EQ(buf.length(), 0);
+    EXPECT_GE(buf.capacity(), 2600);
+
+    std::memset(buf.data(), 'B', 2600);
+    buf.SetLength(2600);
+    cord.Append(std::move(buf));
+    EXPECT_EQ(cord.size(), 2600);
+    cord_tree = absl::CordTestPeer::Tree(cord);
+    ASSERT_NE(cord_tree, nullptr);
+    EXPECT_TRUE(cord_tree->IsFlat());
+  }
+
+  // GetCustomAppendBuffer reuses when fitting and allocates large when needed.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+    absl::CordBuffer buf_fit = cord.GetCustomAppendBuffer(64 << 10, 80);
+    EXPECT_EQ(buf_fit.data(), old_ptr);
+    buf_fit.SetLength(80);
+    std::memset(buf_fit.data(), 'c', 80);
+    cord.Append(std::move(buf_fit));
+
+    absl::cord_internal::ClearCordPreservingCapacity(cord);
+    absl::CordBuffer buf_large = cord.GetCustomAppendBuffer(64 << 10, 16 << 10);
+    EXPECT_GE(buf_large.capacity(), (16 << 10) - kFlatOverhead);
+  }
+
+  // RemovePrefix(0), RemoveSuffix(0), and Subcord(0, 0).
+  {
+    absl::Cord c1 = MakeClearedFlat(64);
+    c1.RemovePrefix(0);
+    ExpectResetToInlineEmpty(c1);
+
+    absl::Cord c2 = MakeClearedFlat(64);
+    c2.RemoveSuffix(0);
+    ExpectResetToInlineEmpty(c2);
+
+    const char* old_ptr3 = nullptr;
+    absl::Cord c3 = MakeClearedFlat(64, &old_ptr3);
+    EXPECT_EQ(c3.Subcord(0, 0), "");
+    EXPECT_EQ(c3.Subcord(10, 10), "");
+    ExpectEmptyClearedFlat(c3, old_ptr3);
+  }
+
+  // SetExpectedChecksum on an empty cleared Cord replaces the empty flat with
+  // an empty CordRepCrc (child == nullptr), and GetAppendBuffer on that empty
+  // CRC-hardened Cord clears the checksum upon subsequent Append.
+  {
+    const char* old_ptr = nullptr;
+    absl::Cord cord = MakeClearedFlat(128, &old_ptr);
+    cord.SetExpectedChecksum(12345);
+    EXPECT_EQ(cord.ExpectedChecksum(), 12345);
+    ASSERT_TRUE(cord.TryFlat().has_value());
+    EXPECT_NE(cord.TryFlat()->data(), old_ptr);
+    ExpectEmptyClearedFlat(cord, /*expected_ptr=*/nullptr);
+
+    absl::CordBuffer buf = cord.GetAppendBuffer(64);
+    EXPECT_TRUE(cord.empty());
+    EXPECT_EQ(cord.ExpectedChecksum(), 12345);
+    EXPECT_GE(buf.capacity(), 64);
+    std::memset(buf.data(), 'h', 5);
+    buf.SetLength(5);
+    cord.Append(std::move(buf));
+    EXPECT_EQ(cord, "hhhhh");
+    EXPECT_EQ(cord.ExpectedChecksum(), std::nullopt);
+  }
+}
+
 // This must not be static to avoid aggressive optimizations.
 ABSL_ATTRIBUTE_WEAK
 size_t FalseReport(const absl::Cord& a, bool f);
