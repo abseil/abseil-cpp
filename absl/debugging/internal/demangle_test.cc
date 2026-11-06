@@ -2072,6 +2072,21 @@ TEST(DemangleRegression, ShortOutputBuffer) {
       absl::debugging_internal::Demangle("_ZZ2wwE", buffer, sizeof(buffer)));
 }
 
+TEST(DemangleRegression, NestedNameOverflowIsReported) {
+  // "_ZN3foo3barE" demangles to "foo::bar", which fits exactly in 9 bytes.
+  char buffer[9];
+  EXPECT_TRUE(Demangle("_ZN3foo3barE", buffer, sizeof(buffer)));
+  EXPECT_STREQ(buffer, "foo::bar");
+
+  // Any smaller buffer overflows.  A nested name used to be reported as
+  // successfully demangled anyway, with a truncated result such as "foo:",
+  // because canceling the trailing "::" separator stepped the output cursor
+  // back over the overflow marker.
+  for (size_t size = 1; size < sizeof(buffer); ++size) {
+    EXPECT_FALSE(Demangle("_ZN3foo3barE", buffer, size)) << size;
+  }
+}
+
 struct Base {
   virtual ~Base() = default;
 };
