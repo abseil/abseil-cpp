@@ -628,6 +628,7 @@ absl_cc_test(
   DEPS
     absl::container_memory
     absl::hash_policy_traits
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -654,6 +655,7 @@ absl_cc_test(
   DEPS
     absl::common_policy_traits
     absl::config
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -691,6 +693,7 @@ absl_cc_test(
     absl::config
     absl::hashtablez_sampler
     absl::random_random
+    Threads::Threads
     GTest::gmock_main
 )
 

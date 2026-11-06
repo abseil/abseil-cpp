@@ -533,6 +533,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
   SHARD_COUNT
     4
@@ -550,6 +551,7 @@ absl_cc_test(
     absl::base_internal
     absl::config
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -594,6 +596,7 @@ absl_cc_test(
   DEPS
     absl::config
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -608,6 +611,7 @@ absl_cc_test(
     absl::base
     absl::core_headers
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -649,6 +653,7 @@ absl_cc_test(
   DEPS
     absl::base
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -675,7 +680,6 @@ absl_cc_test(
   DEPS
     absl::malloc_internal
     absl::node_hash_map
-    Threads::Threads
 )
 
 absl_cc_test(
@@ -774,6 +778,7 @@ absl_cc_test(
   DEPS
     absl::strerror
     absl::strings
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
