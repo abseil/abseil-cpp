@@ -14,6 +14,7 @@
 
 #include "absl/base/internal/spinlock.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 
@@ -22,6 +23,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/cycleclock.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/internal/sysinfo.h" /* For NumCPUs() */
@@ -110,6 +112,88 @@ static void ReportLockWait(SpinLock& lock, int64_t wait_start_time,
   ABSL_TSAN_MUTEX_POST_DIVERT(&lock, 0);
 }
 
+// Target spin duration, where N is NumCPUs():
+//
+//   spin_time = latency_probe_time * kSpinProbeMultiplier / max(N, kMinCpus)
+//
+// Since `latency_probe_time` is inversely proportional to single-core speed,
+// this scales spin time inversely with total machine compute capacity, with
+// smaller hosts spinning as long as a `kMinCpus`-CPU host.
+static constexpr int kMinCpus = 64;
+static constexpr int64_t kSpinProbeMultiplier = 56;
+
+// Measures single-core integer latency via a serial chain of `steps` (> 0)
+// xorshift-multiply steps. Each step is bijective (odd SplitMix64 multiplier),
+// so `state` never reaches 0 and checking it keeps the loop from being elided.
+// Noinline so readings can't be merged or moved outside the timed region.
+ABSL_ATTRIBUTE_NOINLINE void RunLatencyProbe(int steps) {
+  uint64_t state = static_cast<uint64_t>(steps);
+  for (int i = 0; i < steps; ++i) {
+    state = (state ^ (state >> 29)) * 0xbf58476d1ce4e5b9ULL;
+  }
+  ABSL_RAW_CHECK(state != 0, "RunLatencyProbe state reached 0");
+}
+
+static int64_t MeasureMinProbeCycles(void (*probe_fn)(int steps)) {
+  // Load `kProbeSteps` through `volatile` so LTO/inlining cannot constant-fold
+  // or unroll `probe_fn` differently from the runtime spin loop.
+  volatile int volatile_steps = kProbeSteps;
+  const int steps = volatile_steps;
+  int64_t min_cycles = 0;
+  for (int reading = 0; reading < kProbeReadings; ++reading) {
+    const int64_t start = CycleClock::Now();
+    probe_fn(steps);
+    const int64_t elapsed = CycleClock::Now() - start;
+    if (elapsed > 0 && (min_cycles == 0 || elapsed < min_cycles)) {
+      min_cycles = elapsed;
+    }
+  }
+  return min_cycles;
+}
+
+int ComputeSpinIterations(int num_cpus, int64_t latency_probe_cycles,
+                          int64_t spin_probe_cycles) {
+  const int64_t target_cycles = latency_probe_cycles * kSpinProbeMultiplier /
+                                std::max(num_cpus, kMinCpus);
+  const int64_t iterations = target_cycles * kProbeSteps / spin_probe_cycles;
+  return static_cast<int>(
+      std::clamp<int64_t>(iterations, kMinSpinIterations, kMaxSpinIterations));
+}
+
+int CalibrateSpinIterations(void (*absl_nonnull spin_probe_fn)(int steps)) {
+  const int num_cpus = NumCPUs();
+  if (num_cpus <= 1) {
+    // Uniprocessors don't spin: 1 means a single attempt and is non-zero.
+    return 1;
+  }
+  const int64_t latency_probe_cycles = MeasureMinProbeCycles(&RunLatencyProbe);
+  const int64_t spin_probe_cycles = MeasureMinProbeCycles(spin_probe_fn);
+  if (latency_probe_cycles <= 0 || spin_probe_cycles <= 0) {
+    // If CycleClock fails to advance across all probe readings, permanently
+    // fall back to the minimum spin count.
+    return kMinSpinIterations;
+  }
+  return ComputeSpinIterations(num_cpus, latency_probe_cycles,
+                               spin_probe_cycles);
+}
+
+// Spins up to `iterations` times until `kSpinLockHeld` clears, returning the
+// last value read. Noinline so ProbeSpinLockLoop() times the same loop.
+ABSL_ATTRIBUTE_NOINLINE uint32_t SpinLock::SpinLockLoop(
+    const std::atomic<uint32_t>* absl_nonnull lockword, int iterations) {
+  uint32_t lock_value;
+  do {
+    lock_value = lockword->load(std::memory_order_relaxed);
+  } while ((lock_value & kSpinLockHeld) != 0 && --iterations > 0);
+  return lock_value;
+}
+
+void SpinLock::ProbeSpinLockLoop(int steps) {
+  std::atomic<uint32_t> lockword{kSpinLockHeld};
+  ABSL_RAW_CHECK(SpinLockLoop(&lockword, steps) == kSpinLockHeld,
+                 "SpinLockLoop cleared held lockword");
+}
+
 // Monitor the lock to see if its value changes within some time period
 // (adaptive_spin_count_ loop iterations). The last value read from the lock
 // is returned from the method.
@@ -117,22 +201,12 @@ ABSL_CONST_INIT std::atomic<int> SpinLock::adaptive_spin_count_{0};
 uint32_t SpinLock::SpinLoop() {
   // We are already in the slow path of SpinLock, initialize the
   // adaptive_spin_count here.
-  if (adaptive_spin_count_.load(std::memory_order_relaxed) == 0) {
-    int current_spin_count = 0;
-    int new_spin_count = NumCPUs() > 1 ? 1000 : 1;
-    // If this fails, the value will remain unchanged. We may not spin for the
-    // intended duration, but that is still safe. We will try again on the next
-    // call to SpinLoop.
-    adaptive_spin_count_.compare_exchange_weak(
-        current_spin_count, new_spin_count, std::memory_order_relaxed,
-        std::memory_order_relaxed);
-  }
   int c = adaptive_spin_count_.load(std::memory_order_relaxed);
-  uint32_t lock_value;
-  do {
-    lock_value = lockword_.load(std::memory_order_relaxed);
-  } while ((lock_value & kSpinLockHeld) != 0 && --c > 0);
-  return lock_value;
+  if (c == 0) {
+    c = CalibrateSpinIterations(&ProbeSpinLockLoop);
+    adaptive_spin_count_.store(c, std::memory_order_relaxed);
+  }
+  return SpinLockLoop(&lockword_, c);
 }
 
 void SpinLock::SlowLock() {
