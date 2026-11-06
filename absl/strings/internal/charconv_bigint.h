@@ -135,6 +135,27 @@ class BigUnsigned {
     }
   }
 
+  // Multiplies by v and adds addend in-place.
+  void MultiplyAdd(uint32_t v, uint32_t addend) {
+    if (size_ == 0) {
+      if (addend != 0) {
+        words_[0] = addend;
+        size_ = 1;
+      }
+      return;
+    }
+    const uint64_t factor = v;
+    uint64_t window = addend;
+    for (int i = 0; i < size_; ++i) {
+      window += factor * words_[i];
+      words_[i] = window & 0xffffffff;
+      window >>= 32;
+    }
+    if (window && size_ < max_words) {
+      words_[size_] = window & 0xffffffff;
+      ++size_;
+    }
+  }
 
   // Multiplies by v in-place.
   void MultiplyBy(uint32_t v) {
@@ -160,23 +181,49 @@ class BigUnsigned {
   }
 
   void MultiplyBy(uint64_t v) {
-    uint32_t words[2];
-    words[0] = static_cast<uint32_t>(v);
-    words[1] = static_cast<uint32_t>(v >> 32);
-    if (words[1] == 0) {
-      MultiplyBy(words[0]);
-    } else {
-      MultiplyBy(2, words);
+    if (size_ == 0 || v == 1) {
+      return;
     }
+    if (v == 0) {
+      SetToZero();
+      return;
+    }
+    if ((v >> 32) == 0) {
+      MultiplyBy(static_cast<uint32_t>(v));
+      return;
+    }
+#ifdef __SIZEOF_INT128__
+    const __uint128_t factor = v;
+    __uint128_t window = 0;
+    for (int i = 0; i < size_; ++i) {
+      window += factor * words_[i];
+      words_[i] = static_cast<uint32_t>(window);
+      window >>= 32;
+    }
+    uint64_t carry = static_cast<uint64_t>(window);
+    while (carry && size_ < max_words) {
+      words_[size_] = static_cast<uint32_t>(carry);
+      ++size_;
+      carry >>= 32;
+    }
+#else
+    uint32_t words[2] = {static_cast<uint32_t>(v),
+                         static_cast<uint32_t>(v >> 32)};
+    MultiplyBy(2, words);
+#endif
   }
 
   // Multiplies in place by 5 to the power of n.  n must be non-negative.
   void MultiplyByFiveToTheNth(int n) {
-    while (n >= kMaxSmallPowerOfFive) {
-      MultiplyBy(kFiveToNth[kMaxSmallPowerOfFive]);
-      n -= kMaxSmallPowerOfFive;
+    while (n >= 2 * kMaxSmallPowerOfFive) {
+      MultiplyBy(uint64_t{kFiveToNth[kMaxSmallPowerOfFive]} *
+                 kFiveToNth[kMaxSmallPowerOfFive]);
+      n -= 2 * kMaxSmallPowerOfFive;
     }
-    if (n > 0) {
+    if (n > kMaxSmallPowerOfFive) {
+      MultiplyBy(uint64_t{kFiveToNth[kMaxSmallPowerOfFive]} *
+                 kFiveToNth[n - kMaxSmallPowerOfFive]);
+    } else if (n > 0) {
       MultiplyBy(kFiveToNth[n]);
     }
   }
@@ -361,14 +408,25 @@ class BigUnsigned {
 // Returns -1 if lhs < rhs, 0 if lhs == rhs, and 1 if lhs > rhs.
 template <int N, int M>
 int Compare(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
-  int limit = (std::max)(lhs.size(), rhs.size());
-  for (int i = limit - 1; i >= 0; --i) {
-    const uint32_t lhs_word = lhs.GetWord(i);
-    const uint32_t rhs_word = rhs.GetWord(i);
-    if (lhs_word < rhs_word) {
-      return -1;
-    } else if (lhs_word > rhs_word) {
+  const int lhs_size = lhs.size();
+  const int rhs_size = rhs.size();
+  const uint32_t* lhs_words = lhs.words();
+  const uint32_t* rhs_words = rhs.words();
+  for (int i = lhs_size - 1; i >= rhs_size; --i) {
+    if (lhs_words[i] != 0) {
       return 1;
+    }
+  }
+  for (int i = rhs_size - 1; i >= lhs_size; --i) {
+    if (rhs_words[i] != 0) {
+      return -1;
+    }
+  }
+  for (int i = (std::min)(lhs_size, rhs_size) - 1; i >= 0; --i) {
+    const uint32_t lhs_word = lhs_words[i];
+    const uint32_t rhs_word = rhs_words[i];
+    if (lhs_word != rhs_word) {
+      return lhs_word < rhs_word ? -1 : 1;
     }
   }
   return 0;
@@ -376,13 +434,7 @@ int Compare(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
 
 template <int N, int M>
 bool operator==(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
-  int limit = (std::max)(lhs.size(), rhs.size());
-  for (int i = 0; i < limit; ++i) {
-    if (lhs.GetWord(i) != rhs.GetWord(i)) {
-      return false;
-    }
-  }
-  return true;
+  return Compare(lhs, rhs) == 0;
 }
 
 template <int N, int M>

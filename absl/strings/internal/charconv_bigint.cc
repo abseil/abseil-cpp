@@ -21,6 +21,7 @@
 #include <string>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/endian.h"
 #include "absl/strings/internal/charconv_parse.h"
 
 namespace absl {
@@ -237,9 +238,34 @@ int BigUnsigned<max_words>::ReadDigits(const char* begin, const char* end,
 
   uint32_t queued = 0;
   int digits_queued = 0;
-  for (; begin != end && significant_digits > 0; ++begin) {
+  for (; begin != end && significant_digits > 0;) {
+    if (digits_queued == 0) {
+      while (end - begin >= 9 && significant_digits > 9) {
+        uint64_t chunk = little_endian::Load64(begin);
+        uint64_t d = chunk - 0x3030303030303030ULL;
+        uint32_t d8 = static_cast<unsigned char>(begin[8]) - '0';
+        if (((d | (d + 0x7676767676767676ULL)) & 0x8080808080808080ULL) != 0 ||
+            d8 >= 10) {
+          break;
+        }
+        d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+        d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+        uint32_t val9 =
+            static_cast<uint32_t>((d * 42949672960001ULL) >> 32) * 10u + d8;
+        MultiplyAdd(kTenToNth[kMaxSmallPowerOfTen], val9);
+        significant_digits -= 9;
+        if (after_decimal_point) {
+          exponent_adjust -= 9;
+        }
+        begin += 9;
+      }
+      if (begin == end) {
+        break;
+      }
+    }
     if (*begin == '.') {
       after_decimal_point = true;
+      ++begin;
       continue;
     }
     if (after_decimal_point) {
@@ -262,16 +288,15 @@ int BigUnsigned<max_words>::ReadDigits(const char* begin, const char* end,
     }
     queued = 10 * queued + static_cast<uint32_t>(digit);
     ++digits_queued;
+    ++begin;
     if (digits_queued == kMaxSmallPowerOfTen) {
-      MultiplyBy(kTenToNth[kMaxSmallPowerOfTen]);
-      AddWithCarry(0, queued);
+      MultiplyAdd(kTenToNth[kMaxSmallPowerOfTen], queued);
       queued = digits_queued = 0;
     }
   }
   // Encode any remaining digits.
   if (digits_queued) {
-    MultiplyBy(kTenToNth[digits_queued]);
-    AddWithCarry(0, queued);
+    MultiplyAdd(kTenToNth[digits_queued], queued);
   }
 
   // If any insignificant digits remain, we will drop them.  But if we have not

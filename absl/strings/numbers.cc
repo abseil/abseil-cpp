@@ -23,6 +23,7 @@
 #include <cfloat>  // for DBL_DIG and FLT_DIG
 #include <clocale>  // for localeconv
 #include <cmath>   // for HUGE_VAL
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +31,7 @@
 #include <iterator>
 #include <limits>
 #include <system_error>  // NOLINT(build/c++11)
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -51,34 +53,40 @@ ABSL_NAMESPACE_BEGIN
 
 bool SimpleAtof(absl::string_view str, float* absl_nonnull out) {
   *out = 0.0;
-  str = StripAsciiWhitespace(str);
-  if (str.empty()) {
+  if (!str.empty() &&
+      ABSL_PREDICT_FALSE(static_cast<unsigned char>(str.front()) <= ' ' ||
+                         static_cast<unsigned char>(str.back()) <= ' ')) {
+    str = StripAsciiWhitespace(str);
+  }
+  if (ABSL_PREDICT_FALSE(str.empty())) {
     // absl::from_chars doesn't accept empty strings.
     return false;
   }
   // std::from_chars doesn't accept an initial +, but SimpleAtof does, so if one
   // is present, skip it, while avoiding accepting "+-0" as valid.
-  if (str[0] == '+') {
+  if (ABSL_PREDICT_FALSE(str[0] == '+')) {
     str.remove_prefix(1);
     if (str.empty() || str[0] == '-') {
       return false;
     }
   }
   auto result = absl::from_chars(str.data(), str.data() + str.size(), *out);
-  if (result.ec == std::errc::invalid_argument) {
-    return false;
-  }
-  if (result.ptr != str.data() + str.size()) {
+  if (ABSL_PREDICT_FALSE(result.ptr != str.data() + str.size())) {
     // not all non-whitespace characters consumed
     return false;
   }
   // from_chars() with DR 3081's current wording will return max() on
   // overflow.  SimpleAtof returns infinity instead.
-  if (result.ec == std::errc::result_out_of_range) {
-    if (*out > 1.0) {
-      *out = std::numeric_limits<float>::infinity();
-    } else if (*out < -1.0) {
-      *out = -std::numeric_limits<float>::infinity();
+  if (ABSL_PREDICT_FALSE(result.ec != std::errc())) {
+    if (result.ec == std::errc::invalid_argument) {
+      return false;
+    }
+    if (result.ec == std::errc::result_out_of_range) {
+      if (*out > 1.0) {
+        *out = std::numeric_limits<float>::infinity();
+      } else if (*out < -1.0) {
+        *out = -std::numeric_limits<float>::infinity();
+      }
     }
   }
   return true;
@@ -86,34 +94,40 @@ bool SimpleAtof(absl::string_view str, float* absl_nonnull out) {
 
 bool SimpleAtod(absl::string_view str, double* absl_nonnull out) {
   *out = 0.0;
-  str = StripAsciiWhitespace(str);
-  if (str.empty()) {
+  if (!str.empty() &&
+      ABSL_PREDICT_FALSE(static_cast<unsigned char>(str.front()) <= ' ' ||
+                         static_cast<unsigned char>(str.back()) <= ' ')) {
+    str = StripAsciiWhitespace(str);
+  }
+  if (ABSL_PREDICT_FALSE(str.empty())) {
     // absl::from_chars doesn't accept empty strings.
     return false;
   }
   // std::from_chars doesn't accept an initial +, but SimpleAtod does, so if one
   // is present, skip it, while avoiding accepting "+-0" as valid.
-  if (str[0] == '+') {
+  if (ABSL_PREDICT_FALSE(str[0] == '+')) {
     str.remove_prefix(1);
     if (str.empty() || str[0] == '-') {
       return false;
     }
   }
   auto result = absl::from_chars(str.data(), str.data() + str.size(), *out);
-  if (result.ec == std::errc::invalid_argument) {
-    return false;
-  }
-  if (result.ptr != str.data() + str.size()) {
+  if (ABSL_PREDICT_FALSE(result.ptr != str.data() + str.size())) {
     // not all non-whitespace characters consumed
     return false;
   }
   // from_chars() with DR 3081's current wording will return max() on
   // overflow.  SimpleAtod returns infinity instead.
-  if (result.ec == std::errc::result_out_of_range) {
-    if (*out > 1.0) {
-      *out = std::numeric_limits<double>::infinity();
-    } else if (*out < -1.0) {
-      *out = -std::numeric_limits<double>::infinity();
+  if (ABSL_PREDICT_FALSE(result.ec != std::errc())) {
+    if (result.ec == std::errc::invalid_argument) {
+      return false;
+    }
+    if (result.ec == std::errc::result_out_of_range) {
+      if (*out > 1.0) {
+        *out = std::numeric_limits<double>::infinity();
+      } else if (*out < -1.0) {
+        *out = -std::numeric_limits<double>::infinity();
+      }
     }
   }
   return true;
@@ -181,8 +195,7 @@ constexpr uint64_t kDivisionBy100Div = 1 << 20;
 inline char* EncodeHundred(uint32_t n, char* absl_nonnull out_str) {
   int num_digits = static_cast<int>(n - 10) >> 8;
   uint32_t div10 = (n * kDivisionBy10Mul) / kDivisionBy10Div;
-  uint32_t mod10 = n - 10u * div10;
-  uint32_t base = kTwoZeroBytes + div10 + (mod10 << 8);
+  uint32_t base = kTwoZeroBytes + (n << 8) - div10 * ((10u << 8) - 1);
   base >>= num_digits & 8;
   little_endian::Store16(out_str, static_cast<uint16_t>(base));
   return out_str + 2 + num_digits;
@@ -195,11 +208,10 @@ inline char* EncodeTenThousand(uint32_t n, char* absl_nonnull out_str) {
   // parallel". Then we combine both results to have both ASCII digits,
   // strip trailing zeros, add ASCII '0000' and return.
   uint32_t div100 = (n * kDivisionBy100Mul) / kDivisionBy100Div;
-  uint32_t mod100 = n - 100ull * div100;
-  uint32_t hundreds = (mod100 << 16) + div100;
+  uint32_t hundreds = (n << 16) - div100 * ((100u << 16) - 1);
   uint32_t tens = (hundreds * kDivisionBy10Mul) / kDivisionBy10Div;
   tens &= (0xFull << 16) | 0xFull;
-  tens += (hundreds - 10ull * tens) << 8;
+  tens = (hundreds << 8) - tens * ((10u << 8) - 1);
   ABSL_ASSUME(tens != 0);
   // The result can contain trailing zero bits, we need to strip them to a first
   // significant byte in a final representation. For example, for n = 123, we
@@ -231,17 +243,14 @@ inline char* EncodeTenThousand(uint32_t n, char* absl_nonnull out_str) {
 inline uint64_t PrepareEightDigits(uint32_t i) {
   ABSL_ASSUME(i < 10000'0000);
   // Prepare 2 blocks of 4 digits "in parallel".
-  uint32_t hi = i / 10000;
-  uint32_t lo = i % 10000;
-  uint64_t merged = hi | (uint64_t{lo} << 32);
+  uint64_t hi = (uint64_t{i} * 109951163ull) >> 40;
+  uint64_t merged = (uint64_t{i} << 32) - hi * ((10000ull << 32) - 1);
   uint64_t div100 = ((merged * kDivisionBy100Mul) / kDivisionBy100Div) &
                     ((0x7Full << 32) | 0x7Full);
-  uint64_t mod100 = merged - 100ull * div100;
-  uint64_t hundreds = (mod100 << 16) + div100;
+  uint64_t hundreds = (merged << 16) - div100 * ((100ull << 16) - 1);
   uint64_t tens = (hundreds * kDivisionBy10Mul) / kDivisionBy10Div;
   tens &= (0xFull << 48) | (0xFull << 32) | (0xFull << 16) | 0xFull;
-  tens += (hundreds - 10ull * tens) << 8;
-  return tens;
+  return (hundreds << 8) - tens * ((10ull << 8) - 1);
 }
 
 
@@ -284,16 +293,18 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline char* absl_nonnull EncodeFullU64(
   if (i <= std::numeric_limits<uint32_t>::max()) {
     return EncodeFullU32(static_cast<uint32_t>(i), buffer);
   }
-  uint32_t mod08;
-  if (i < 1'0000'0000'0000'0000ull) {
-    uint32_t div08 = static_cast<uint32_t>(i / 100'000'000ull);
-    mod08 = static_cast<uint32_t>(i % 100'000'000ull);
-    buffer = EncodeFullU32(div08, buffer);
+  uint64_t div08 = i / 100'000'000ull;
+  uint32_t mod08 =
+      static_cast<uint32_t>(i) - static_cast<uint32_t>(div08) * 100'000'000u;
+  if (div08 < 100'000'000ull) {
+    uint64_t top = PrepareEightDigits(static_cast<uint32_t>(div08));
+    ABSL_ASSUME(top != 0);
+    uint32_t zeroes = static_cast<uint32_t>(absl::countr_zero(top)) & (0 - 8u);
+    little_endian::Store64(buffer, (top + kEightZeroBytes) >> zeroes);
+    buffer += sizeof(top) - zeroes / 8;
   } else {
-    uint64_t div08 = i / 100'000'000ull;
-    mod08 = static_cast<uint32_t>(i % 100'000'000ull);
-    uint32_t div016 = static_cast<uint32_t>(div08 / 100'000'000ull);
-    uint32_t div08mod08 = static_cast<uint32_t>(div08 % 100'000'000ull);
+    uint32_t div016 = static_cast<uint32_t>(div08 >> 8) / 390625u;
+    uint32_t div08mod08 = static_cast<uint32_t>(div08) - div016 * 100'000'000u;
     uint64_t mid_result = PrepareEightDigits(div08mod08) + kEightZeroBytes;
     buffer = EncodeTenThousand(div016, buffer);
     little_endian::Store64(buffer, mid_result);
@@ -332,10 +343,8 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline char* absl_nonnull EncodeFullU128(
 
 void numbers_internal::PutTwoDigits(uint32_t i, char* absl_nonnull buf) {
   assert(i < 100);
-  uint32_t base = kTwoZeroBytes;
   uint32_t div10 = (i * kDivisionBy10Mul) / kDivisionBy10Div;
-  uint32_t mod10 = i - 10u * div10;
-  base += div10 + (mod10 << 8);
+  uint32_t base = kTwoZeroBytes + (i << 8) - div10 * ((10u << 8) - 1);
   little_endian::Store16(buf, static_cast<uint16_t>(base));
 }
 
@@ -1187,7 +1196,7 @@ static constexpr std::array<int8_t, 256> kAsciiToInt = {
     36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36};
 
 // Parse the sign and optional hex or oct prefix in text.
-inline bool safe_parse_sign_and_base(
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool safe_parse_sign_and_base(
     absl::string_view* absl_nonnull text /*inout*/,
     int* absl_nonnull base_ptr /*inout*/,
     bool* absl_nonnull negative_ptr /*output*/) {
@@ -1200,13 +1209,17 @@ inline bool safe_parse_sign_and_base(
   int base = *base_ptr;
 
   // Consume whitespace.
-  while (start < end &&
-         absl::ascii_isspace(static_cast<unsigned char>(start[0]))) {
-    ++start;
-  }
-  while (start < end &&
-         absl::ascii_isspace(static_cast<unsigned char>(end[-1]))) {
-    --end;
+  if (start < end &&
+      ABSL_PREDICT_FALSE(static_cast<unsigned char>(start[0]) <= ' ' ||
+                         static_cast<unsigned char>(end[-1]) <= ' ')) {
+    while (start < end &&
+           absl::ascii_isspace(static_cast<unsigned char>(start[0]))) {
+      ++start;
+    }
+    while (start < end &&
+           absl::ascii_isspace(static_cast<unsigned char>(end[-1]))) {
+      --end;
+    }
   }
   if (start >= end) {
     return false;
@@ -1225,7 +1238,18 @@ inline bool safe_parse_sign_and_base(
   //  base 0: "0x" -> base 16, "0" -> base 8, default -> base 10
   //  base 16: "0x" -> base 16
   // Also validate the base.
-  if (base == 0) {
+  if (base == 10) {
+    // Fast path for base 10.
+  } else if (base == 16) {
+    if (end - start >= 2 && start[0] == '0' &&
+        (start[1] == 'x' || start[1] == 'X')) {
+      start += 2;
+      if (start >= end) {
+        // "0x" with no digits after is invalid.
+        return false;
+      }
+    }
+  } else if (base == 0) {
     if (end - start >= 2 && start[0] == '0' &&
         (start[1] == 'x' || start[1] == 'X')) {
       base = 16;
@@ -1239,15 +1263,6 @@ inline bool safe_parse_sign_and_base(
       start += 1;
     } else {
       base = 10;
-    }
-  } else if (base == 16) {
-    if (end - start >= 2 && start[0] == '0' &&
-        (start[1] == 'x' || start[1] == 'X')) {
-      start += 2;
-      if (start >= end) {
-        // "0x" with no digits after is invalid.
-        return false;
-      }
     }
   } else if (base >= 2 && base <= 36) {
     // okay
@@ -1474,19 +1489,168 @@ ABSL_CONST_INIT const IntType LookupTables<IntType>::kVminOverBase[] =
 #undef X_OVER_BASE_INITIALIZER
 
 template <typename IntType>
-inline bool safe_parse_positive_int(absl::string_view text, int base,
-                                    IntType* absl_nonnull value_p) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool safe_parse_positive_int(
+    absl::string_view text, int base, IntType* absl_nonnull value_p) {
   IntType value = 0;
   const IntType vmax = std::numeric_limits<IntType>::max();
   assert(vmax > 0);
   assert(base >= 0);
   const IntType base_inttype = static_cast<IntType>(base);
   assert(vmax >= base_inttype);
+  const char* start = text.data();
+  const char* end = start + text.size();
+  if constexpr (sizeof(IntType) == 4 || sizeof(IntType) == 8) {
+    if (base == 10) {
+      constexpr ptrdiff_t kMaxSafeDigits =
+          std::numeric_limits<IntType>::digits10;
+      if (ABSL_PREDICT_FALSE(end - start > kMaxSafeDigits)) {
+        while (start < end && *start == '0') {
+          ++start;
+        }
+      }
+      const char* safe_end =
+          (end - start > kMaxSafeDigits) ? start + kMaxSafeDigits : end;
+      if constexpr (sizeof(IntType) == 8) {
+        while (safe_end - start >= 8) {
+          uint64_t chunk = little_endian::Load64(start);
+          uint64_t d = chunk - 0x3030303030303030ULL;
+          if (ABSL_PREDICT_FALSE(((d | (d + 0x7676767676767676ULL)) &
+                                  0x8080808080808080ULL) != 0)) {
+            break;
+          }
+          d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+          d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+          uint32_t chunk_val =
+              static_cast<uint32_t>((d * 42949672960001ULL) >> 32);
+          value = value * 100000000 + static_cast<IntType>(chunk_val);
+          start += 8;
+        }
+      } else {
+        if (safe_end - start >= 8) {
+          uint64_t chunk = little_endian::Load64(start);
+          uint64_t d = chunk - 0x3030303030303030ULL;
+          if (ABSL_PREDICT_TRUE(((d | (d + 0x7676767676767676ULL)) &
+                                 0x8080808080808080ULL) == 0)) {
+            d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+            d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+            uint32_t chunk_val =
+                static_cast<uint32_t>((d * 42949672960001ULL) >> 32);
+            value = static_cast<IntType>(chunk_val);
+            start += 8;
+          }
+        }
+      }
+      if (safe_end - start >= 4) {
+        uint32_t chunk = little_endian::Load32(start);
+        uint32_t d = chunk - 0x30303030U;
+        if (ABSL_PREDICT_TRUE(((d | (d + 0x76767676U)) & 0x80808080U) == 0)) {
+          d = ((d * 2561U) >> 8) & 0x00ff00ffU;
+          uint32_t chunk_val = (d * 6553601U) >> 16;
+          value = value * 10000 + static_cast<IntType>(chunk_val);
+          start += 4;
+        }
+      }
+      while (start < safe_end) {
+        uint32_t digit = static_cast<unsigned char>(*start) - '0';
+        if (ABSL_PREDICT_FALSE(digit >= 10)) {
+          *value_p = value;
+          return false;
+        }
+        value = value * 10 + static_cast<IntType>(digit);
+        ++start;
+      }
+      if (ABSL_PREDICT_TRUE(start == end)) {
+        *value_p = value;
+        return true;
+      }
+      constexpr IntType kVmaxOver10 = vmax / 10;
+      for (; start < end; ++start) {
+        uint32_t digit = static_cast<unsigned char>(*start) - '0';
+        if (digit >= 10) {
+          *value_p = value;
+          return false;
+        }
+        if (value > kVmaxOver10) {
+          *value_p = vmax;
+          return false;
+        }
+        value *= 10;
+        if (value > vmax - static_cast<IntType>(digit)) {
+          *value_p = vmax;
+          return false;
+        }
+        value += static_cast<IntType>(digit);
+      }
+      *value_p = value;
+      return true;
+    } else if (base == 16) {
+      constexpr ptrdiff_t kMaxSafeHexDigits =
+          std::numeric_limits<IntType>::digits / 4;
+      if (ABSL_PREDICT_FALSE(end - start > kMaxSafeHexDigits)) {
+        while (start < end && *start == '0') {
+          ++start;
+        }
+      }
+      const char* safe_end =
+          (end - start > kMaxSafeHexDigits) ? start + kMaxSafeHexDigits : end;
+      if constexpr (sizeof(IntType) == 8) {
+        while (safe_end - start >= 8) {
+          uint64_t c = big_endian::Load64(start);
+          uint64_t d = (c | 0x8080808080808080ULL) - 0x3030303030303030ULL;
+          uint64_t is_dec = d & (0xb9b9b9b9b9b9b9b9ULL - c);
+          uint64_t u = c | 0x2020202020202020ULL;
+          uint64_t is_hex =
+              ((u | 0x8080808080808080ULL) - 0x6161616161616161ULL) &
+              (0xe6e6e6e6e6e6e6e6ULL - u);
+          if (ABSL_PREDICT_FALSE(
+                  (((is_dec | is_hex) & ~c) & 0x8080808080808080ULL) !=
+                  0x8080808080808080ULL)) {
+            break;
+          }
+          uint64_t n = (c + ((c >> 6) & 0x0101010101010101ULL) * 9) &
+                       0x0f0f0f0f0f0f0f0fULL;
+          n = (n | (n >> 4)) & 0x00ff00ff00ff00ffULL;
+          n = (n | (n >> 8)) & 0x0000ffff0000ffffULL;
+          uint32_t chunk_val = static_cast<uint32_t>(n | (n >> 16));
+          value = (value << 32) | static_cast<IntType>(chunk_val);
+          start += 8;
+        }
+      }
+      while (safe_end - start >= 4) {
+        uint32_t d0 = static_cast<uint8_t>(
+            kAsciiToInt[static_cast<unsigned char>(start[0])]);
+        uint32_t d1 = static_cast<uint8_t>(
+            kAsciiToInt[static_cast<unsigned char>(start[1])]);
+        uint32_t d2 = static_cast<uint8_t>(
+            kAsciiToInt[static_cast<unsigned char>(start[2])]);
+        uint32_t d3 = static_cast<uint8_t>(
+            kAsciiToInt[static_cast<unsigned char>(start[3])]);
+        if (ABSL_PREDICT_FALSE((d0 | d1 | d2 | d3) >= 16)) {
+          break;
+        }
+        value = (value << 16) |
+                static_cast<IntType>((d0 << 12) | (d1 << 8) | (d2 << 4) | d3);
+        start += 4;
+      }
+      while (start < safe_end) {
+        uint32_t digit = static_cast<uint8_t>(
+            kAsciiToInt[static_cast<unsigned char>(*start)]);
+        if (ABSL_PREDICT_FALSE(digit >= 16)) {
+          *value_p = value;
+          return false;
+        }
+        value = (value << 4) | static_cast<IntType>(digit);
+        ++start;
+      }
+      if (ABSL_PREDICT_TRUE(start == end)) {
+        *value_p = value;
+        return true;
+      }
+    }
+  }
   const IntType vmax_over_base = LookupTables<IntType>::kVmaxOverBase[base];
   assert(base < 2 ||
          std::numeric_limits<IntType>::max() / base_inttype == vmax_over_base);
-  const char* start = text.data();
-  const char* end = start + text.size();
   // loop over digits
   for (; start < end; ++start) {
     unsigned char c = static_cast<unsigned char>(start[0]);
@@ -1511,12 +1675,103 @@ inline bool safe_parse_positive_int(absl::string_view text, int base,
 }
 
 template <typename IntType>
-inline bool safe_parse_negative_int(absl::string_view text, int base,
-                                    IntType* absl_nonnull value_p) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool safe_parse_negative_int(
+    absl::string_view text, int base, IntType* absl_nonnull value_p) {
   IntType value = 0;
   const IntType vmin = std::numeric_limits<IntType>::min();
   assert(vmin < 0);
   assert(vmin <= 0 - base);
+  const char* start = text.data();
+  const char* end = start + text.size();
+  if constexpr (sizeof(IntType) == 4 || sizeof(IntType) == 8) {
+    if (base == 10) {
+      using UnsignedType = std::make_unsigned_t<IntType>;
+      constexpr ptrdiff_t kMaxSafeDigits =
+          std::numeric_limits<IntType>::digits10;
+      if (ABSL_PREDICT_FALSE(end - start > kMaxSafeDigits)) {
+        while (start < end && *start == '0') {
+          ++start;
+        }
+      }
+      const char* safe_end =
+          (end - start > kMaxSafeDigits) ? start + kMaxSafeDigits : end;
+      UnsignedType uval = 0;
+      if constexpr (sizeof(IntType) == 8) {
+        while (safe_end - start >= 8) {
+          uint64_t chunk = little_endian::Load64(start);
+          uint64_t d = chunk - 0x3030303030303030ULL;
+          if (ABSL_PREDICT_FALSE(((d | (d + 0x7676767676767676ULL)) &
+                                  0x8080808080808080ULL) != 0)) {
+            break;
+          }
+          d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+          d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+          uint32_t chunk_val =
+              static_cast<uint32_t>((d * 42949672960001ULL) >> 32);
+          uval = uval * 100000000u + chunk_val;
+          start += 8;
+        }
+      } else {
+        if (safe_end - start >= 8) {
+          uint64_t chunk = little_endian::Load64(start);
+          uint64_t d = chunk - 0x3030303030303030ULL;
+          if (ABSL_PREDICT_TRUE(((d | (d + 0x7676767676767676ULL)) &
+                                 0x8080808080808080ULL) == 0)) {
+            d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+            d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+            uint32_t chunk_val =
+                static_cast<uint32_t>((d * 42949672960001ULL) >> 32);
+            uval = chunk_val;
+            start += 8;
+          }
+        }
+      }
+      if (safe_end - start >= 4) {
+        uint32_t chunk = little_endian::Load32(start);
+        uint32_t d = chunk - 0x30303030U;
+        if (ABSL_PREDICT_TRUE(((d | (d + 0x76767676U)) & 0x80808080U) == 0)) {
+          d = ((d * 2561U) >> 8) & 0x00ff00ffU;
+          uint32_t chunk_val = (d * 6553601U) >> 16;
+          uval = uval * 10000u + chunk_val;
+          start += 4;
+        }
+      }
+      while (start < safe_end) {
+        uint32_t digit = static_cast<unsigned char>(*start) - '0';
+        if (ABSL_PREDICT_FALSE(digit >= 10)) {
+          *value_p = static_cast<IntType>(0 - uval);
+          return false;
+        }
+        uval = uval * 10u + digit;
+        ++start;
+      }
+      value = static_cast<IntType>(0 - uval);
+      if (ABSL_PREDICT_TRUE(start == end)) {
+        *value_p = value;
+        return true;
+      }
+      constexpr IntType kVminOver10 = vmin / 10;
+      for (; start < end; ++start) {
+        uint32_t digit = static_cast<unsigned char>(*start) - '0';
+        if (digit >= 10) {
+          *value_p = value;
+          return false;
+        }
+        if (value < kVminOver10) {
+          *value_p = vmin;
+          return false;
+        }
+        value *= 10;
+        if (value < vmin + static_cast<IntType>(digit)) {
+          *value_p = vmin;
+          return false;
+        }
+        value -= static_cast<IntType>(digit);
+      }
+      *value_p = value;
+      return true;
+    }
+  }
   IntType vmin_over_base = LookupTables<IntType>::kVminOverBase[base];
   assert(base < 2 ||
          std::numeric_limits<IntType>::min() / base == vmin_over_base);
@@ -1528,8 +1783,6 @@ inline bool safe_parse_negative_int(absl::string_view text, int base,
   if (vmin % base > 0) {
     vmin_over_base += 1;
   }
-  const char* start = text.data();
-  const char* end = start + text.size();
   // loop over digits
   for (; start < end; ++start) {
     unsigned char c = static_cast<unsigned char>(start[0]);
@@ -1556,8 +1809,8 @@ inline bool safe_parse_negative_int(absl::string_view text, int base,
 // Input format based on POSIX.1-2008 strtol
 // http://pubs.opengroup.org/onlinepubs/9699919799/functions/strtol.html
 template <typename IntType>
-inline bool safe_int_internal(absl::string_view text,
-                              IntType* absl_nonnull value_p, int base) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool safe_int_internal(
+    absl::string_view text, IntType* absl_nonnull value_p, int base) {
   *value_p = 0;
   bool negative;
   if (!safe_parse_sign_and_base(&text, &base, &negative)) {
@@ -1571,8 +1824,8 @@ inline bool safe_int_internal(absl::string_view text,
 }
 
 template <typename IntType>
-inline bool safe_uint_internal(absl::string_view text,
-                               IntType* absl_nonnull value_p, int base) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool safe_uint_internal(
+    absl::string_view text, IntType* absl_nonnull value_p, int base) {
   *value_p = 0;
   bool negative;
   if (!safe_parse_sign_and_base(&text, &base, &negative) || negative) {
