@@ -85,17 +85,28 @@ class LogMessage {
   LogMessage& operator=(const LogMessage&) = delete;
   ABSL_ATTRIBUTE_COLD ~LogMessage();
 
+  // Methods that return `*this` are inline wrappers around out-of-line void
+  // helpers so the compiler knows the returned reference aliases `this`.
+
   // Overrides the location inferred from the callsite.  The string pointed to
   // by `file` must be valid until the end of the statement.
-  LogMessage& AtLocation(absl::string_view file, int line);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& AtLocation(absl::string_view file,
+                                                      int line) {
+    AtLocationImpl(file, line);
+    return *this;
+  }
   // `loc` doesn't default to `absl::SourceLocation::current()` here since the
   // callsite is already the default location for `LOG` statements.
-  LogMessage& AtLocation(absl::SourceLocation loc) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& AtLocation(
+      absl::SourceLocation loc) {
     return AtLocation(loc.file_name(), static_cast<int>(loc.line()));
   }
   // Omits the prefix from this line.  The prefix includes metadata about the
   // logged data such as source code location and timestamp.
-  LogMessage& NoPrefix();
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& NoPrefix() {
+    NoPrefixImpl();
+    return *this;
+  }
   // Sets the verbosity field of the logged message as if it was logged by
   // `VLOG(verbose_level)`.  Unlike `VLOG`, this method does not affect
   // evaluation of the statement when the specified `verbose_level` has been
@@ -103,74 +114,118 @@ class LogMessage {
   // make use of the `absl::LogSink::verbosity()` value.  The value
   // `absl::LogEntry::kNoVerbosityLevel` can be specified to mark the message
   // not verbose.
-  LogMessage& WithVerbosity(int verbose_level);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& WithVerbosity(int verbose_level) {
+    WithVerbosityImpl(verbose_level);
+    return *this;
+  }
   // Uses the specified timestamp instead of one collected in the constructor.
-  LogMessage& WithTimestamp(absl::Time timestamp);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& WithTimestamp(absl::Time timestamp) {
+    WithTimestampImpl(timestamp);
+    return *this;
+  }
   // Uses the specified thread ID instead of one collected in the constructor.
-  LogMessage& WithThreadID(absl::LogEntry::tid_t tid);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& WithThreadID(
+      absl::LogEntry::tid_t tid) {
+    WithThreadIDImpl(tid);
+    return *this;
+  }
   // Copies all metadata (but no data) from the specified `absl::LogEntry`.
-  LogMessage& WithMetadataFrom(const absl::LogEntry& entry);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& WithMetadataFrom(
+      const absl::LogEntry& entry) {
+    WithMetadataFromImpl(entry);
+    return *this;
+  }
   // Appends to the logged message a colon, a space, a textual description of
   // the current value of `errno` (as by strerror(3)), and the numerical value
   // of `errno`.
-  LogMessage& WithPerror();
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& WithPerror() {
+    WithPerrorImpl();
+    return *this;
+  }
   // Sends this message to `*sink` in addition to whatever other sinks it would
   // otherwise have been sent to.
-  LogMessage& ToSinkAlso(absl::LogSink* absl_nonnull sink);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& ToSinkAlso(
+      absl::LogSink* absl_nonnull sink) {
+    ToSinkAlsoImpl(sink);
+    return *this;
+  }
   // Sends this message to `*sink` and no others.
-  LogMessage& ToSinkOnly(absl::LogSink* absl_nonnull sink);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& ToSinkOnly(
+      absl::LogSink* absl_nonnull sink) {
+    ToSinkOnlyImpl(sink);
+    return *this;
+  }
 
   // Don't call this method from outside this library.
-  LogMessage& InternalStream() { return *this; }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& InternalStream() { return *this; }
 
   // By-value overloads for small, common types let us overlook common failures
   // to define globals and static data members (i.e. in a .cc file).
   // NOLINTBEGIN(runtime/int)
   // NOLINTBEGIN(google-runtime-int)
   // clang-format off:  The CUDA toolchain cannot handle these <<<'s
-  LogMessage& operator<<(char v) { return operator<< <char>(v); }
-  LogMessage& operator<<(signed char v) { return operator<< <signed char>(v); }
-  LogMessage& operator<<(unsigned char v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(char v) {
+    return operator<< <char>(v);
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed char v) {
+    return operator<< <signed char>(v);
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned char v) {
     return operator<< <unsigned char>(v);
   }
-  LogMessage& operator<<(signed short v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed short v) {
     return operator<< <signed short>(v);
   }
-  LogMessage& operator<<(signed int v) { return operator<< <signed int>(v); }
-  LogMessage& operator<<(signed long v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed int v) {
+    return operator<< <signed int>(v);
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed long v) {
     return operator<< <signed long>(v);
   }
-  LogMessage& operator<<(signed long long v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed long long v) {
     return operator<< <signed long long>(v);
   }
-  LogMessage& operator<<(unsigned short v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned short v) {
     return operator<< <unsigned short>(v);
   }
-  LogMessage& operator<<(unsigned int v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned int v) {
     return operator<< <unsigned int>(v);
   }
-  LogMessage& operator<<(unsigned long v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned long v) {
     return operator<< <unsigned long>(v);
   }
-  LogMessage& operator<<(unsigned long long v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned long long v) {
     return operator<< <unsigned long long>(v);
   }
-  LogMessage& operator<<(void* absl_nullable  v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(void* absl_nullable v) {
     return operator<< <void*>(v);
   }
-  LogMessage& operator<<(const void* absl_nullable  v) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(
+      const void* absl_nullable v) {
     return operator<< <const void*>(v);
   }
-  LogMessage& operator<<(float v) { return operator<< <float>(v); }
-  LogMessage& operator<<(double v) { return operator<< <double>(v); }
-  LogMessage& operator<<(bool v) { return operator<< <bool>(v); }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(float v) {
+    return operator<< <float>(v);
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(double v) {
+    return operator<< <double>(v);
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(bool v) {
+    return operator<< <bool>(v);
+  }
   // clang-format on
   // NOLINTEND(google-runtime-int)
   // NOLINTEND(runtime/int)
 
   // These overloads are more efficient since no `ostream` is involved.
-  LogMessage& operator<<(const std::string& v);
-  LogMessage& operator<<(absl::string_view v);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(const std::string& v) {
+    CopyToEncodedBuffer(v);
+    return *this;
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(absl::string_view v) {
+    CopyToEncodedBuffer<StringType::kNotLiteral>(v);
+    return *this;
+  }
 
   // Wide string overloads (since std::ostream does not provide them).
   LogMessage& operator<<(const std::wstring& v);
@@ -216,7 +271,7 @@ class LogMessage {
   // Types that don't support `AbslStringify()` but do support streaming into a
   // `std::ostream&` are serialized that way.
   template <typename T>
-  ABSL_ATTRIBUTE_NOINLINE LogMessage& operator<<(const T& v);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(const T& v);
 
   // Dispatches the completed `absl::LogEntry` to applicable `absl::LogSink`s.
   void Flush();
@@ -266,12 +321,27 @@ class LogMessage {
     absl::Span<char> string_start_;
   };
 
+  void AtLocationImpl(absl::string_view file, int line);
+  void NoPrefixImpl();
+  void WithVerbosityImpl(int verbose_level);
+  void WithTimestampImpl(absl::Time timestamp);
+  void WithThreadIDImpl(absl::LogEntry::tid_t tid);
+  void WithMetadataFromImpl(const absl::LogEntry& entry);
+  void WithPerrorImpl();
+  void ToSinkAlsoImpl(absl::LogSink* absl_nonnull sink);
+  void ToSinkOnlyImpl(absl::LogSink* absl_nonnull sink);
+
+  template <typename T>
+  ABSL_ATTRIBUTE_NOINLINE void Stream(const T& v);
+
   enum class StringType {
     kLiteral,
     kNotLiteral,
   };
   template <StringType str_type>
   void CopyToEncodedBuffer(absl::string_view str);
+  // Keeps std::string data and size access out of callsites.
+  void CopyToEncodedBuffer(const std::string& str);
   template <StringType str_type>
   void CopyToEncodedBuffer(char ch, size_t num);
   template <StringType str_type>
@@ -345,9 +415,15 @@ class StringifySink final {
   LogMessage& message_;
 };
 
+template <typename T>
+inline LogMessage& LogMessage::operator<<(const T& v) {
+  Stream(v);
+  return *this;
+}
+
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
 template <typename T>
-LogMessage& LogMessage::operator<<(const T& v) {
+void LogMessage::Stream(const T& v) {
   if constexpr (absl::HasAbslStringify<T>::value) {
     StringifySink sink(*this);
     // Replace with public API.
@@ -356,7 +432,6 @@ LogMessage& LogMessage::operator<<(const T& v) {
     OstreamView view(*data_);
     view.stream() << log_internal::NullGuard<T>().Guard(v);
   }
-  return *this;
 }
 
 template <int SIZE>
@@ -382,24 +457,22 @@ LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
 // emitting a function call either way.
 // NOLINTBEGIN(runtime/int)
 // NOLINTBEGIN(google-runtime-int)
-extern template LogMessage& LogMessage::operator<<(const char& v);
-extern template LogMessage& LogMessage::operator<<(const signed char& v);
-extern template LogMessage& LogMessage::operator<<(const unsigned char& v);
-extern template LogMessage& LogMessage::operator<<(const short& v);
-extern template LogMessage& LogMessage::operator<<(const unsigned short& v);
-extern template LogMessage& LogMessage::operator<<(const int& v);
-extern template LogMessage& LogMessage::operator<<(const unsigned int& v);
-extern template LogMessage& LogMessage::operator<<(const long& v);
-extern template LogMessage& LogMessage::operator<<(const unsigned long& v);
-extern template LogMessage& LogMessage::operator<<(const long long& v);
-extern template LogMessage& LogMessage::operator<<(const unsigned long long& v);
-extern template LogMessage& LogMessage::operator<<(
-    void* absl_nullable const& v);
-extern template LogMessage& LogMessage::operator<<(
-    const void* absl_nullable const& v);
-extern template LogMessage& LogMessage::operator<<(const float& v);
-extern template LogMessage& LogMessage::operator<<(const double& v);
-extern template LogMessage& LogMessage::operator<<(const bool& v);
+extern template void LogMessage::Stream(const char& v);
+extern template void LogMessage::Stream(const signed char& v);
+extern template void LogMessage::Stream(const unsigned char& v);
+extern template void LogMessage::Stream(const short& v);
+extern template void LogMessage::Stream(const unsigned short& v);
+extern template void LogMessage::Stream(const int& v);
+extern template void LogMessage::Stream(const unsigned int& v);
+extern template void LogMessage::Stream(const long& v);
+extern template void LogMessage::Stream(const unsigned long& v);
+extern template void LogMessage::Stream(const long long& v);
+extern template void LogMessage::Stream(const unsigned long long& v);
+extern template void LogMessage::Stream(void* absl_nullable const& v);
+extern template void LogMessage::Stream(const void* absl_nullable const& v);
+extern template void LogMessage::Stream(const float& v);
+extern template void LogMessage::Stream(const double& v);
+extern template void LogMessage::Stream(const bool& v);
 // NOLINTEND(google-runtime-int)
 // NOLINTEND(runtime/int)
 
