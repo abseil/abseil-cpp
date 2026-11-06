@@ -426,22 +426,22 @@ LogMessage& LogMessage::operator<<(std::ios_base& (*m)(std::ios_base& os)) {
 }
 // NOLINTBEGIN(runtime/int)
 // NOLINTBEGIN(google-runtime-int)
-template void LogMessage::Stream(const char& v);
-template void LogMessage::Stream(const signed char& v);
-template void LogMessage::Stream(const unsigned char& v);
-template void LogMessage::Stream(const short& v);
-template void LogMessage::Stream(const unsigned short& v);
-template void LogMessage::Stream(const int& v);
-template void LogMessage::Stream(const unsigned int& v);
-template void LogMessage::Stream(const long& v);
-template void LogMessage::Stream(const unsigned long& v);
-template void LogMessage::Stream(const long long& v);
-template void LogMessage::Stream(const unsigned long long& v);
-template void LogMessage::Stream(void* const& v);
-template void LogMessage::Stream(const void* const& v);
-template void LogMessage::Stream(const float& v);
-template void LogMessage::Stream(const double& v);
-template void LogMessage::Stream(const bool& v);
+template void LogMessage::Stream(char v);
+template void LogMessage::Stream(signed char v);
+template void LogMessage::Stream(unsigned char v);
+template void LogMessage::Stream(short v);
+template void LogMessage::Stream(unsigned short v);
+template void LogMessage::Stream(int v);
+template void LogMessage::Stream(unsigned int v);
+template void LogMessage::Stream(long v);
+template void LogMessage::Stream(unsigned long v);
+template void LogMessage::Stream(long long v);
+template void LogMessage::Stream(unsigned long long v);
+template void LogMessage::Stream(void* absl_nullable v);
+template void LogMessage::Stream(const void* absl_nullable v);
+template void LogMessage::Stream(float v);
+template void LogMessage::Stream(double v);
+template void LogMessage::Stream(bool v);
 // NOLINTEND(google-runtime-int)
 // NOLINTEND(runtime/int)
 
@@ -609,6 +609,16 @@ template void LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(
     absl::string_view str);
 template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(absl::string_view str);
+
+template <LogMessage::StringType str_type>
+ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
+    const char* absl_nonnull str) {
+  CopyToEncodedBuffer<str_type>(absl::string_view(str));
+}
+template void LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(
+    const char* absl_nonnull str);
+template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kNotLiteral>(const char* absl_nonnull str);
 
 template <LogMessage::StringType str_type>
 ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
