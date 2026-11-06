@@ -2673,7 +2673,8 @@ class raw_hash_set_base {
   size_t bucket_count() const { return common().capacity(); }
   float load_factor() const {
     const size_t cap = common().capacity();
-    return cap ? static_cast<float>(common().size()) / cap : 0.0f;
+    return cap ? static_cast<float>(common().size()) / static_cast<float>(cap)
+               : 0.0f;
   }
   float max_load_factor() const { return 1.0f; }
   void max_load_factor(float) {
