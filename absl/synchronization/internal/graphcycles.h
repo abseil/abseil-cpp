@@ -66,12 +66,13 @@ class GraphCycles {
 
   // Return the id to use for ptr, assigning one if necessary.
   // Subsequent calls with the same ptr value will return the same id
-  // until Remove().
-  GraphId GetId(void* ptr);
+  // until Remove(). If is_new is non-null, *is_new is set to whether a new id
+  // was assigned.
+  GraphId GetId(void* ptr, bool* is_new = nullptr);
 
-  // Remove "ptr" from the graph.  Its corresponding node and all
-  // edges to and from it are removed.
-  void RemoveNode(void* ptr);
+  // Remove "ptr" from the graph, if present.  Its corresponding node and all
+  // edges to and from it are removed. Returns whether a node was removed.
+  bool RemoveNode(void* ptr);
 
   // Return the pointer associated with id, or nullptr if id is not
   // currently in the graph.
