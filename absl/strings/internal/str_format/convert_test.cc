@@ -369,6 +369,26 @@ TEST_F(FormatConvertTest, StringPrecision) {
   wp = L"ABC";
   UntypedFormatSpecImpl wformat2("%.10ls");
   EXPECT_EQ("ABC", FormatPack(wformat2, {FormatArgImpl(wp)}));
+
+  // The precision counts bytes, and a partial multibyte character is never
+  // written.
+  wp = L"\u00e9";
+  EXPECT_EQ("", FormatPack(wformat, {FormatArgImpl(wp)}));
+  wp = L"a\u20ac\u20ac";
+  UntypedFormatSpecImpl wformat3("%.5ls");
+  EXPECT_EQ("a\xE2\x82\xAC", FormatPack(wformat3, {FormatArgImpl(wp)}));
+  EXPECT_EQ("a\xE2\x82\xAC",
+            FormatPack(wformat3, {FormatArgImpl(std::wstring_view(wp))}));
+
+  // Only the wide characters needed to fill the precision are read, so the
+  // array need not be NUL-terminated past them. The unpaired low surrogates
+  // would fail the conversion if they were read.
+  const wchar_t unterminated[] = {L'\u00e9', L'\u00e9',
+                                  static_cast<wchar_t>(0xDC00),
+                                  static_cast<wchar_t>(0xDC00)};
+  wp = unterminated;
+  UntypedFormatSpecImpl wformat4("%.4ls");
+  EXPECT_EQ("\xC3\xA9\xC3\xA9", FormatPack(wformat4, {FormatArgImpl(wp)}));
 #endif  // GTEST_HAS_STD_WSTRING
 }
 
