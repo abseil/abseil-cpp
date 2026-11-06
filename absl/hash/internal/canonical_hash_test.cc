@@ -67,6 +67,13 @@ TEST(CanonicalHasherTest, UniquelyRepresentedTypesShareHasher) {
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<Enum64>()),
                               absl::Hash<uint64_t>>));
 
+  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<int*>()),
+                              decltype(CanonicalHasher<uintptr_t>())>));
+  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<double*>()),
+                              decltype(CanonicalHasher<uintptr_t>())>));
+  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<const int*>()),
+                              decltype(CanonicalHasher<uintptr_t>())>));
+
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::string>()),
                               absl::Hash<std::string>>));
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::array<char, 3>>()),
@@ -75,19 +82,29 @@ TEST(CanonicalHasherTest, UniquelyRepresentedTypesShareHasher) {
                               absl::Hash<std::array<char, 5>>>));
 }
 
-TEST(CanonicalHashKeyTest, UniquelyRepresentedTypesShareHashFn) {
+TEST(CanonicalHashKeyTest, UniquelyRepresentedAndPointerTypesShareHashFn) {
   enum class MyEnum : uint32_t { kOne = 1, kTwo = 2 };
   using HashKeyInt32 = CanonicalHashKey<int32_t>;
   using HashKeyEnum = CanonicalHashKey<MyEnum>;
+  using HashKeyIntPtr = CanonicalHashKey<int*>;
   EXPECT_EQ(HashKeyInt32::get_hash_fn(), HashKeyEnum::get_hash_fn());
   EXPECT_NE(HashKeyInt32::get_hash_fn(),
             CanonicalHashKey<int8_t>::get_hash_fn());
+  EXPECT_EQ(HashKeyIntPtr::get_hash_fn(),
+            CanonicalHashKey<uint32_t*>::get_hash_fn());
+  EXPECT_EQ(HashKeyIntPtr::get_hash_fn(),
+            CanonicalHashKey<uintptr_t>::get_hash_fn());
 
-  const MyEnum c = MyEnum::kTwo;
   const size_t seed = 100;
+  const MyEnum c = MyEnum::kTwo;
   HashKeyEnum hk{c};
   EXPECT_EQ(HashKeyEnum::get_hash_fn()(hk.data(), seed),
             HashWithSeed().hash(absl::Hash<MyEnum>{}, c, seed));
+  int a = 1;
+  int* p = &a;
+  HashKeyIntPtr hk_p{p};
+  EXPECT_EQ(HashKeyIntPtr::get_hash_fn()(hk_p.data(), seed),
+            HashWithSeed().hash(absl::Hash<int*>{}, p, seed));
 }
 
 TEST(CanonicalHashKeyTest, DataPointerForSmallAndLargeKeys) {

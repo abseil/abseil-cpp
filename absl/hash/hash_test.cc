@@ -1520,4 +1520,39 @@ TEST(HashTest, IncompleteRecursiveTypeInFlatHashSet) {
   EXPECT_EQ(absl::HashOf(root), absl::HashOf(root));
 }
 
+struct CustomHashedPointee {
+  int value;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const CustomHashedPointee* p) {
+    return H::combine(std::move(h), p == nullptr ? -1 : p->value);
+  }
+};
+
+struct IncompleteCustomHashedCell;
+
+template <typename H>
+H AbslHashValue(H h, IncompleteCustomHashedCell* const& c);
+
+struct IncompletePointee;
+
+TEST(HashTest, DetectsDisallowedCustomAbslHashValueForPointerType) {
+  using absl::hash_internal::HashSelect;
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<int>::value);
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<int*>::value);
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<const char*>::value);
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<char*>::value);
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<void*>::value);
+  EXPECT_FALSE(HashSelect::HasCustomPointerAbslHashValue<void (*)()>::value);
+  EXPECT_FALSE(
+      HashSelect::HasCustomPointerAbslHashValue<IncompletePointee*>::value);
+
+  EXPECT_TRUE(
+      HashSelect::HasCustomPointerAbslHashValue<CustomHashedPointee*>::value);
+  EXPECT_TRUE(HashSelect::HasCustomPointerAbslHashValue<
+              const CustomHashedPointee*>::value);
+  EXPECT_TRUE(HashSelect::HasCustomPointerAbslHashValue<
+              IncompleteCustomHashedCell*>::value);
+}
+
 }  // namespace
