@@ -2034,7 +2034,7 @@ inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
 
 constexpr size_t kProbedElementIndexSentinel = ~size_t{};
 
-// Implementation detail of transfer_unprobed_elements_to_next_capacity_fn.
+// Implementation detail of TransferUnprobedElementsToNextCapacity.
 // Tries to find the new index for an element with `hash` for growth to the next
 // capacity.
 // Returns kProbedElementIndexSentinel if element was probed in the table before
@@ -2199,6 +2199,10 @@ struct AllocPolicy::S {
   };
 };
 
+// Transfers the contents of `count` slots from src_slot to dst_slot.
+using TransferNFn = void (*)(void* set, void* dst_slot, void* src_slot,
+                             size_t count);
+
 // PolicyFunctions bundles together some information for a particular
 // raw_hash_set<T, ...> instantiation. This information is passed to
 // type-erased functions that want to do small amounts of type-specific
@@ -2214,7 +2218,7 @@ struct PolicyFunctions {
 
   // Transfers the contents of `count` slots from src_slot to dst_slot.
   // We use ability to transfer several slots in single group table growth.
-  void (*transfer_n)(void* set, void* dst_slot, void* src_slot, size_t count);
+  TransferNFn transfer_n;
 
   const AllocPolicy* alloc_policy;
 
@@ -2238,6 +2242,25 @@ struct PolicyFunctions {
   const void* hash_fn(const CommonFields& common) const {
     return reinterpret_cast<const char*>(&common) + hasher_offset;
   }
+
+  // Returns the `PolicyFunctions` instance for tables with trivially
+  // relocatable slots. All function pointers are independent of the
+  // `raw_hash_set` type, so the instance is shared across all `raw_hash_set`
+  // instantiations with the same slot size, hasher offset, type erased slot
+  // hash function and `AllocPolicy` (which is itself shared for the default
+  // allocator).
+  template <uint32_t kSlotSize, uint32_t kHasherOffset, HashSlotFn kHashSlot,
+            const AllocPolicy* kAllocPolicy>
+  static constexpr const PolicyFunctions& GetRelocatableRef() {
+    return P<kSlotSize, kHasherOffset, kHashSlot, kAllocPolicy>::kP;
+  }
+
+ private:
+  // Short name is used to minimize the mangled name length of static variables
+  // and reduce linker input size.
+  template <uint32_t kSlotSize, uint32_t kHasherOffset, HashSlotFn kHashSlot,
+            const AllocPolicy* kAllocPolicy>
+  struct P;
 };
 
 using DestroySlotFn = void (*)(void* set, void* slot);
@@ -2477,6 +2500,99 @@ ABSL_ATTRIBUTE_NOINLINE void TransferNRelocatable(void*, void* dst, void* src,
   // non power of 2. This would require passing the size of the slot.
   memcpy(dst, src, SizeOfSlot * count);
 }
+
+// Implementation of
+// `PolicyFunctions::transfer_unprobed_elements_to_next_capacity`.
+// `Traits` describes the slot layout and operations:
+//   static constexpr size_t kSlotSize;
+//   // Returns the hash of the slot.
+//   static size_t HashSlot(CommonFields& common, void* slot, size_t seed);
+//   // Transfers `src_slot` into `dst_slot`.
+//   static void TransferSlot(CommonFields& common, void* dst_slot,
+//                            void* src_slot);
+// See `RelocatableSlotTransferTraits` (shared across tables with trivially
+// relocatable slots) and `raw_hash_set::TransferTraits`.
+template <class Traits>
+void TransferUnprobedElementsToNextCapacity(
+    CommonFields& __restrict common, const ctrl_t* old_ctrl,
+    void* probed_storage, void* __restrict old_slots, size_t old_capacity,
+    void (*encode_probed_element)(void* probed_storage, size_t hash,
+                                  size_t source_offset)) {
+  constexpr size_t kSlotSize = Traits::kSlotSize;
+  ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
+  ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
+  const size_t new_capacity = NextCapacity(old_capacity);
+  ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
+  ABSL_SWISSTABLE_ASSERT(common.capacity() == new_capacity);
+
+  const size_t seed = common.seed().seed();
+  ctrl_t* new_ctrl = common.control();
+  char* new_slots = static_cast<char*>(common.slot_array(new_capacity));
+  char* old_slots_ptr = static_cast<char*>(old_slots);
+
+  for (size_t group_index = 0; group_index < old_capacity;
+       group_index += Group::kWidth) {
+    GroupFullEmptyOrDeleted old_g(old_ctrl + group_index);
+    std::memset(new_ctrl + group_index, static_cast<int8_t>(ctrl_t::kEmpty),
+                Group::kWidth);
+    std::memset(new_ctrl + group_index + old_capacity + 1,
+                static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
+    // TODO(b/382423690): try to type erase everything outside of the loop.
+    // We will share a lot of code in expense of one function call per group.
+    for (auto in_fixed_group_index : old_g.MaskFull()) {
+      size_t old_index = group_index + in_fixed_group_index;
+      char* old_slot = old_slots_ptr + old_index * kSlotSize;
+      // TODO(b/382423690): try to avoid entire hash calculation since we need
+      // only one new bit of h1.
+      size_t hash = Traits::HashSlot(common, old_slot, seed);
+      size_t new_index = TryFindNewIndexWithoutProbing(
+          hash, old_index, old_capacity, new_capacity);
+      // Note that encode_probed_element is allowed to use old_ctrl buffer
+      // till and included the old_index.
+      if (ABSL_PREDICT_FALSE(new_index == kProbedElementIndexSentinel)) {
+        encode_probed_element(probed_storage, hash, old_index);
+        continue;
+      }
+      ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= old_index);
+      ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
+      new_ctrl[new_index] = static_cast<ctrl_t>(H2(hash));
+      char* new_slot = new_slots + new_index * kSlotSize;
+      SanitizerUnpoisonMemoryRegion(new_slot, kSlotSize);
+      Traits::TransferSlot(common, new_slot, old_slot);
+      SanitizerPoisonMemoryRegion(old_slot, kSlotSize);
+    }
+  }
+}
+
+// `Traits` for `TransferUnprobedElementsToNextCapacity` for trivially
+// relocatable slots. Slots are transferred with memcpy and hashed with the type
+// erased `kHashSlot`, so the same instantiation is shared by all tables with
+// the same slot size, hasher offset and type erased slot hash function.
+template <size_t kSize, uint32_t kHasherOffset, HashSlotFn kHashSlot>
+struct RelocatableSlotTransferTraits {
+  static constexpr size_t kSlotSize = kSize;
+  static size_t HashSlot(CommonFields& common, void* slot, size_t seed) {
+    return kHashSlot(reinterpret_cast<const char*>(&common) + kHasherOffset,
+                     slot, seed);
+  }
+  static void TransferSlot(CommonFields&, void* dst_slot, void* src_slot) {
+    std::memcpy(dst_slot, src_slot, kSlotSize);
+  }
+};
+
+template <uint32_t kSlotSize, uint32_t kHasherOffset, HashSlotFn kHashSlot,
+          const AllocPolicy* kAllocPolicy>
+struct PolicyFunctions::P {
+  static constexpr PolicyFunctions kP = {
+      kSlotSize,
+      kHasherOffset,
+      kHashSlot,
+      &TransferNRelocatable<kSlotSize>,
+      kAllocPolicy,
+      &TransferUnprobedElementsToNextCapacity<
+          RelocatableSlotTransferTraits<kSlotSize, kHasherOffset, kHashSlot>>,
+  };
+};
 
 // Given the hash of a value not currently in the table and the first group with
 // an empty slot in the probe sequence, finds a viable slot to insert it at.
@@ -4402,59 +4518,6 @@ class raw_hash_set : public raw_hash_set_base {
                : &raw_hash_set::destroy_slot_fn_impl;
   }
 
-  // TODO(b/382423690): Try to type erase entire function or at least type erase
-  // by GetKey + Hash for memcpyable types.
-  // TODO(b/382423690): Try to type erase for big slots: sizeof(slot_type) > 16.
-  static void transfer_unprobed_elements_to_next_capacity_fn(
-      CommonFields& __restrict common, const ctrl_t* old_ctrl,
-      void* probed_storage, void* __restrict old_slots, size_t old_capacity,
-      void (*encode_probed_element)(void* probed_storage, size_t hash,
-                                    size_t source_offset)) {
-    ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
-    ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
-    const size_t new_capacity = NextCapacity(old_capacity);
-    ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
-    ABSL_SWISSTABLE_ASSERT(common.capacity() == new_capacity);
-
-    auto* set = reinterpret_cast<raw_hash_set*>(&common);
-    slot_type* old_slots_ptr = to_slot(old_slots);
-    ctrl_t* new_ctrl = common.control();
-    slot_type* new_slots = set->slot_array(new_capacity);
-
-    for (size_t group_index = 0; group_index < old_capacity;
-         group_index += Group::kWidth) {
-      GroupFullEmptyOrDeleted old_g(old_ctrl + group_index);
-      std::memset(new_ctrl + group_index, static_cast<int8_t>(ctrl_t::kEmpty),
-                  Group::kWidth);
-      std::memset(new_ctrl + group_index + old_capacity + 1,
-                  static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
-      // TODO(b/382423690): try to type erase everything outside of the loop.
-      // We will share a lot of code in expense of one function call per group.
-      for (auto in_fixed_group_index : old_g.MaskFull()) {
-        size_t old_index = group_index + in_fixed_group_index;
-        slot_type* old_slot = old_slots_ptr + old_index;
-        // TODO(b/382423690): try to avoid entire hash calculation since we need
-        // only one new bit of h1.
-        size_t hash = set->hash_of(old_slot);
-        size_t new_index = TryFindNewIndexWithoutProbing(
-            hash, old_index, old_capacity, new_capacity);
-        // Note that encode_probed_element is allowed to use old_ctrl buffer
-        // till and included the old_index.
-        if (ABSL_PREDICT_FALSE(new_index == kProbedElementIndexSentinel)) {
-          encode_probed_element(probed_storage, hash, old_index);
-          continue;
-        }
-        ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= old_index);
-        ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
-        new_ctrl[new_index] = static_cast<ctrl_t>(H2(hash));
-        auto* new_slot = new_slots + new_index;
-        SanitizerUnpoisonMemoryRegion(new_slot, sizeof(slot_type));
-        set->transfer(new_slot, old_slot);
-        SanitizerPoisonMemoryRegion(old_slot, sizeof(slot_type));
-      }
-    }
-  }
-
   static constexpr DeallocBackingArrayFn get_dealloc_backing_array_fn() {
     return &DeallocateBackingArray<BackingArrayAlignment(alignof(slot_type)),
                                    CharAlloc>;
@@ -4475,6 +4538,12 @@ class raw_hash_set : public raw_hash_set_base {
     }
   }
 
+  static constexpr bool HasSharedAllocPolicy() {
+    return BackingArrayAlignment(alignof(slot_type)) ==
+               kStandardBackingArrayAlignment &&
+           kIsDefaultAlloc;
+  }
+
   static constexpr const AllocPolicy& GetAllocPolicy() {
     static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)(),
                   "Slot size is too large. Use std::unique_ptr for value type "
@@ -4488,9 +4557,7 @@ class raw_hash_set : public raw_hash_set_base {
                   size_t{(std::numeric_limits<uint16_t>::max)()});
     static_assert(AllocOffset() <=
                   size_t{(std::numeric_limits<uint32_t>::max)()});
-    if constexpr (BackingArrayAlignment(alignof(slot_type)) ==
-                      kStandardBackingArrayAlignment &&
-                  kIsDefaultAlloc) {
+    if constexpr (HasSharedAllocPolicy()) {
       return AllocPolicy::GetNormalRef<
           static_cast<uint32_t>(sizeof(slot_type)),
           static_cast<uint16_t>(alignof(slot_type)),
@@ -4501,19 +4568,51 @@ class raw_hash_set : public raw_hash_set_base {
     }
   }
 
+  // `Traits` for `TransferUnprobedElementsToNextCapacity` for slots that are
+  // not trivially relocatable.
+  struct TransferTraits {
+    static constexpr size_t kSlotSize = sizeof(slot_type);
+    static size_t HashSlot(CommonFields& common, void* slot, size_t) {
+      return reinterpret_cast<raw_hash_set&>(common).hash_of(to_slot(slot));
+    }
+    static void TransferSlot(CommonFields& common, void* dst_slot,
+                             void* src_slot) {
+      reinterpret_cast<raw_hash_set&>(common).transfer(to_slot(dst_slot),
+                                                       to_slot(src_slot));
+    }
+  };
+
   static const PolicyFunctions& GetPolicyFunctions() {
     static_assert(HasherOffset() <=
                   size_t{(std::numeric_limits<uint32_t>::max)()});
-    static constexpr PolicyFunctions value = {
-        static_cast<uint32_t>(sizeof(slot_type)),
-        static_cast<uint32_t>(HasherOffset()),
-        get_hash_slot_fn(),
-        PolicyTraits::transfer_uses_memcpy()
-            ? TransferNRelocatable<sizeof(slot_type)>
-            : &raw_hash_set::transfer_n_slots_fn,
-        &GetAllocPolicy(),
-        &raw_hash_set::transfer_unprobed_elements_to_next_capacity_fn};
-    return value;
+    if constexpr (PolicyTraits::transfer_uses_memcpy() &&
+                  HasSharedAllocPolicy()) {
+      // All function pointers and `AllocPolicy` are independent of the
+      // `raw_hash_set` type, so the instance is shared with other tables with
+      // the same slot size, hasher offset, slot hash function and
+      // `AllocPolicy`.
+      return PolicyFunctions::GetRelocatableRef<
+          static_cast<uint32_t>(sizeof(slot_type)),
+          static_cast<uint32_t>(HasherOffset()), get_hash_slot_fn(),
+          &GetAllocPolicy()>();
+    } else {
+      using Traits = std::conditional_t<
+          PolicyTraits::transfer_uses_memcpy(),
+          RelocatableSlotTransferTraits<
+              sizeof(slot_type), static_cast<uint32_t>(HasherOffset()),
+              get_hash_slot_fn()>,
+          TransferTraits>;
+      static constexpr PolicyFunctions value = {
+          static_cast<uint32_t>(sizeof(slot_type)),
+          static_cast<uint32_t>(HasherOffset()),
+          get_hash_slot_fn(),
+          PolicyTraits::transfer_uses_memcpy()
+              ? &TransferNRelocatable<sizeof(slot_type)>
+              : &raw_hash_set::transfer_n_slots_fn,
+          &GetAllocPolicy(),
+          &TransferUnprobedElementsToNextCapacity<Traits>};
+      return value;
+    }
   }
 
   // `common_` must be the first member: type erased functions cast

@@ -91,6 +91,10 @@ struct RawHashSetTestOnlyAccess {
   static size_t CountTombstones(const C& c) {
     return c.common().TombstonesCount();
   }
+  template <typename C>
+  static const PolicyFunctions& GetPolicyFunctions() {
+    return C::GetPolicyFunctions();
+  }
 };
 
 namespace {
@@ -5589,6 +5593,69 @@ TEST(Table, PointerConversionCount) {
     EXPECT_FALSE(t.emplace(k).second);
     EXPECT_EQ(k.num_conversions, 1);
   }
+}
+
+enum class EnumPtr : uintptr_t {};
+enum class Enum64 : int64_t {};
+
+template <class Table>
+const PolicyFunctions* GetPolicyFunctionsPtr() {
+  return &RawHashSetTestOnlyAccess::GetPolicyFunctions<Table>();
+}
+
+TEST(Table, PolicyFunctionsAreSharedForRelocatableSlots) {
+  // Tables with the same slot layout and type erased slot hash function share
+  // a single `PolicyFunctions` instance. Use pointer-sized integers so that
+  // `alignof(slot_type) <= alignof(size_t)` and `sizeof(EnumPtr) ==
+  // sizeof(const void*)` on both 32-bit and 64-bit platforms.
+  const PolicyFunctions* intptr_pair_policy =
+      GetPolicyFunctionsPtr<absl::flat_hash_map<intptr_t, intptr_t>>();
+  EXPECT_EQ(intptr_pair_policy,
+            (GetPolicyFunctionsPtr<absl::flat_hash_map<uintptr_t, EnumPtr>>()));
+  EXPECT_EQ(
+      intptr_pair_policy,
+      (GetPolicyFunctionsPtr<absl::flat_hash_map<EnumPtr, const void*>>()));
+
+  // Different slot size.
+  EXPECT_NE(intptr_pair_policy,
+            (GetPolicyFunctionsPtr<absl::flat_hash_map<int8_t, int8_t>>()));
+  // Same slot size, but different slot hash function.
+  EXPECT_NE(intptr_pair_policy,
+            GetPolicyFunctionsPtr<absl::flat_hash_set<absl::string_view>>());
+  // Custom allocators have a distinct `AllocPolicy`, so `PolicyFunctions` is
+  // not shared, but the transfer function is still shared.
+  using CustomAllocTable = absl::flat_hash_map<
+      intptr_t, intptr_t, absl::Hash<intptr_t>, std::equal_to<intptr_t>,
+      CountingAllocator<std::pair<const intptr_t, intptr_t>>>;
+  EXPECT_NE(intptr_pair_policy, GetPolicyFunctionsPtr<CustomAllocTable>());
+  EXPECT_EQ(intptr_pair_policy->transfer_unprobed_elements_to_next_capacity,
+            GetPolicyFunctionsPtr<CustomAllocTable>()
+                ->transfer_unprobed_elements_to_next_capacity);
+}
+
+TEST(Table, GrowthWithSharedPolicyFunctions) {
+  // Exercise the shared transfer function across the growth paths from SOO up
+  // to a few resizes, including probed elements, for a few layouts.
+  const auto test = [](auto table) {
+    constexpr int kCount = 25;
+    using T = decltype(table);
+    using V = typename T::key_type;
+    for (int i = 0; i < kCount; ++i) {
+      table.insert(static_cast<V>(i));
+      ASSERT_EQ(table.size(), static_cast<size_t>(i + 1));
+    }
+    for (int i = 0; i < kCount; ++i) {
+      ASSERT_TRUE(table.contains(static_cast<V>(i))) << i;
+    }
+    ASSERT_FALSE(table.contains(static_cast<V>(kCount)));
+  };
+  test(absl::flat_hash_set<int8_t>());
+  test(absl::flat_hash_set<int16_t>());
+  test(absl::flat_hash_set<int32_t>());
+  test(absl::flat_hash_set<int64_t>());
+  test(absl::flat_hash_set<Enum64>());
+  // Non-canonical hasher that forces probing on every growth.
+  test(absl::flat_hash_set<int32_t, ZeroHash>());
 }
 
 }  // namespace
