@@ -107,7 +107,6 @@ bool VADoRawLog(char** buf, int* size, const char* format, va_list ap) {
   *buf += n;
   return result;
 }
-#endif  // ABSL_LOW_LEVEL_WRITE_SUPPORTED
 
 constexpr int kLogBufSize = 3000;
 
@@ -136,6 +135,17 @@ bool DefaultLogFilterAndPrefix(absl::LogSeverity, const char* file, int line,
   DoRawLog(buf, buf_size, "[%s : %d] RAW: ", file, line);
   return true;
 }
+#else   // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
+// No message can be emitted on this platform, so nothing is formatted.  The
+// buffer only has to hold the NUL terminator the abort hook contract requires,
+// and a prefix hook sees a size of 1.
+constexpr int kLogBufSize = 1;
+
+bool DefaultLogFilterAndPrefix(absl::LogSeverity, const char*, int, char**,
+                               int*) {
+  return true;
+}
+#endif  // ABSL_LOW_LEVEL_WRITE_SUPPORTED
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
 absl::base_internal::AtomicHook<LogFilterAndPrefixHook>
@@ -149,6 +159,9 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 void RawLogVA(absl::LogSeverity severity, const char* file, int line,
               const char* format, va_list ap) {
   char buffer[kLogBufSize];
+  // The prefix hook may legitimately write nothing; the buffer handed to the
+  // abort hook must be NUL-terminated regardless.
+  buffer[0] = '\0';
   char* buf = buffer;
   int size = sizeof(buffer);
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
