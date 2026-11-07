@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
@@ -288,7 +289,9 @@ struct Node {
   int64_t rank;          // Unique rank (see "Rank allocation")
   int32_t prev_slot;     // Slot with the next lower rank, or -1 if none
   int32_t next_slot;     // Slot with the next higher rank, or -1 if none
-  uint32_t version;      // Current version number
+  // Current version number. Atomic so that IsCurrent() can read it without
+  // the external synchronization that other methods require.
+  std::atomic<uint32_t> version;
   int32_t next_hash;     // Next entry in hash table
   bool visited;          // Temporary marker used by depth-first-search
   uintptr_t masked_ptr;  // User-supplied pointer
@@ -406,7 +409,9 @@ struct GraphCycles::Rep {
 
 static Node* FindNode(GraphCycles::Rep* rep, GraphId id) {
   Node* n = rep->nodes_[static_cast<uint32_t>(NodeIndex(id))];
-  return (n->version == NodeVersion(id)) ? n : nullptr;
+  return n->version.load(std::memory_order_relaxed) == NodeVersion(id)
+             ? n
+             : nullptr;
 }
 
 static Node* NodeAt(GraphCycles::Rep* r, int32_t slot) {
@@ -611,13 +616,15 @@ bool GraphCycles::CheckInvariants() const {
 GraphId GraphCycles::GetId(void* ptr) {
   int32_t i = rep_->ptrmap_.Find(ptr);
   if (i != -1) {
-    return MakeId(i, rep_->nodes_[static_cast<uint32_t>(i)]->version);
+    return MakeId(i, rep_->nodes_[static_cast<uint32_t>(i)]->version.load(
+                         std::memory_order_relaxed));
   } else if (rep_->free_nodes_.empty()) {
     const int32_t slot = static_cast<int32_t>(rep_->nodes_.size());
     Node* n =
         new (base_internal::LowLevelAlloc::AllocWithArena(sizeof(Node), arena))
             Node;
-    n->version = 1;  // Avoid 0 since it is used by InvalidGraphId()
+    // Avoid 0 since it is used by InvalidGraphId()
+    n->version.store(1, std::memory_order_relaxed);
     n->visited = false;
     n->masked_ptr = base_internal::HidePtr(ptr);
     n->nstack = 0;
@@ -625,7 +632,7 @@ GraphId GraphCycles::GetId(void* ptr) {
     rep_->nodes_.push_back(n);
     LinkBetween(rep_, slot, rep_->highest_slot, /*next_slot=*/-1);
     rep_->ptrmap_.Add(ptr, slot);
-    return MakeId(slot, n->version);
+    return MakeId(slot, 1);
   } else {
     // The slot keeps its rank (see "Rank allocation").
     int32_t slot = rep_->free_nodes_.back();
@@ -635,7 +642,7 @@ GraphId GraphCycles::GetId(void* ptr) {
     n->nstack = 0;
     n->priority = 0;
     rep_->ptrmap_.Add(ptr, slot);
-    return MakeId(slot, n->version);
+    return MakeId(slot, n->version.load(std::memory_order_relaxed));
   }
 }
 
@@ -654,10 +661,12 @@ void GraphCycles::RemoveNode(void* ptr) {
   x->in.clear();
   x->out.clear();
   x->masked_ptr = base_internal::HidePtr<void>(nullptr);
-  if (x->version == std::numeric_limits<uint32_t>::max()) {
+  const uint32_t version = x->version.load(std::memory_order_relaxed);
+  if (version == std::numeric_limits<uint32_t>::max()) {
     // Cannot use x any more
   } else {
-    x->version++;  // Invalidates all copies of node.
+    // Invalidates all copies of node.
+    x->version.store(version + 1, std::memory_order_relaxed);
     rep_->free_nodes_.push_back(i);
   }
 }
@@ -669,6 +678,15 @@ void* GraphCycles::Ptr(GraphId id) {
 
 bool GraphCycles::HasNode(GraphId node) {
   return FindNode(rep_, node) != nullptr;
+}
+
+const void* GraphCycles::GetNodeHandle(GraphId node) {
+  return FindNode(rep_, node);
+}
+
+bool GraphCycles::IsCurrent(const void* node_handle, GraphId node) {
+  return static_cast<const Node*>(node_handle)
+             ->version.load(std::memory_order_relaxed) == NodeVersion(node);
 }
 
 bool GraphCycles::HasEdge(GraphId x, GraphId y) const {
@@ -935,7 +953,8 @@ int GraphCycles::FindPath(GraphId idx, GraphId idy, int max_path_len,
 
     if (path_len < max_path_len) {
       path[path_len] =
-          MakeId(n, rep_->nodes_[static_cast<uint32_t>(n)]->version);
+          MakeId(n, rep_->nodes_[static_cast<uint32_t>(n)]->version.load(
+                        std::memory_order_relaxed));
     }
     path_len++;
     r->stack_.push_back(-1);  // Will remove tentative path entry
