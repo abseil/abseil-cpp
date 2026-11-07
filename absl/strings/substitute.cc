@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <string>
 #include <type_traits>
@@ -101,6 +102,24 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
   // Build the string.
   ABSL_INTERNAL_CHECK(size <= output->max_size() - output->size(),
                       "Exceeds std::string::max_size()");
+  // Appending may reallocate *output, invalidating views into its old buffer.
+  // Use a separate destination only when an input overlaps that buffer.
+  const auto overlaps_output = [output](absl::string_view input) {
+    if (input.empty() || output->empty()) return false;
+    const std::less<const char*> less;
+    return less(input.data(), output->data() + output->size()) &&
+           less(output->data(), input.data() + input.size());
+  };
+  bool aliases_output = overlaps_output(format);
+  for (size_t i = 0; i < num_args && !aliases_output; ++i) {
+    aliases_output = overlaps_output(args_array[i]);
+  }
+  if (aliases_output) {
+    std::string replacement;
+    SubstituteAndAppendArray(&replacement, format, args_array, num_args);
+    output->append(replacement);
+    return;
+  }
   strings_internal::StringAppendAndOverwrite(
       *output, size, [format, args_array](char* const buf, size_t buf_size) {
         char* target = buf;

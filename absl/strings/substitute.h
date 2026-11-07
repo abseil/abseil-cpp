@@ -262,6 +262,7 @@ constexpr int PlaceholderBitmask(const char* absl_nonnull format) {
 //
 // Substitutes variables into a given format string and appends to a given
 // output string. See file comments above for usage.
+// The format string and substitution arguments may refer to `*output`.
 //
 // The declarations of `SubstituteAndAppend()` below consist of overloads
 // for passing 0 to 10 arguments, respectively.
