@@ -17,10 +17,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <type_traits>
-#include <utility>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -96,42 +94,18 @@ TEST(CanonicalHashKeyTest, DataPointerForSmallAndLargeKeys) {
   // Small keys are encoded by value.
   int32_t a = 42;
   CanonicalHashKey<int32_t> hk_int32{a};
-  EXPECT_EQ(hk_int32.data().ToValue<int32_t>(), 42);
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(hk_int32.data()), 42u);
 
   // Cheap to copy keys are stored by value.
   absl::string_view sv = "hello";
   CanonicalHashKey<absl::string_view> hk_sv{sv};
-  EXPECT_EQ(hk_sv.data().ToPtr<absl::string_view>(), &hk_sv.key);
-  EXPECT_NE(hk_sv.data().ToPtr<absl::string_view>(), &sv);
+  EXPECT_EQ(hk_sv.data(), &hk_sv.key);
+  EXPECT_NE(hk_sv.data(), &sv);
 
   // Expensive to copy keys are stored by reference.
   std::string s = "hello";
   CanonicalHashKey<std::string> hk_str{s};
-  EXPECT_EQ(hk_str.data().ToPtr<std::string>(), &s);
-}
-
-struct NonDefaultConstructibleSmallKey {
-  explicit NonDefaultConstructibleSmallKey(int32_t v) : val(v) {}
-  template <typename H>
-  friend H AbslHashValue(H h, const NonDefaultConstructibleSmallKey& k) {
-    return H::combine(std::move(h), k.val);
-  }
-  int32_t val;
-};
-
-TEST(CanonicalHashKeyTest, PaddedAndPartiallyInitializedSmallKeys) {
-  auto check = [](const auto& key) {
-    using Key = absl::remove_cvref_t<decltype(key)>;
-    EXPECT_TRUE(EncodedHashKey::ShouldPassByValue<Key>());
-    const size_t seed = 100;
-    CanonicalHashKey<Key> hk{key};
-    EXPECT_EQ(CanonicalHashKey<Key>::get_hash_fn()(hk.data(), seed),
-              HashWithSeed().hash(absl::Hash<Key>{}, key, seed));
-  };
-
-  // Disengaged std::optional has uninitialized payload and padding bytes.
-  check(std::optional<int16_t>(std::nullopt));
-  check(NonDefaultConstructibleSmallKey{123});
+  EXPECT_EQ(hk_str.data(), &s);
 }
 
 }  // namespace

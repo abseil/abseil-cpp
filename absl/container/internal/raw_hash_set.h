@@ -2419,7 +2419,7 @@ constexpr size_t OptimalMemcpySizeForSooSlotTransfer(
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
 void* GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
                                                  const PolicyFunctions& policy,
-                                                 EncodedHashKey hasher,
+                                                 const void* hasher,
                                                  HashForKeyFn get_hash,
                                                  bool force_sampling);
 
@@ -2429,7 +2429,7 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
 // (is_small()==false).
 void* PrepareInsertSmallNonSoo(CommonFields& common,
                                const PolicyFunctions& policy,
-                               EncodedHashKey hasher, HashForKeyFn get_hash);
+                               const void* hasher, HashForKeyFn get_hash);
 
 // Resizes table with allocated slots and change the table seed.
 // Tables with SOO enabled must have capacity > policy.soo_capacity.
@@ -2621,7 +2621,7 @@ void* PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
-    EncodedHashKey hasher, HashForKeyFn recompute_hash);
+    const void* hasher, HashForKeyFn recompute_hash);
 
 template <typename Policy, typename Hash, typename Eq, typename Alloc>
 struct InstantiateRawHashSet {
@@ -4763,14 +4763,14 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
 // Extern template instantiations reduce binary size and linker input size.
 // Function definition is in raw_hash_set.cc.
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
-    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, const void*, HashForKeyFn, bool);
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<1, true>(
-    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, const void*, HashForKeyFn, bool);
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<4, true>(
-    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, const void*, HashForKeyFn, bool);
 #if UINTPTR_MAX == UINT64_MAX
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
-    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, const void*, HashForKeyFn, bool);
 #endif
 
 extern template void

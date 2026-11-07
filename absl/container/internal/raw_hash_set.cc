@@ -1149,7 +1149,7 @@ ReportSingleGroupTableGrowthToInfoz(CommonFields& common, ctrl_t* old_ctrl,
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportSingleElementTableGrowthToInfozAndForceSample(
     CommonFields& common, const AllocPolicy& __restrict policy,
-    EncodedHashKey hasher, HashForKeyFn get_hash) {
+    const void* hasher, HashForKeyFn get_hash) {
   HashtablezInfoHandle infoz = ForcedTrySample(policy);
   common.generate_new_seed(/*has_infoz=*/true);
   ReportGrowthToInfozImpl(common, infoz, get_hash(hasher, common.seed().seed()),
@@ -1170,7 +1170,7 @@ ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportInsertMissToInfoz(
 // `common` is first and `get_hash` is third to match argument order in callers.
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportInsertMissToInfozAndComputeHash(CommonFields& common, size_t probe_length,
-                                      EncodedHashKey hasher,
+                                      const void* hasher,
                                       HashForKeyFn get_hash) {
   common.infoz().RecordInsertMiss(get_hash(hasher, common.seed().seed()),
                                   probe_length);
@@ -1905,7 +1905,7 @@ void IncrementSmallSizeNonSoo(CommonFields& common,
 
 void* Grow1To3AndPrepareInsert(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               EncodedHashKey hasher, HashForKeyFn get_hash,
+                               const void* hasher, HashForKeyFn get_hash,
                                bool has_infoz, void* new_slots) {
   // TODO(b/413062340): Refactor to reuse more code with
   // GrowSooTableToNextCapacityAndPrepareInsert.
@@ -2078,7 +2078,7 @@ RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(
 
 void* PrepareInsertSmallNonSoo(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               EncodedHashKey hasher, HashForKeyFn get_hash) {
+                               const void* hasher, HashForKeyFn get_hash) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   ABSL_SWISSTABLE_ASSERT(!policy.alloc_policy->soo_enabled);
   const bool is_empty = common.empty_when_small();
@@ -2239,7 +2239,7 @@ void* PrepareInsertLargeSlow(CommonFields& common,
 ABSL_ATTRIBUTE_NOINLINE void*
 GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
     CommonFields& common, const AllocPolicy& __restrict policy,
-    EncodedHashKey hasher, HashForKeyFn get_hash) {
+    const void* hasher, HashForKeyFn get_hash) {
   const size_t kNewCapacity = NextCapacity(SooCapacity());
   ResizeEmptyNonAllocatedTableImpl(common, policy, kNewCapacity,
                                    /*blocked_element_count=*/0,
@@ -2341,7 +2341,7 @@ void ResizeAllocatedTableWithSeedChange(
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
 void* GrowSooTableToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
-    EncodedHashKey hasher, HashForKeyFn get_hash, bool force_sampling) {
+    const void* hasher, HashForKeyFn get_hash, bool force_sampling) {
   AssertSoo(common, *policy.alloc_policy);
   if (ABSL_PREDICT_FALSE(force_sampling)) {
     // The table is empty, it is only used for forced sampling of SOO tables.
@@ -2628,7 +2628,7 @@ void* PrepareInsertLarge(CommonFields& common,
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& __restrict policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
-    EncodedHashKey hasher, HashForKeyFn recompute_hash) {
+    const void* hasher, HashForKeyFn recompute_hash) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
   const size_t cap = common.capacity();
@@ -2676,18 +2676,18 @@ constexpr bool VerifyOptimalMemcpySizeForSooSlotTransferRange(size_t left,
 // We need to instantiate ALL possible template combinations because we define
 // the function in the cc file.
 template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
-    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, const void*, HashForKeyFn, bool);
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(1), true>(CommonFields&,
                                                   const PolicyFunctions&,
-                                                  EncodedHashKey, HashForKeyFn,
+                                                  const void*, HashForKeyFn,
                                                   bool);
 
 static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(2, 3));
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(3), true>(CommonFields&,
                                                   const PolicyFunctions&,
-                                                  EncodedHashKey, HashForKeyFn,
+                                                  const void*, HashForKeyFn,
                                                   bool);
 
 #if UINTPTR_MAX == UINT32_MAX
@@ -2698,7 +2698,7 @@ static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(4, 8));
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(8), true>(CommonFields&,
                                                   const PolicyFunctions&,
-                                                  EncodedHashKey, HashForKeyFn,
+                                                  const void*, HashForKeyFn,
                                                   bool);
 static_assert(MaxSooSlotSize() == 8);
 #endif
