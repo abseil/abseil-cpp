@@ -593,6 +593,7 @@ struct HashElement {
   size_t seed;
 };
 
+using EncodedHashKey = absl::hash_internal::EncodedHashKey;
 using HashForKeyFn = absl::hash_internal::HashForKeyFn;
 
 // No arguments hash function for a specific key.
@@ -602,13 +603,13 @@ using HashForKeyFn = absl::hash_internal::HashForKeyFn;
 template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift,
           bool kUseCanonical>
 struct HashKey {
-  static size_t GetHash(const void* data, size_t seed) {
-    const auto& self = *static_cast<const HashKey*>(data);
+  static size_t GetHash(EncodedHashKey data, size_t seed) {
+    const auto& self = *data.ToPtr<HashKey>();
     return HashElement<Hash, kIsAbsl, kSeedShift>{self.hash, seed}(self.key);
   }
 
   // `data()` and `get_hash_fn()` are passed to type erased functions.
-  const void* data() const { return this; }
+  EncodedHashKey data() const { return EncodedHashKey::FromPtr(this); }
   static constexpr HashForKeyFn get_hash_fn() { return &GetHash; }
 
   ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS

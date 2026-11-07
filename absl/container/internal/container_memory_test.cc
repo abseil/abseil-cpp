@@ -395,7 +395,7 @@ TEST(HashKeyTest, NonCanonicalUsesHasher) {
   int32_t a = 1;
   size_t seed = 100;
   HashKeyCustom hk{hash, a};
-  EXPECT_EQ(hk.data(), &hk);
+  EXPECT_EQ(hk.data().ToPtr<HashKeyCustom>(), &hk);
   EXPECT_EQ(HashKeyCustom::get_hash_fn()(hk.data(), seed),
             (HashElement<decltype(hash), /*kIsAbsl=*/false, 0>(hash, seed)(a)));
 }

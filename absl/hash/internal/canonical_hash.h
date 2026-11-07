@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 #include "absl/base/casts.h"
@@ -50,32 +51,56 @@ constexpr auto CanonicalHasher() {
   }
 }
 
-using HashForKeyFn = size_t (*)(const void* hasher, size_t seed);
+// Type-erased key argument passed by value in a single register on common ABIs.
+struct EncodedHashKey {
+  // Returns true if `key` should be passed by value inside `EncodedHashKey`,
+  // avoiding spilling it to the stack at the call site.
+  template <class T>
+  static constexpr bool ShouldPassByValue() {
+    return FitsIn64BitsPowerOf2<T>::value && sizeof(T) <= sizeof(bytes) &&
+           alignof(T) <= alignof(EncodedHashKey) &&
+           // Required for `memcpy` (false for types with non-trivial
+           // `operator=` or destructor, such as `std::pair`).
+           std::is_trivially_copyable_v<T>;
+  }
 
-// Returns true if `key` is passed by value inside the `const void*` argument of
-// `HashForKeyFn`, which avoids spilling it to the stack at the call site.
-// Only uniquely represented types qualify: types with padding or otherwise
-// uninitialized bits (e.g. a disengaged `std::optional`) would pass those bits
-// as a function argument, which MemorySanitizer reports as a use of an
-// uninitialized value.
-template <class T>
-constexpr bool PassKeyByValueInVoidPtr() {
-  // The `sizeof(uintptr_t)` check is not redundant on 32-bit platforms.
-  return is_uniquely_represented<T>::value && FitsIn64BitsPowerOf2<T>::value &&
-         sizeof(T) <= sizeof(uintptr_t);
-}
+  template <class T>
+  static EncodedHashKey FromValue(const T& v) {
+    static_assert(ShouldPassByValue<T>());
+    EncodedHashKey res{};
+    std::memcpy(res.bytes, &v, sizeof(T));
+    return res;
+  }
+
+  static EncodedHashKey FromPtr(const void* ptr) { return FromValue(ptr); }
+
+  template <class T>
+  const T& ToValue() const {
+    static_assert(ShouldPassByValue<T>());
+    return *reinterpret_cast<const T*>(bytes);
+  }
+
+  template <class T>
+  const T* ToPtr() const {
+    return absl::bit_cast<const T*>(bytes);
+  }
+
+  // Byte array (rather than `const void*`) avoids UB and MSan `noundef` errors
+  // when a small key contains padding or uninitialized bytes.
+  alignas(void*) unsigned char bytes[sizeof(void*)];
+};
+
+using HashForKeyFn = size_t (*)(EncodedHashKey hasher, size_t seed);
 
 // Type erased function to apply `Hasher` (the result of `CanonicalHasher<T>()`)
 // to the key encoded by `CanonicalHashKey::data()`.
 template <class Hasher>
-size_t TypeErasedApplyAbslHashToKeyFn(const void* key, size_t seed) {
+size_t TypeErasedApplyAbslHashToKeyFn(EncodedHashKey key, size_t seed) {
   using T = typename Hasher::KeyType;
-  if constexpr (PassKeyByValueInVoidPtr<T>()) {
-    const auto val =
-        static_cast<UintOfSizeT<sizeof(T)>>(reinterpret_cast<uintptr_t>(key));
-    return HashWithSeed().hash(Hasher(), absl::bit_cast<T>(val), seed);
+  if constexpr (EncodedHashKey::ShouldPassByValue<T>()) {
+    return HashWithSeed().hash(Hasher(), key.ToValue<T>(), seed);
   } else {
-    return HashWithSeed().hash(Hasher(), *static_cast<const T*>(key), seed);
+    return HashWithSeed().hash(Hasher(), *key.ToPtr<T>(), seed);
   }
 }
 
@@ -91,16 +116,13 @@ struct CanonicalHashKey {
   explicit CanonicalHashKey(const NonConstK& k) : key(k) {}
 
   // `data()` and `get_hash_fn()` are passed to type erased functions.
-  const void* data() const {
-    if constexpr (PassKeyByValueInVoidPtr<CanonicalKey>()) {
-      // Small keys are encoded by value inside the pointer, other keys by
-      // address. The decision is made on `CanonicalKey` so that it matches the
-      // decoding in `TypeErasedApplyAbslHashToKeyFn`.
+  EncodedHashKey data() const {
+    // Check `CanonicalKey` to match `TypeErasedApplyAbslHashToKeyFn`.
+    if constexpr (EncodedHashKey::ShouldPassByValue<CanonicalKey>()) {
       static_assert(sizeof(NonConstK) == sizeof(CanonicalKey));
-      return reinterpret_cast<const void*>(
-          uintptr_t{absl::bit_cast<UintOfSizeT<sizeof(CanonicalKey)>>(key)});
+      return EncodedHashKey::FromValue(key);
     } else {
-      return &key;
+      return EncodedHashKey::FromPtr(&key);
     }
   }
   static constexpr HashForKeyFn get_hash_fn() {
