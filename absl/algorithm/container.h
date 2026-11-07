@@ -65,7 +65,7 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-template <typename T>
+template <typename T, size_t Extent>
 class Span;
 
 namespace container_algorithm_internal {
@@ -201,8 +201,8 @@ struct IsSpan
     : std::conditional_t<std::is_same_v<T, std::remove_cv_t<T>>,
                          std::false_type, IsSpan<std::remove_cv_t<T>>> {};
 
-template <typename T>
-struct IsSpan<absl::Span<T>> : std::true_type {};
+template <typename T, size_t Extent>
+struct IsSpan<absl::Span<T, Extent>> : std::true_type {};
 
 #ifdef __cpp_lib_span
 template <typename T, size_t Extent>

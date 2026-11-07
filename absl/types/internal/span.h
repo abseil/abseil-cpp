@@ -17,6 +17,7 @@
 #define ABSL_TYPES_INTERNAL_SPAN_H_
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <string>
 #include <type_traits>
@@ -28,7 +29,7 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-template <typename T>
+template <typename T, size_t Extent>
 class Span;
 
 namespace span_internal {
@@ -78,17 +79,17 @@ using ElementT = typename ElementType<C>::type;
 template <typename T>
 using EnableIfMutable = std::enable_if_t<!std::is_const_v<T>, int>;
 
-template <template <typename> class SpanT, typename T>
-constexpr bool EqualImpl(SpanT<T> a, SpanT<T> b) {
-  static_assert(std::is_const_v<T>);
+template <typename SpanT>
+constexpr bool EqualImpl(SpanT a, SpanT b) {
+  static_assert(std::is_const_v<typename SpanT::element_type>);
   return std::equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
-template <template <typename> class SpanT, typename T>
-constexpr bool LessThanImpl(SpanT<T> a, SpanT<T> b) {
+template <typename SpanT>
+constexpr bool LessThanImpl(SpanT a, SpanT b) {
   // We can't use value_type since that is remove_cv_t<T>, so we go the long way
   // around.
-  static_assert(std::is_const_v<T>);
+  static_assert(std::is_const_v<typename SpanT::element_type>);
   return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
 }
 
@@ -124,6 +125,20 @@ using EnableIfIsView = std::enable_if_t<IsView<T>::value, int>;
 
 template <typename T>
 using EnableIfNotIsView = std::enable_if_t<!IsView<T>::value, int>;
+
+// Detect `Span` and `std::array`, which static-extent spans convert from with
+// dedicated constructors.
+template <typename T>
+struct IsSpan : std::false_type {};
+
+template <typename T, size_t Extent>
+struct IsSpan<Span<T, Extent>> : std::true_type {};
+
+template <typename T>
+struct IsStdArray : std::false_type {};
+
+template <typename T, size_t N>
+struct IsStdArray<std::array<T, N>> : std::true_type {};
 
 }  // namespace span_internal
 ABSL_NAMESPACE_END

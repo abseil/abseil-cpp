@@ -42,8 +42,10 @@
 //      assignment.
 //    * `absl::Span` has no `bytes()`, `size_bytes()`, `as_bytes()`, or
 //      `as_writable_bytes()` methods
-//    * `absl::Span` has no static extent template parameter, nor constructors
-//      which exist only because of the static extent parameter.
+//    * `absl::Span<T, N>` supports a static extent like `std::span<T, N>`, but
+//      class template argument deduction and `MakeSpan()` always produce
+//      dynamic-extent spans, and static-extent spans have no relational
+//      operators of their own.
 //    * `absl::Span` has an explicit mutable-reference constructor
 //    * `absl::Span::subspan(pos, len)` always truncates `len` to
 //      `size() - pos`, whereas `std::span::subspan()` only truncates when the
@@ -54,6 +56,7 @@
 #define ABSL_TYPES_SPAN_H_
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <initializer_list>
@@ -76,7 +79,13 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-template <typename T>
+// dynamic_extent
+//
+// The extent of a `Span` whose size is only known at runtime.
+// `absl::Span<T>` is shorthand for `absl::Span<T, absl::dynamic_extent>`.
+inline constexpr size_t dynamic_extent = static_cast<size_t>(-1);
+
+template <typename T, size_t Extent = dynamic_extent>
 class Span;
 
 ABSL_NAMESPACE_END
@@ -89,12 +98,13 @@ ABSL_NAMESPACE_END
 #endif
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
 #include <ranges>  // NOLINT(build/c++20)
-template <typename T>
+template <typename T, size_t Extent>
 // NOLINTNEXTLINE(build/c++20)
-inline constexpr bool std::ranges::enable_view<absl::Span<T>> = true;
-template <typename T>
+inline constexpr bool std::ranges::enable_view<absl::Span<T, Extent>> = true;
+template <typename T, size_t Extent>
 // NOLINTNEXTLINE(build/c++20)
-inline constexpr bool std::ranges::enable_borrowed_range<absl::Span<T>> = true;
+inline constexpr bool
+    std::ranges::enable_borrowed_range<absl::Span<T, Extent>> = true;
 #endif
 
 namespace absl {
@@ -178,8 +188,24 @@ ABSL_NAMESPACE_BEGIN
 //   // Explicit constructor from pointer,size
 //   int* my_array = new int[10];
 //   MyRoutine(absl::Span<const int>(my_array, 10));
+//
+// Static extents
+//
+// `Span<T, N>` refers to exactly `N` elements, like `std::span<T, N>`. Only
+// conversions that cannot change the size are implicit:
+//
+//   void SetKey(absl::Span<const uint8_t, 32> key);
+//
+//   std::array<uint8_t, 32> key = ...;
+//   SetKey(key);                                     // OK, implicit
+//   absl::Span<const uint8_t> dynamic = key;         // OK, implicit
+//   SetKey(absl::Span<const uint8_t, 32>(dynamic));  // explicit, size checked
+//   SetKey(dynamic.first<32>());                     // explicit, size checked
+//
+// The `Span<T>` documented below is the dynamic-extent case,
+// `Span<T, dynamic_extent>`. The static-extent case is defined after it.
 template <typename T>
-class ABSL_ATTRIBUTE_VIEW Span {
+class ABSL_ATTRIBUTE_VIEW Span<T, dynamic_extent> {
  private:
   // Used to determine whether a Span can be constructed from a container of
   // type C.
@@ -217,6 +243,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
 
   // NOLINTNEXTLINE
   static constexpr size_type npos = static_cast<size_type>(-1);
+  static constexpr size_type extent = dynamic_extent;
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
   constexpr Span(pointer array ABSL_ATTRIBUTE_LIFETIME_BOUND,
@@ -302,6 +329,16 @@ class ABSL_ATTRIBUTE_VIEW Span {
   Span(std::initializer_list<value_type> v
            ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept  // NOLINT(runtime/explicit)
       : Span(v.begin(), v.size()) {}
+
+  // Implicit conversion from a static-extent span, e.g. from `Span<int, 4>` to
+  // `Span<int>` or `Span<const int>`.
+  template <typename U, size_t N,
+            std::enable_if_t<N != dynamic_extent &&
+                                 std::is_convertible_v<U (*)[], T (*)[]>,
+                             int> = 0>
+  constexpr Span(  // NOLINT(google-explicit-constructor)
+      Span<U, N> other) noexcept
+      : Span(other.data(), N) {}
 
   // Accessors
 
@@ -495,6 +532,40 @@ class ABSL_ATTRIBUTE_VIEW Span {
                            : (ThrowStdOutOfRange("len > size()"), Span());
   }
 
+  // Span::first<Count>(), Span::last<Count>(), Span::subspan<Offset, Count>()
+  //
+  // Like `first()`, `last()` and `subspan()` above, but return a static-extent
+  // `Span<T, Count>`. Unlike `subspan(pos, len)`, `subspan<Offset, Count>()`
+  // never truncates: `Offset + Count` must be <= size(). Without a `Count`, the
+  // result is a dynamic-extent span holding the rest of the elements.
+  //
+  // Examples:
+  //
+  //   std::vector<int> vec = {10, 11, 12, 13};
+  //   absl::MakeSpan(vec).first<2>();       // Span<int, 2>{10, 11}
+  //   absl::MakeSpan(vec).last<1>();        // Span<int, 1>{13}
+  //   absl::MakeSpan(vec).subspan<1, 2>();  // Span<int, 2>{11, 12}
+  //   absl::MakeSpan(vec).subspan<1>();     // Span<int>{11, 12, 13}
+  //   absl::MakeSpan(vec).first<5>();       // throws std::out_of_range
+  template <size_t Count>
+  constexpr Span<T, Count> first() const {
+    return Span<T, Count>(first(Count));
+  }
+
+  template <size_t Count>
+  constexpr Span<T, Count> last() const {
+    return Span<T, Count>(last(Count));
+  }
+
+  template <size_t Offset, size_t Count = dynamic_extent>
+  constexpr Span<T, Count> subspan() const {
+    if constexpr (Count == dynamic_extent) {
+      return subspan(Offset);
+    } else {
+      return subspan(Offset).template first<Count>();
+    }
+  }
+
   // Support for absl::Hash.
   template <typename H>
   friend H AbslHashValue(H h, Span v) {
@@ -505,6 +576,220 @@ class ABSL_ATTRIBUTE_VIEW Span {
   pointer ptr_;
   size_type len_;
 };
+
+//------------------------------------------------------------------------------
+// Span<T, Extent>
+//------------------------------------------------------------------------------
+//
+// A `Span` with a static extent refers to exactly `Extent` elements. The size
+// is part of the type, so the span only stores a pointer.
+//
+// Construction:
+//
+//   * Implicitly from `T[Extent]`, `std::array<U, Extent>` and
+//     `Span<U, Extent>`, where `U*` converts to `T*` by adding qualifiers.
+//   * Explicitly from a dynamic-extent `Span<U>`, from a pointer and size, and
+//     from containers that `Span<T>` can be constructed from. The size must
+//     equal `Extent`, which is checked by Abseil hardening.
+//
+// A static-extent span converts implicitly to `Span<T>`. There are no
+// relational operators between two static-extent spans.
+template <typename T, size_t Extent>
+class ABSL_ATTRIBUTE_VIEW Span {
+ private:
+  // SFINAE-enables a conversion from `U*` to `T*` that only adds qualifiers.
+  // Unlike `std::is_convertible_v<U*, T*>`, this rejects derived-to-base.
+  template <typename U>
+  using EnableIfCompatible =
+      std::enable_if_t<std::is_convertible_v<U (*)[], T (*)[]>, int>;
+
+  template <typename V>
+  using RemoveCvRef = std::remove_cv_t<std::remove_reference_t<V>>;
+
+  // SFINAE-enables construction from the containers that `Span<T>` can be
+  // constructed from, except pointers, arrays and spans. Those have dedicated
+  // constructors, so that a size mismatch is a compile-time error.
+  template <typename V>
+  using EnableIfContainer =
+      std::enable_if_t<!std::is_pointer_v<RemoveCvRef<V>> &&
+                           !std::is_array_v<RemoveCvRef<V>> &&
+                           !span_internal::IsStdArray<RemoveCvRef<V>>::value &&
+                           !span_internal::IsSpan<RemoveCvRef<V>>::value &&
+                           std::is_constructible_v<Span<T>, V>,
+                       int>;
+
+ public:
+  using element_type = T;
+  using value_type = std::remove_cv_t<T>;
+  using pointer = T* absl_nullability_unknown;
+  using const_pointer = const T* absl_nullability_unknown;
+  using reference = T&;
+  using const_reference = const T&;
+  using iterator = pointer;
+  using const_iterator = const_pointer;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+  using absl_internal_is_view = std::true_type;
+
+  // NOLINTNEXTLINE
+  static constexpr size_type npos = static_cast<size_type>(-1);
+  static constexpr size_type extent = Extent;
+
+  // Only spans of zero elements are default-constructible.
+  template <size_t E = Extent, std::enable_if_t<E == 0, int> = 0>
+  constexpr Span() noexcept : ptr_(nullptr) {}
+
+  // Explicit constructor from a pointer and size. `length` must equal `Extent`.
+  constexpr explicit Span(pointer array ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                          size_type length) noexcept
+      : ptr_(array) {
+    absl::base_internal::HardeningAssert(length == Extent);
+  }
+
+  // Implicit conversion constructors from arrays of exactly `Extent` elements.
+  constexpr Span(  // NOLINT(google-explicit-constructor)
+      T (&a ABSL_ATTRIBUTE_LIFETIME_BOUND)[Extent]) noexcept
+      : ptr_(a) {}
+
+  template <typename U, EnableIfCompatible<U> = 0>
+  constexpr Span(  // NOLINT(google-explicit-constructor)
+      std::array<U, Extent>& a ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
+      : ptr_(a.data()) {}
+
+  template <typename U, EnableIfCompatible<const U> = 0>
+  constexpr Span(  // NOLINT(google-explicit-constructor)
+      const std::array<U, Extent>& a ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
+      : ptr_(a.data()) {}
+
+  // Implicit conversion from a span with the same extent, e.g. from
+  // `Span<int, 4>` to `Span<const int, 4>`.
+  template <typename U, EnableIfCompatible<U> = 0,
+            std::enable_if_t<!std::is_same_v<U, T>, int> = 0>
+  constexpr Span(  // NOLINT(google-explicit-constructor)
+      Span<U, Extent> other) noexcept
+      : ptr_(other.data()) {}
+
+  // Explicit conversion from a dynamic-extent span. `other.size()` must equal
+  // `Extent`.
+  template <typename U, EnableIfCompatible<U> = 0>
+  constexpr explicit Span(Span<U> other) noexcept
+      : Span(other.data(), other.size()) {}
+
+  // Explicit conversion from a container. `v.size()` must equal `Extent`. As
+  // with `Span<T>`, a span of mutable elements needs a mutable container.
+  template <typename V, EnableIfContainer<V> = 0,
+            span_internal::EnableIfNotIsView<RemoveCvRef<V>> = 0>
+  constexpr explicit Span(V&& v ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
+      : Span(Span<T>(std::forward<V>(v))) {}
+
+  // Overload of the above for view types, without the lifetime annotation.
+  template <typename V, EnableIfContainer<V> = 0,
+            span_internal::EnableIfIsView<RemoveCvRef<V>> = 0>
+  constexpr explicit Span(V&& v) noexcept : Span(Span<T>(std::forward<V>(v))) {}
+
+  // Accessors. See the dynamic-extent `Span<T>` above for documentation.
+
+  constexpr pointer data() const noexcept { return ptr_; }
+  constexpr size_type size() const noexcept { return Extent; }
+  constexpr size_type length() const noexcept { return size(); }
+  constexpr bool empty() const noexcept { return Extent == 0; }
+
+  constexpr reference operator[](size_type i) const noexcept {
+    absl::base_internal::HardeningAssertLT(i, size());
+    return ptr_[i];
+  }
+
+  constexpr reference at(size_type i) const {
+    return ABSL_PREDICT_TRUE(i < size())  //
+               ? *(data() + i)
+               : (ThrowStdOutOfRange("Span::at failed bounds check"),
+                  *(data() + i));
+  }
+
+  // Unlike for `Span<T>`, calling `front()` or `back()` on a span of zero
+  // elements is a compile-time error.
+  constexpr reference front() const noexcept {
+    static_assert(Extent > 0, "front() requires a non-empty span");
+    return *data();
+  }
+
+  constexpr reference back() const noexcept {
+    static_assert(Extent > 0, "back() requires a non-empty span");
+    return *(data() + (Extent - 1));
+  }
+
+  constexpr iterator begin() const noexcept { return data(); }
+  constexpr const_iterator cbegin() const noexcept { return begin(); }
+  constexpr iterator end() const noexcept { return data() + Extent; }
+  constexpr const_iterator cend() const noexcept { return end(); }
+  constexpr reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
+  constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+  constexpr reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
+  constexpr const_reverse_iterator crend() const noexcept { return rend(); }
+
+  // Span::first<Count>(), Span::last<Count>(), Span::subspan<Offset, Count>()
+  //
+  // Static-extent subspans. Out-of-range arguments are compile-time errors.
+  template <size_t Count>
+  constexpr Span<T, Count> first() const noexcept {
+    static_assert(Count <= Extent, "Count must not exceed the extent");
+    return Span<T, Count>(data(), Count);
+  }
+
+  template <size_t Count>
+  constexpr Span<T, Count> last() const noexcept {
+    static_assert(Count <= Extent, "Count must not exceed the extent");
+    return Span<T, Count>(data() + (Extent - Count), Count);
+  }
+
+  template <size_t Offset, size_t Count = dynamic_extent>
+  constexpr auto subspan() const noexcept {
+    static_assert(Offset <= Extent, "Offset must not exceed the extent");
+    static_assert(Count == dynamic_extent || Count <= Extent - Offset,
+                  "Offset + Count must not exceed the extent");
+    constexpr size_type kCount =
+        Count == dynamic_extent ? Extent - Offset : Count;
+    return Span<T, kCount>(data() + Offset, kCount);
+  }
+
+  // Span::first(), Span::last(), Span::subspan()
+  //
+  // Dynamic-extent subspans, with the same semantics as for `Span<T>`.
+  constexpr Span<T> first(size_type len) const {
+    return Span<T>(*this).first(len);
+  }
+
+  constexpr Span<T> last(size_type len) const {
+    return Span<T>(*this).last(len);
+  }
+
+  constexpr Span<T> subspan(size_type pos = 0, size_type len = npos) const {
+    return Span<T>(*this).subspan(pos, len);
+  }
+
+  // Support for absl::Hash. Hashes like a `Span<T>` with the same elements.
+  template <typename H>
+  friend H AbslHashValue(H h, Span v) {
+    return H::combine_contiguous(std::move(h), v.data(), v.size());
+  }
+
+ private:
+  pointer ptr_;
+};
+
+// Class template argument deduction produces dynamic-extent spans, as it did
+// before `Span` had an extent parameter.
+template <typename T, size_t N>
+Span(T (&)[N]) -> Span<T>;
+
+template <typename T>
+Span(T* absl_nullability_unknown, size_t) -> Span<T>;
 
 // Span relationals
 
@@ -523,27 +808,27 @@ class ABSL_ATTRIBUTE_VIEW Span {
 // operator==
 template <typename T>
 constexpr bool operator==(Span<T> a, Span<T> b) {
-  return span_internal::EqualImpl<Span, const T>(a, b);
+  return span_internal::EqualImpl<Span<const T>>(a, b);
 }
 template <typename T>
 constexpr bool operator==(Span<const T> a, Span<T> b) {
-  return span_internal::EqualImpl<Span, const T>(a, b);
+  return span_internal::EqualImpl<Span<const T>>(a, b);
 }
 template <typename T>
 constexpr bool operator==(Span<T> a, Span<const T> b) {
-  return span_internal::EqualImpl<Span, const T>(a, b);
+  return span_internal::EqualImpl<Span<const T>>(a, b);
 }
 template <
     typename T, typename U,
     typename = span_internal::EnableIfConvertibleTo<U, absl::Span<const T>>>
 constexpr bool operator==(const U& a, Span<T> b) {
-  return span_internal::EqualImpl<Span, const T>(a, b);
+  return span_internal::EqualImpl<Span<const T>>(a, b);
 }
 template <
     typename T, typename U,
     typename = span_internal::EnableIfConvertibleTo<U, absl::Span<const T>>>
 constexpr bool operator==(Span<T> a, const U& b) {
-  return span_internal::EqualImpl<Span, const T>(a, b);
+  return span_internal::EqualImpl<Span<const T>>(a, b);
 }
 
 // operator!=
@@ -575,27 +860,27 @@ constexpr bool operator!=(Span<T> a, const U& b) {
 // operator<
 template <typename T>
 constexpr bool operator<(Span<T> a, Span<T> b) {
-  return span_internal::LessThanImpl<Span, const T>(a, b);
+  return span_internal::LessThanImpl<Span<const T>>(a, b);
 }
 template <typename T>
 constexpr bool operator<(Span<const T> a, Span<T> b) {
-  return span_internal::LessThanImpl<Span, const T>(a, b);
+  return span_internal::LessThanImpl<Span<const T>>(a, b);
 }
 template <typename T>
 constexpr bool operator<(Span<T> a, Span<const T> b) {
-  return span_internal::LessThanImpl<Span, const T>(a, b);
+  return span_internal::LessThanImpl<Span<const T>>(a, b);
 }
 template <
     typename T, typename U,
     typename = span_internal::EnableIfConvertibleTo<U, absl::Span<const T>>>
 constexpr bool operator<(const U& a, Span<T> b) {
-  return span_internal::LessThanImpl<Span, const T>(a, b);
+  return span_internal::LessThanImpl<Span<const T>>(a, b);
 }
 template <
     typename T, typename U,
     typename = span_internal::EnableIfConvertibleTo<U, absl::Span<const T>>>
 constexpr bool operator<(Span<T> a, const U& b) {
-  return span_internal::LessThanImpl<Span, const T>(a, b);
+  return span_internal::LessThanImpl<Span<const T>>(a, b);
 }
 
 // operator>

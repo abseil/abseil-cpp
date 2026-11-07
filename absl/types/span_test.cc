@@ -908,4 +908,251 @@ TEST(Span, HashConsistentWithVectorLike) {
             absl::HashOf(absl::FixedArray<int>{1, 2, 3}));
 }
 
+// Static extents.
+
+using S4 = absl::Span<int, 4>;
+using CS4 = absl::Span<const int, 4>;
+
+static_assert(
+    std::is_same_v<absl::Span<int>, absl::Span<int, absl::dynamic_extent>>);
+static_assert(absl::Span<int>::extent == absl::dynamic_extent);
+static_assert(S4::extent == 4);
+static_assert(sizeof(S4) == sizeof(int*), "only the pointer is stored");
+static_assert(!absl::type_traits_internal::IsOwner<S4>::value &&
+                  absl::type_traits_internal::IsView<S4>::value,
+              "Span is a view, not an owner");
+static_assert(std::is_trivially_destructible_v<S4> &&
+                  std::is_trivially_copyable_v<S4> &&
+                  std::is_trivially_copy_assignable_v<S4> &&
+                  std::is_trivially_copy_constructible_v<S4>,
+              "Span<T, N> should be trivial in everything except construction");
+static_assert(!std::is_default_constructible_v<S4>);
+static_assert(std::is_default_constructible_v<absl::Span<int, 0>>);
+
+// Conversions that keep the size are implicit.
+static_assert(std::is_convertible_v<int (&)[4], S4>);
+static_assert(std::is_convertible_v<std::array<int, 4>&, S4>);
+static_assert(std::is_convertible_v<const std::array<int, 4>&, CS4>);
+static_assert(std::is_convertible_v<S4, CS4>);
+static_assert(std::is_convertible_v<S4, absl::Span<int>>);
+static_assert(std::is_convertible_v<S4, absl::Span<const int>>);
+
+// Conversions that may change the size are explicit.
+static_assert(!std::is_convertible_v<absl::Span<int>, S4>);
+static_assert(std::is_constructible_v<S4, absl::Span<int>>);
+static_assert(!std::is_convertible_v<std::vector<int>&, S4>);
+static_assert(std::is_constructible_v<S4, std::vector<int>&>);
+static_assert(std::is_constructible_v<CS4, const std::vector<int>&>);
+static_assert(std::is_constructible_v<S4, int*, size_t>);
+
+// Size mismatches known at compile time are compile errors.
+static_assert(!std::is_constructible_v<S4, int (&)[3]>);
+static_assert(!std::is_constructible_v<S4, std::array<int, 3>&>);
+static_assert(!std::is_constructible_v<S4, absl::Span<int, 3>>);
+
+// Constness and derived-to-base conversions are rejected.
+static_assert(!std::is_constructible_v<S4, const std::array<int, 4>&>);
+static_assert(!std::is_constructible_v<S4, CS4>);
+static_assert(!std::is_constructible_v<S4, const std::vector<int>&>);
+static_assert(!std::is_constructible_v<S4, std::vector<int>&&>);
+// `Base` and `Derived` are defined above.
+static_assert(!std::is_constructible_v<absl::Span<Base, 2>, Derived (&)[2]>);
+static_assert(
+    !std::is_constructible_v<absl::Span<Base, 2>, absl::Span<Derived, 2>>);
+
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+static_assert(std::ranges::borrowed_range<S4>);  // NOLINT(build/c++20)
+static_assert(std::ranges::view<S4>);            // NOLINT(build/c++20)
+#endif
+
+TEST(StaticSpan, DeductionGuidesKeepDynamicExtent) {
+  int a[4] = {};
+  const int ca[3] = {};
+  absl::Span s1(a);
+  absl::Span s2(ca);
+  absl::Span s3(a, 2);
+  static_assert(std::is_same_v<decltype(s1), absl::Span<int>>);
+  static_assert(std::is_same_v<decltype(s2), absl::Span<const int>>);
+  static_assert(std::is_same_v<decltype(s3), absl::Span<int>>);
+  EXPECT_EQ(s1.size(), 4);
+  EXPECT_EQ(s2.size(), 3);
+  EXPECT_EQ(s3.size(), 2);
+}
+
+TEST(StaticSpan, FromArray) {
+  int a[4] = {1, 2, 3, 4};
+  S4 s = a;
+  EXPECT_EQ(s.data(), a);
+  EXPECT_EQ(s.size(), 4);
+  EXPECT_FALSE(s.empty());
+  EXPECT_EQ(s.front(), 1);
+  EXPECT_EQ(s.back(), 4);
+  EXPECT_EQ(s[2], 3);
+  EXPECT_EQ(s.at(3), 4);
+  EXPECT_THAT(s, testing::ElementsAre(1, 2, 3, 4));
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(s.at(4), std::out_of_range,
+                                 "failed bounds check");
+}
+
+TEST(StaticSpan, FromStdArray) {
+  std::array<int, 3> a = {1, 2, 3};
+  absl::Span<int, 3> s = a;
+  absl::Span<const int, 3> cs = a;
+  const std::array<int, 3>& ca = a;
+  absl::Span<const int, 3> ccs = ca;
+  EXPECT_EQ(s.data(), a.data());
+  EXPECT_EQ(cs.data(), a.data());
+  EXPECT_EQ(ccs.data(), a.data());
+}
+
+TEST(StaticSpan, ToDynamic) {
+  int a[4] = {1, 2, 3, 4};
+  S4 s = a;
+  absl::Span<int> d = s;
+  absl::Span<const int> cd = s;
+  absl::Span<int> direct(s);
+  EXPECT_EQ(d.data(), a);
+  EXPECT_EQ(d.size(), 4);
+  EXPECT_EQ(cd.data(), a);
+  EXPECT_EQ(cd.size(), 4);
+  EXPECT_EQ(direct.size(), 4);
+}
+
+TEST(StaticSpan, FromDynamicAndContainers) {
+  std::vector<int> v = {1, 2, 3, 4};
+  S4 from_span(absl::MakeSpan(v));
+  S4 from_vector(v);
+  CS4 from_const_vector(static_cast<const std::vector<int>&>(v));
+  S4 from_pointer(v.data(), v.size());
+  EXPECT_EQ(from_span.data(), v.data());
+  EXPECT_EQ(from_vector.data(), v.data());
+  EXPECT_EQ(from_const_vector.data(), v.data());
+  EXPECT_EQ(from_pointer.data(), v.data());
+
+  std::string str = "abc";
+  absl::Span<char, 3> chars(str);
+  EXPECT_EQ(chars.data(), str.data());
+}
+
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+TEST(StaticSpan, SizeMismatchDies) {
+  std::vector<int> v = {1, 2, 3};
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        S4 s(absl::MakeSpan(v));
+        (void)s;
+      },
+      "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        S4 s(v);
+        (void)s;
+      },
+      "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        S4 s(v.data(), v.size());
+        (void)s;
+      },
+      "");
+}
+
+TEST(StaticSpan, ElementAccessDies) {
+  int a[4] = {1, 2, 3, 4};
+  S4 s = a;
+  EXPECT_DEATH_IF_SUPPORTED(s[4], "");
+}
+#endif
+
+TEST(StaticSpan, StaticSubspans) {
+  int a[5] = {0, 1, 2, 3, 4};
+  absl::Span<int, 5> s = a;
+
+  auto first = s.first<2>();
+  auto last = s.last<2>();
+  auto middle = s.subspan<1, 3>();
+  auto rest = s.subspan<2>();
+  auto none = s.subspan<5>();
+  static_assert(std::is_same_v<decltype(first), absl::Span<int, 2>>);
+  static_assert(std::is_same_v<decltype(last), absl::Span<int, 2>>);
+  static_assert(std::is_same_v<decltype(middle), absl::Span<int, 3>>);
+  static_assert(std::is_same_v<decltype(rest), absl::Span<int, 3>>);
+  static_assert(std::is_same_v<decltype(none), absl::Span<int, 0>>);
+  EXPECT_THAT(first, testing::ElementsAre(0, 1));
+  EXPECT_THAT(last, testing::ElementsAre(3, 4));
+  EXPECT_THAT(middle, testing::ElementsAre(1, 2, 3));
+  EXPECT_THAT(rest, testing::ElementsAre(2, 3, 4));
+  EXPECT_TRUE(none.empty());
+}
+
+TEST(StaticSpan, DynamicSubspansOfStaticSpan) {
+  int a[5] = {0, 1, 2, 3, 4};
+  absl::Span<int, 5> s = a;
+
+  auto first = s.first(2);
+  static_assert(std::is_same_v<decltype(first), absl::Span<int>>);
+  EXPECT_THAT(first, testing::ElementsAre(0, 1));
+  EXPECT_THAT(s.last(1), testing::ElementsAre(4));
+  // Truncates like `Span<T>::subspan()`.
+  EXPECT_THAT(s.subspan(3, 10), testing::ElementsAre(3, 4));
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(s.subspan(6), std::out_of_range,
+                                 "pos > size()");
+}
+
+TEST(StaticSpan, StaticSubspansOfDynamicSpan) {
+  std::vector<int> v = {0, 1, 2, 3, 4};
+  absl::Span<int> d = absl::MakeSpan(v);
+
+  auto first = d.first<2>();
+  auto last = d.last<3>();
+  auto middle = d.subspan<1, 2>();
+  auto rest = d.subspan<1>();
+  static_assert(std::is_same_v<decltype(first), absl::Span<int, 2>>);
+  static_assert(std::is_same_v<decltype(last), absl::Span<int, 3>>);
+  static_assert(std::is_same_v<decltype(middle), absl::Span<int, 2>>);
+  static_assert(std::is_same_v<decltype(rest), absl::Span<int>>);
+  EXPECT_THAT(first, testing::ElementsAre(0, 1));
+  EXPECT_THAT(last, testing::ElementsAre(2, 3, 4));
+  EXPECT_THAT(middle, testing::ElementsAre(1, 2));
+  EXPECT_THAT(rest, testing::ElementsAre(1, 2, 3, 4));
+
+  // Unlike `subspan(pos, len)`, the static versions never truncate.
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(d.first<6>(), std::out_of_range,
+                                 "len > size()");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL((d.subspan<4, 2>()), std::out_of_range,
+                                 "len > size()");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(d.subspan<6>(), std::out_of_range,
+                                 "pos > size()");
+}
+
+TEST(StaticSpan, Constexpr) {
+  static constexpr int kArray[3] = {1, 2, 3};
+  constexpr absl::Span<const int, 3> s = kArray;
+  constexpr absl::Span<const int> d = s;
+  static_assert(s.size() == 3);
+  static_assert(s[1] == 2);
+  static_assert(s.first<2>().back() == 2);
+  static_assert(s.subspan<1>().front() == 2);
+  static_assert(d.size() == 3);
+  static_assert(d.last<1>().front() == 3);
+}
+
+TEST(StaticSpan, IterationAndHash) {
+  int a[3] = {1, 2, 3};
+  absl::Span<const int, 3> s = a;
+  EXPECT_EQ(std::accumulate(s.begin(), s.end(), 0), 6);
+  EXPECT_THAT(std::vector<int>(s.rbegin(), s.rend()),
+              testing::ElementsAre(3, 2, 1));
+  EXPECT_EQ(absl::HashOf(s), absl::HashOf(absl::Span<const int>(a)));
+}
+
+TEST(StaticSpan, ComparesWithDynamicSpans) {
+  int a[3] = {1, 2, 3};
+  std::vector<int> v = {1, 2, 3};
+  absl::Span<const int, 3> s = a;
+  EXPECT_TRUE(s == absl::MakeConstSpan(v));
+  EXPECT_TRUE(absl::MakeConstSpan(v) == s);
+  EXPECT_FALSE(s < absl::MakeConstSpan(v));
+}
+
 }  // namespace
