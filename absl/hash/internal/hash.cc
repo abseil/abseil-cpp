@@ -28,7 +28,8 @@
 
 #ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
 #error ABSL_AES_INTERNAL_HAVE_X86_SIMD cannot be directly set
-#elif defined(__SSE4_2__) && defined(__AES__)
+#elif defined(__SSE4_2__) && defined(__AES__) && \
+    (defined(__x86_64__) || defined(_M_X64))
 #define ABSL_AES_INTERNAL_HAVE_X86_SIMD
 #endif
 
