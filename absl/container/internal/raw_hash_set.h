@@ -2860,11 +2860,12 @@ class raw_hash_set : public raw_hash_set_base {
 
  private:
   // Alias used for heterogeneous lookup functions.
-  // `key_arg<K>` evaluates to `K` when the functors are transparent and to
-  // `key_type` otherwise. It permits template argument deduction on `K` for the
-  // transparent case.
+  // `const_key_arg<K>` evaluates to `const K&` when the functors are
+  // transparent and to `AddConstRefIfExpensiveToCopy<key_type>` otherwise. It
+  // permits template argument deduction on `K` for the transparent case.
   template <class K>
-  using key_arg = typename KeyArgImpl::template type<K, key_type>;
+  using const_key_arg =
+      typename KeyArgImpl::template SelectReadOnly<K, key_type>;
 
   using slot_type = typename PolicyTraits::slot_type;
 
@@ -3617,9 +3618,9 @@ class raw_hash_set : public raw_hash_set_base {
   };
 
   template <class K = key_type, class F>
-  iterator lazy_emplace(const key_arg<K>& key,
+  iterator lazy_emplace(const_key_arg<K> key,
                         F&& f) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    auto res = find_or_prepare_insert(key);
+    auto res = find_or_prepare_insert<KeyParam<const_key_arg<K>>>(key);
     if (res.second) {
       slot_type* slot = res.first;
       allocator_type alloc(char_alloc_ref());
@@ -3639,7 +3640,7 @@ class raw_hash_set : public raw_hash_set_base {
   //   // Uses "abc" directly without copying it into std::string.
   //   s.erase("abc");
   template <class K = key_type>
-  size_type erase(const key_arg<K>& key) {
+  size_type erase(const_key_arg<K> key) {
     auto it = find(key);
     if (it.unchecked_equals(end())) return 0;
     erase(it);
@@ -3742,7 +3743,7 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <class K = key_type,
             std::enable_if_t<!std::is_same_v<K, iterator>, int> = 0>
-  node_type extract(const key_arg<K>& key) {
+  node_type extract(const_key_arg<K> key) {
     auto it = find(key);
     return it.unchecked_equals(end()) ? node_type()
                                       : extract(const_iterator{it});
@@ -3782,7 +3783,7 @@ class raw_hash_set : public raw_hash_set_base {
   //   // Uses "abc" directly without copying it into std::string.
   //   s.count("abc");
   template <class K = key_type>
-  size_t count(const key_arg<K>& key) const {
+  size_t count(const_key_arg<K> key) const {
     return contains(key) ? 1 : 0;
   }
 
@@ -3792,7 +3793,7 @@ class raw_hash_set : public raw_hash_set_base {
   // NOTE: This is a very low level operation and should not be used without
   // specific benchmarks indicating its importance.
   template <class K = key_type>
-  void prefetch([[maybe_unused]] const key_arg<K>& key) const {
+  void prefetch([[maybe_unused]] const_key_arg<K> key) const {
     if (is_small()) return;
     // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
@@ -3805,33 +3806,32 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <class K = key_type>
   ABSL_DEPRECATE_AND_INLINE()
-  iterator find(const key_arg<K>& key,
-                size_t) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator find(const_key_arg<K> key, size_t) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return find(key);
   }
   // The API of find() has one extension: the type of the key argument doesn't
   // have to be key_type. This is so called heterogeneous key support.
   template <class K = key_type>
-  iterator find(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    AssertOnFind(key);
-    if (is_small()) return find_small(key);
-    return find_large<FindLargeKey<key_arg<K>>>(key);
+  iterator find(const_key_arg<K> key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    AssertOnFind<KeyParam<const_key_arg<K>>>(key);
+    if (is_small()) return find_small<KeyParam<const_key_arg<K>>>(key);
+    return find_large<FindLargeKey<const_key_arg<K>>>(key);
   }
 
   template <class K = key_type>
   ABSL_DEPRECATE_AND_INLINE()
-  const_iterator find(const key_arg<K>& key,
-                      size_t) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const_iterator
+      find(const_key_arg<K> key, size_t) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return find(key);
   }
   template <class K = key_type>
-  const_iterator find(const key_arg<K>& key) const
+  const_iterator find(const_key_arg<K> key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return const_cast<raw_hash_set*>(this)->find(key);
   }
 
   template <class K = key_type>
-  bool contains(const key_arg<K>& key) const {
+  bool contains(const_key_arg<K> key) const {
     // Here neither the iterator returned by `find()` nor `end()` can be invalid
     // outside of potential thread-safety issues.
     // `find()`'s return value is constructed, used, and then destructed
@@ -3840,7 +3840,7 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
   template <class K = key_type>
-  std::pair<iterator, iterator> equal_range(const key_arg<K>& key)
+  std::pair<iterator, iterator> equal_range(const_key_arg<K> key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
     if (!it.unchecked_equals(end())) return {it, std::next(it)};
@@ -3848,7 +3848,7 @@ class raw_hash_set : public raw_hash_set_base {
   }
   template <class K = key_type>
   std::pair<const_iterator, const_iterator> equal_range(
-      const key_arg<K>& key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+      const_key_arg<K> key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
     if (!it.unchecked_equals(end())) return {it, std::next(it)};
     return {it, it};
@@ -3917,7 +3917,7 @@ class raw_hash_set : public raw_hash_set_base {
   struct EmplaceDecomposable {
     template <class K, class... Args>
     std::pair<iterator, bool> operator()(const K& key, Args&&... args) const {
-      auto res = s.find_or_prepare_insert(key);
+      auto res = s.find_or_prepare_insert<KeyParam<K>>(key);
       if (res.second) {
         s.emplace_at(res.first, std::forward<Args>(args)...);
       }
@@ -3930,7 +3930,7 @@ class raw_hash_set : public raw_hash_set_base {
   struct InsertSlot {
     template <class K, class... Args>
     std::pair<iterator, bool> operator()(const K& key, Args&&...) && {
-      auto res = s.find_or_prepare_insert(key);
+      auto res = s.find_or_prepare_insert<KeyParam<K>>(key);
       if (res.second) {
         s.transfer(res.first, &slot);
       } else if (do_destroy) {
@@ -3963,8 +3963,10 @@ class raw_hash_set : public raw_hash_set_base {
   // TODO(b/289225379): consider having a helper class that has the impls for
   // SOO functionality.
   template <class K>
-  ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const K& key) {
-    return empty_when_small() || !equal_to(key, single_slot())
+  ABSL_ATTRIBUTE_ALWAYS_INLINE iterator
+  find_small(absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    return empty_when_small() || !equal_to<K>(key, single_slot())
                ? end()
                : single_iterator();
   }
@@ -3990,7 +3992,7 @@ class raw_hash_set : public raw_hash_set_base {
       if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
         do {
           const size_t offset = seq.offset(*match);
-          if (ABSL_PREDICT_TRUE(equal_to(key, slot_array + offset)))
+          if (ABSL_PREDICT_TRUE(equal_to<K>(key, slot_array + offset)))
             return iterator_at_ptr(ctrl + offset, slot_array + offset);
         } while (ABSL_PREDICT_FALSE(++match));
       }
@@ -4062,10 +4064,12 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
   template <class K>
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool equal_to(const K& key,
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool equal_to(absl::type_identity_t<K> key,
                                              slot_type* slot) const {
-    return PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
-                               PolicyTraits::element(slot));
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    return PolicyTraits::apply(
+        EqualElement<absl::remove_cvref_t<K>, key_equal>{key, eq_ref()},
+        PolicyTraits::element(slot));
   }
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
@@ -4186,7 +4190,8 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<slot_type*, bool>
-  find_or_prepare_insert_soo(const K& key) {
+  find_or_prepare_insert_soo(absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
     bool force_sampling;
     slot_type* slot = single_slot();
     if (empty_when_small()) {
@@ -4195,7 +4200,7 @@ class raw_hash_set : public raw_hash_set_base {
         return {slot, true};
       }
       force_sampling = true;
-    } else if (equal_to(key, slot)) {
+    } else if (equal_to<K>(key, slot)) {
       return {slot, false};
     } else {
       force_sampling = false;
@@ -4215,12 +4220,13 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<slot_type*, bool>
-  find_or_prepare_insert_small(const K& key) {
+  find_or_prepare_insert_small(absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
     if constexpr (SooEnabled()) {
-      return find_or_prepare_insert_soo(key);
+      return find_or_prepare_insert_soo<K>(key);
     }
     if (!empty_when_small()) {
-      if (equal_to(key, single_slot())) {
+      if (equal_to<K>(key, single_slot())) {
         return {single_slot(), false};
       }
     }
@@ -4253,7 +4259,7 @@ class raw_hash_set : public raw_hash_set_base {
       if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
         do {
           slot_type* slot = slot_array + seq.offset(*match);
-          if (ABSL_PREDICT_TRUE(equal_to(key, slot))) return {slot, false};
+          if (ABSL_PREDICT_TRUE(equal_to<K>(key, slot))) return {slot, false};
         } while (ABSL_PREDICT_FALSE(++match));
       }
       auto mask_empty = g.MaskEmpty();
@@ -4282,23 +4288,30 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
  protected:
+  template <class K>
+  using KeyParam = type_traits_internal::AddConstRefIfExpensiveToCopy<
+      absl::remove_cvref_t<K>>;
+
   // Asserts for correctness that we run on find/find_or_prepare_insert.
   template <class K>
-  void AssertOnFind([[maybe_unused]] const K& key) {
-    AssertHashEqConsistent(key);
+  void AssertOnFind([[maybe_unused]] absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    AssertHashEqConsistent<K>(key);
     AssertNotDebugCapacity();
   }
 
   template <class K>
   static bool equal_to_key_fn(void* set, const void* key, void* slot) {
-    return static_cast<const raw_hash_set*>(set)->equal_to(
-        *static_cast<const K*>(key), to_slot(slot));
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    return static_cast<const raw_hash_set*>(set)->equal_to<K>(
+        *static_cast<const absl::remove_cvref_t<K>*>(key), to_slot(slot));
   }
 
   // Asserts that hash and equal functors provided by the user are consistent,
   // meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
   template <class K>
-  void AssertHashEqConsistent(const K& key) {
+  void AssertHashEqConsistent(absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
     // If the hash/eq functors are known to be consistent, then skip
     // validation. This improves debug performance, but also is important for
     // correctness of the *ConversionCount tests, which fail if we call hash/eq
@@ -4322,9 +4335,11 @@ class raw_hash_set : public raw_hash_set_base {
   // where the value can be inserted into, with the control byte already set to
   // `key`'s H2. Returns a bool indicating whether an insertion can take place.
   template <class K>
-  std::pair<slot_type*, bool> find_or_prepare_insert(const K& key) {
-    AssertOnFind(key);
-    return is_small() ? find_or_prepare_insert_small(key)
+  std::pair<slot_type*, bool> find_or_prepare_insert(
+      absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    AssertOnFind<K>(key);
+    return is_small() ? find_or_prepare_insert_small<K>(key)
                       : find_or_prepare_insert_large<FindLargeKey<K>>(key);
   }
 
@@ -4393,7 +4408,7 @@ class raw_hash_set : public raw_hash_set_base {
   // operations to (a) avoid repeatedly (i) branching on SSO or (ii) calling
   // strlen(), (b) share code between the string-like types. For pointer keys,
   // we similarly convert to `const T*` to share code between `T*`, `const T*`,
-  // and derived-pointer lookups. Note that we don't pass FindLargeKey to
+  // and derived-pointer lookups. Note that we avoid passing FindLargeKey to
   // find*_small() to avoid unnecessarily constructing string_view for small
   // empty tables. Note: we use type_identity_t and static_asserts to ensure
   // that the key type in find*_large is FindLargeKey. (type_identity_t ensures
@@ -4411,11 +4426,10 @@ class raw_hash_set : public raw_hash_set_base {
                 std::is_same_v<hasher, typename HashEq<Ptr>::Hash> &&
                 std::is_same_v<key_equal, typename HashEq<Ptr>::Eq> &&
                 std::is_convertible_v<const RemoveCvrefK&, ConstPtr>>
-  using FindLargeKey =
-      type_traits_internal::AddConstRefIfExpensiveToCopy<std::conditional_t<
-          IsStringHashEqAndConvertibleToStringView, absl::string_view,
-          std::conditional_t<IsPointerHashEqAndConvertibleToPtr, ConstPtr,
-                             RemoveCvrefK>>>;
+  using FindLargeKey = KeyParam<std::conditional_t<
+      IsStringHashEqAndConvertibleToStringView, absl::string_view,
+      std::conditional_t<IsPointerHashEqAndConvertibleToPtr, ConstPtr,
+                         RemoveCvrefK>>>;
 
   bool is_soo() const { return raw_hash_set_base::is_soo<SooEnabled()>(); }
   bool is_full_soo() const {
@@ -4716,11 +4730,12 @@ template <typename Set>
 struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
   using Traits = typename Set::PolicyTraits;
   using Slot = typename Traits::slot_type;
+  using KeyParam =
+      typename Set::raw_hash_set::template KeyParam<typename Set::key_type>;
 
   constexpr static bool kIsAbslHash = Set::kIsAbslHash;
 
-  static size_t GetNumProbes(const Set& set,
-                             const typename Set::key_type& key) {
+  static size_t GetNumProbes(const Set& set, KeyParam key) {
     if (set.is_small()) return 0;
     size_t num_probes = 0;
     const size_t hash = set.hash_of(key);
@@ -4730,7 +4745,8 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
     while (true) {
       container_internal::Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (set.equal_to(key, set.slot_array(set.capacity()) + seq.offset(i)))
+        if (set.template equal_to<KeyParam>(
+                key, set.slot_array(set.capacity()) + seq.offset(i)))
           return num_probes;
         ++num_probes;
       }
