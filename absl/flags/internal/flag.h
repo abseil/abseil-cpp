@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <iterator>
@@ -155,7 +156,6 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
 }
-
 // Returns an address of RTTI's typeid(T).
 template <typename T>
 inline const std::type_info* GenRuntimeTypeId() {
@@ -513,7 +513,7 @@ struct FlagValue;
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue(0) {}
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(T& dst) const {
     int64_t storage = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(storage == 0)) {
       // This assert is to ensure that the initialization inside FlagImpl::Init
@@ -534,7 +534,7 @@ struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue() {}
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(T& dst) const {
     int64_t one_word_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(one_word_val == FlagOneWordValue::Uninitialized())) {
       return false;
@@ -552,16 +552,30 @@ struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
 // value once it is initialized.
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kSequenceLocked> {
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock& lock,
-                                        T& dst) const {
-    return lock.TryRead(&dst, value_words, sizeof(T));
+  constexpr FlagValue() : FlagValue(std::make_index_sequence<kNumWords>{}) {}
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(T& dst) const {
+    // FlagImpl::SeqLock() computes `&seq_lock` via `AtomicBufferValue() +
+    // kNumWords`, so verify no padding or fields sit between `value_words`
+    // and `seq_lock`.
+    static_assert(
+        offsetof(FlagValue, seq_lock) - offsetof(FlagValue, value_words) ==
+            kNumWords * sizeof(std::atomic<uint64_t>),
+        "Unexpected memory layout of sequence-locked FlagValue");
+    return seq_lock.TryRead(&dst, value_words, sizeof(T));
   }
 
   static constexpr int kNumWords =
       flags_internal::AlignUp(sizeof(T), sizeof(uint64_t)) / sizeof(uint64_t);
 
-  alignas(T) alignas(
-      std::atomic<uint64_t>) std::atomic<uint64_t> value_words[kNumWords];
+  alignas((std::max)(alignof(T), alignof(std::atomic<uint64_t>)))
+      std::atomic<uint64_t> value_words[kNumWords];
+  flags_internal::SequenceLock seq_lock;
+
+ private:
+  template <size_t... Is>
+  constexpr explicit FlagValue(std::index_sequence<Is...>)
+      : value_words{(static_cast<void>(Is), uint64_t{0})...} {}
 };
 
 // This specialization represents the storage of flag values types with the
@@ -608,7 +622,7 @@ struct FlagValue<T, FlagValueStorageKind::kHeapAllocated>
   // ensure Init is done before any access to the flag value.
   constexpr FlagValue() : FlagMaskedPointerValue(&buffer[0]) {}
 
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(T& dst) const {
     MaskedPointer ptr_value = value.load(std::memory_order_acquire);
 
     if (ABSL_PREDICT_TRUE(ptr_value.AllowsUnprotectedRead())) {
@@ -656,6 +670,24 @@ class FlagState;
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 #endif
 class FlagImpl final : public CommandLineFlag {
+ private:
+  static constexpr uint8_t kMaxInlineModCount = 7;
+
+  struct MuState {
+    uint8_t default_kind : 2;
+    bool modified : 1;
+    bool on_command_line : 1;
+    bool has_callback : 1;
+    // Saturates at kMaxInlineModCount; further mutations are tracked in
+    // OverflowModCounts().
+    uint8_t mod_count : 3;
+
+    constexpr FlagDefaultKind DefaultKind() const {
+      return static_cast<FlagDefaultKind>(default_kind);
+    }
+  };
+  static_assert(std::atomic<MuState>::is_always_lock_free);
+
  public:
   constexpr FlagImpl(FlagNameArg name, const char* filename, FlagOpFn op,
                      FlagHelpArg help, FlagValueStorageKind value_kind,
@@ -667,10 +699,8 @@ class FlagImpl final : public CommandLineFlag {
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         value_storage_kind_(static_cast<uint8_t>(value_kind)),
         type_id_(name.type_id),
-        def_kind_(static_cast<uint8_t>(default_arg.kind)),
-        modified_(false),
-        on_command_line_(false),
-        has_callback_(false),
+        mu_state_(MuState{static_cast<uint8_t>(default_arg.kind), false, false,
+                          false, 0}),
         default_value_(default_arg.source),
         data_guard_{} {}
 
@@ -740,6 +770,9 @@ class FlagImpl final : public CommandLineFlag {
   // The same as above, but used for sequencelock-protected storage.
   std::atomic<uint64_t>* AtomicBufferValue() const;
 
+  // Accessor for the SequenceLock inside FlagValue<T, kSequenceLocked>.
+  flags_internal::SequenceLock& SeqLock() const;
+
   // This is an accessor for a value stored as one word atomic. Returns a
   // mutable reference to an atomic value.
   std::atomic<int64_t>& OneWordValue() const;
@@ -766,10 +799,6 @@ class FlagImpl final : public CommandLineFlag {
   FlagValueStorageKind ValueStorageKind() const {
     return static_cast<FlagValueStorageKind>(value_storage_kind_);
   }
-  FlagDefaultKind DefaultKind() const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard()) {
-    return static_cast<FlagDefaultKind>(def_kind_);
-  }
 
   // CommandLineFlag interface implementation
   absl::string_view Name() const override;
@@ -777,8 +806,7 @@ class FlagImpl final : public CommandLineFlag {
   std::string Filename() const override;
   std::string Help() const override;
   FlagFastTypeId TypeId() const override;
-  bool IsSpecifiedOnCommandLine() const override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+  bool IsSpecifiedOnCommandLine() const override;
   std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
   std::string CurrentValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
   bool ValidateInputValue(absl::string_view value) const override
@@ -787,7 +815,15 @@ class FlagImpl final : public CommandLineFlag {
       ABSL_LOCKS_EXCLUDED(DataGuard());
 
   int64_t ModificationCount() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+  // Lock-free check used by RestoreState() to skip acquiring DataGuard() when
+  // restoring an unmodified state onto a still-unmodified flag. Uses relaxed
+  // memory ordering because the fast path returns immediately without reading
+  // any other dynamic state, and the slow path acquires DataGuard().
+  bool IsUnmodifiedFast() const {
+    return mu_state_.load(std::memory_order_relaxed).mod_count == 0;
+  }
   bool CanSkipInitOnSave() const;
+  void RecordMutation() ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
 
   // Interfaces to save and restore flags to/from persistent state.
   // Returns current flag state or nullptr if flag does not support
@@ -824,26 +860,11 @@ class FlagImpl final : public CommandLineFlag {
   // stores `"<name>\0<type_name>\0"`.
   const uint8_t type_id_ : 5;
 
-  uint8_t : 0;  // The bytes containing the const bitfields must not be
-                // shared with bytes containing the mutable bitfields.
-
-  // Mutable flag's state (guarded by `data_guard_`).
-
-  // def_kind_ is not guard by DataGuard() since it is accessed in Init without
-  // locks.
-  uint8_t def_kind_ : 2;
-  // Has this flag's value been modified?
-  bool modified_ : 1 ABSL_GUARDED_BY(DataGuard());
-  // Has this flag been specified on command line.
-  bool on_command_line_ : 1 ABSL_GUARDED_BY(DataGuard());
-  // Has a mutation callback been registered on this flag?
-  bool has_callback_ : 1 ABSL_GUARDED_BY(DataGuard());
+  // Mutable state updated under DataGuard() and read with relaxed atomic loads.
+  std::atomic<MuState> mu_state_;
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
-
-  // Sequence lock / mutation counter.
-  flags_internal::SequenceLock seq_lock_;
 
   // Initial default value source specified in ABSL_FLAG. Dynamic default
   // overrides set via SET_FLAGS_DEFAULT are stored in a side table.
@@ -928,7 +949,7 @@ class Flag {
     }
 #endif
 
-    if (ABSL_PREDICT_FALSE(!value_.Get(impl_.seq_lock_, u.value))) {
+    if (ABSL_PREDICT_FALSE(!value_.Get(u.value))) {
       impl_.Read(&u.value);
     }
     return std::move(u.value);
