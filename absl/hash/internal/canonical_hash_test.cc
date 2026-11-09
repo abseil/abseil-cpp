@@ -30,6 +30,18 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
+
+struct NonTriviallyCopyableKey {
+  uintptr_t v;
+  explicit NonTriviallyCopyableKey(uintptr_t v) : v(v) {}
+  // NOLINTNEXTLINE(modernize-use-equals-default)
+  NonTriviallyCopyableKey(const NonTriviallyCopyableKey& other) : v(other.v) {}
+};
+
+template <>
+struct is_uniquely_represented<NonTriviallyCopyableKey>  // NOLINT
+    : std::true_type {};
+
 namespace {
 
 TEST(CanonicalHasherTest, UniquelyRepresentedTypesShareHasher) {
@@ -69,12 +81,20 @@ TEST(CanonicalHasherTest, UniquelyRepresentedTypesShareHasher) {
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<Enum64>()),
                               absl::Hash<uint64_t>>));
 
+  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<double*>()),
+                              decltype(CanonicalHasher<uintptr_t>())>));
+  EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<const int*>()),
+                              decltype(CanonicalHasher<uintptr_t>())>));
+
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::string>()),
                               absl::Hash<std::string>>));
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::array<char, 3>>()),
                               absl::Hash<std::array<char, 3>>>));
   EXPECT_TRUE((std::is_same_v<decltype(CanonicalHasher<std::array<char, 5>>()),
                               absl::Hash<std::array<char, 5>>>));
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(CanonicalHasher<NonTriviallyCopyableKey>()),
+                      absl::Hash<NonTriviallyCopyableKey>>));
 }
 
 TEST(CanonicalHashKeyTest, UniquelyRepresentedTypesShareHashFn) {
@@ -84,6 +104,8 @@ TEST(CanonicalHashKeyTest, UniquelyRepresentedTypesShareHashFn) {
   EXPECT_EQ(HashKeyInt32::get_hash_fn(), HashKeyEnum::get_hash_fn());
   EXPECT_NE(HashKeyInt32::get_hash_fn(),
             CanonicalHashKey<int8_t>::get_hash_fn());
+  EXPECT_EQ(CanonicalHashKey<int*>::get_hash_fn(),
+            CanonicalHashKey<uintptr_t>::get_hash_fn());
 
   const MyEnum c = MyEnum::kTwo;
   const size_t seed = 100;
@@ -108,6 +130,15 @@ TEST(CanonicalHashKeyTest, DataPointerForSmallAndLargeKeys) {
   std::string s = "hello";
   CanonicalHashKey<std::string> hk_str{s};
   EXPECT_EQ(hk_str.data().ToPtr<std::string>(), &s);
+
+  // Non-trivially-copyable uniquely-represented keys are passed by address.
+  NonTriviallyCopyableKey ntc{123};
+  CanonicalHashKey<NonTriviallyCopyableKey> hk_ntc{ntc};
+  EXPECT_EQ(hk_ntc.data().ToPtr<NonTriviallyCopyableKey>(), &ntc);
+  EXPECT_EQ(
+      CanonicalHashKey<NonTriviallyCopyableKey>::get_hash_fn()(hk_ntc.data(),
+                                                               100),
+      HashWithSeed().hash(absl::Hash<NonTriviallyCopyableKey>{}, ntc, 100));
 }
 
 struct NonDefaultConstructibleSmallKey {
@@ -132,6 +163,8 @@ TEST(CanonicalHashKeyTest, PaddedAndPartiallyInitializedSmallKeys) {
   // Disengaged std::optional has uninitialized payload and padding bytes.
   check(std::optional<int16_t>(std::nullopt));
   check(NonDefaultConstructibleSmallKey{123});
+  // Fits in `sizeof(void*)` on 32-bit platforms and has a padding byte.
+  check(std::pair<int16_t, int8_t>{1, 2});
 }
 
 }  // namespace

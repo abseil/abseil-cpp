@@ -5615,6 +5615,9 @@ TEST(Table, PolicyFunctionsAreSharedForRelocatableSlots) {
   EXPECT_EQ(
       intptr_pair_policy,
       (GetPolicyFunctionsPtr<absl::flat_hash_map<EnumPtr, const void*>>()));
+  EXPECT_EQ(
+      intptr_pair_policy,
+      (GetPolicyFunctionsPtr<absl::flat_hash_map<const void*, intptr_t>>()));
 
   // Different slot size.
   EXPECT_NE(intptr_pair_policy,

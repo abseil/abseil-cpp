@@ -338,7 +338,7 @@ class HashStateBase {
 
 // `is_uniquely_represented` is like `std::has_unique_object_representations`,
 // but with a few differences for legacy reasons that predate cl/989071457, such
-// as disallowing pointers or Booleans.
+// as disallowing Booleans.
 //
 // A type is "uniquely represented" if two equal values of that type are
 // guaranteed to have the same bytes in their underlying storage. In other
@@ -370,10 +370,15 @@ class HashStateBase {
 // to support certain SFINAE techniques when defining specializations.
 template <typename T, typename Enable = void>
 struct is_uniquely_represented
-    : std::conditional_t<(std::is_integral_v<T> && !std::is_same_v<bool, T>) ||
-                             std::is_enum_v<T>,
-                         std::has_unique_object_representations<T>,
-                         std::false_type> {};
+    : std::conditional_t<
+          (std::is_integral_v<T> && !std::is_same_v<bool, T>) ||
+              std::is_enum_v<T> || std::is_pointer_v<T>,
+          // Use `void*` for pointers because Clang's
+          // `has_unique_object_representations` returns false for Objective-C
+          // object pointers.
+          std::has_unique_object_representations<
+              std::conditional_t<std::is_pointer_v<T>, void*, T>>,
+          std::false_type> {};
 
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 // Specialize the trait for GNU extension types.
@@ -527,16 +532,10 @@ H AbslHashValue(H hash_state, T (&)[N]) {
   return hash_state;
 }
 
-// AbslHashValue() for hashing pointers
+// This overload prevents `char*` from matching the `absl::string_view`
+// overload.
 template <typename H, typename T>
-std::enable_if_t<std::is_pointer_v<T>, H> AbslHashValue(H hash_state, T ptr) {
-  auto v = reinterpret_cast<uintptr_t>(ptr);
-  // Due to alignment, pointers tend to have low bits as zero, and the next few
-  // bits follow a pattern since they are also multiples of some base value.
-  // The PointerAlignment test verifies that our mixing is good enough to handle
-  // these cases.
-  return H::combine(std::move(hash_state), v);
-}
+void AbslHashValue(H hash_state, const T* ptr);
 
 // AbslHashValue() for hashing nullptr_t
 template <typename H>
@@ -1389,6 +1388,16 @@ struct HashSelect {
   struct UniquelyRepresentedProbe {
     template <typename H, typename T>
     static H Invoke(H state, const T& value) {
+      if constexpr (std::is_pointer_v<T>) {
+        static_assert(
+            !std::is_same_v<State,
+                            typename AbslHashValueResultOrVoid<
+                                State, std::remove_const_t<
+                                           std::remove_pointer_t<T>>*>::type>,
+            "Pointer types cannot have custom AbslHashValue overloads. "
+            "All pointers are hashed by address; wrap the pointer in a struct "
+            "or use a custom hash functor to hash the pointee.");
+      }
       return hash_internal::hash_bytes(std::move(state), value);
     }
   };

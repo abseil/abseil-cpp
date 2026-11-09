@@ -38,12 +38,22 @@ using UintOfSizeT = std::conditional_t<
         std::conditional_t<N == 4, uint32_t,
                            std::conditional_t<N == 8, uint64_t, void>>>>;
 
+// True if `T` can be copied as raw bytes without running a copy constructor or
+// destructor. Unlike `std::is_trivially_copyable`, this does not require a
+// trivial `operator=`, so it is true for `std::pair<int, int>` while still
+// excluding Objective-C ARC pointers.
+template <typename T>
+using IsTriviallyCopyConstructibleAndDestructible =
+    std::bool_constant<std::is_trivially_copy_constructible_v<T> &&
+                       std::is_trivially_destructible_v<T>>;
+
 // Returns a canonical `absl::Hash` for `T`. Types with the exact same hash
 // implementation (such as `is_uniquely_represented` types of the same size)
 // return the same hasher type, which is useful for type erasure.
 template <typename T>
 constexpr auto CanonicalHasher() {
   if constexpr (is_uniquely_represented<T>::value &&
+                IsTriviallyCopyConstructibleAndDestructible<T>::value &&
                 FitsIn64BitsPowerOf2<T>::value) {
     return Hash<UintOfSizeT<sizeof(T)>>();
   } else {
@@ -59,9 +69,7 @@ struct EncodedHashKey {
   static constexpr bool ShouldPassByValue() {
     return FitsIn64BitsPowerOf2<T>::value && sizeof(T) <= sizeof(bytes) &&
            alignof(T) <= alignof(EncodedHashKey) &&
-           // Required for `memcpy` (false for types with non-trivial
-           // `operator=` or destructor, such as `std::pair`).
-           std::is_trivially_copyable_v<T>;
+           IsTriviallyCopyConstructibleAndDestructible<T>::value;
   }
 
   template <class T>
