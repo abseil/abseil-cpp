@@ -67,7 +67,7 @@
 //
 // chunked_queue allows customization of the block size for each block. By
 // default the block size is set to 1 element and the size grows by 1.5x for the
-// next block until it reaches the default max block size, which is 128
+// next block until it reaches the default max block size, which is 64
 // elements.
 //
 // = fixed size
@@ -127,7 +127,7 @@ template <typename T, size_t BLo = 0, size_t BHi = BLo,
 class chunked_queue {
  public:
   static constexpr size_t kBlockSizeMin = (BLo == 0 && BHi == 0) ? 1 : BLo;
-  static constexpr size_t kBlockSizeMax = (BLo == 0 && BHi == 0) ? 128 : BHi;
+  static constexpr size_t kBlockSizeMax = (BLo == 0 && BHi == 0) ? 64 : BHi;
 
  private:
   static_assert(kBlockSizeMin > 0, "Min block size cannot be zero");
