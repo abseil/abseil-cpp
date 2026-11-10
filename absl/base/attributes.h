@@ -416,6 +416,8 @@
 // indicating alignment. If data fall under different alignments then you might
 // get a compilation error indicating a `Section type conflict`.
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name)
+#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::section)
+#define ABSL_ATTRIBUTE_SECTION_VARIABLE(name) [[gnu::section(#name)]]
 #else
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name) __attribute__((section(#name)))
 #endif
