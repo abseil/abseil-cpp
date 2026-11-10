@@ -1375,7 +1375,7 @@ const char *Symbolizer::InsertSymbolInCache(const void *const pc,
 }
 
 static void MaybeOpenFdFromSelfExe(ObjFile *obj) {
-  if (memcmp(obj->start_addr, ELFMAG, SELFMAG) != 0) {
+  if (obj->offset == 0 && memcmp(obj->start_addr, ELFMAG, SELFMAG) != 0) {
     return;
   }
   int fd = OpenReadOnlyWithHighFD("/proc/self/exe");
@@ -1384,13 +1384,15 @@ static void MaybeOpenFdFromSelfExe(ObjFile *obj) {
   }
   // Verify that contents of /proc/self/exe matches in-memory image of
   // the binary. This can fail if the "deleted" binary is in fact not
-  // the main executable, or for binaries that have the first PT_LOAD
-  // segment smaller than 4K. We do it in four steps so that the
+  // the main executable, or for binaries that have the first executable
+  // PT_LOAD segment smaller than 4K. We do it in four steps so that the
   // buffer is smaller and we don't consume too much stack space.
   const char *mem = reinterpret_cast<const char *>(obj->start_addr);
   for (int i = 0; i < 4; ++i) {
     char buf[1024];
-    ssize_t n = read(fd, buf, sizeof(buf));
+    ssize_t n;
+    NO_INTR(n = pread(fd, buf, sizeof(buf),
+                      static_cast<off_t>(obj->offset + i * sizeof(buf))));
     if (n != sizeof(buf) || memcmp(buf, mem, sizeof(buf)) != 0) {
       close(fd);
       return;
