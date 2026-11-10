@@ -97,4 +97,12 @@ TEST(Attributes, MustTail) {
 #endif
 }
 
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI int NoSanitizeCfiCall(int (*fn)(int), int x) {
+  return fn(x);
+}
+
+TEST(Attributes, NoSanitizeCfi) {
+  EXPECT_EQ(NoSanitizeCfiCall([](int x) { return x + 1; }, 41), 42);
+}
+
 }  // namespace
