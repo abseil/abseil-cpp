@@ -161,57 +161,74 @@ class LogMessage {
 
   // By-value overloads for small, common types let us overlook common failures
   // to define globals and static data members (i.e. in a .cc file).
+  // Values are passed by value to `Stream` so they stay in registers.
   // NOLINTBEGIN(runtime/int)
   // NOLINTBEGIN(google-runtime-int)
   // clang-format off:  The CUDA toolchain cannot handle these <<<'s
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(char v) {
-    return operator<< <char>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed char v) {
-    return operator<< <signed char>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned char v) {
-    return operator<< <unsigned char>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed short v) {
-    return operator<< <signed short>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed int v) {
-    return operator<< <signed int>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed long v) {
-    return operator<< <signed long>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(signed long long v) {
-    return operator<< <signed long long>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned short v) {
-    return operator<< <unsigned short>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned int v) {
-    return operator<< <unsigned int>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned long v) {
-    return operator<< <unsigned long>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(unsigned long long v) {
-    return operator<< <unsigned long long>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(void* absl_nullable v) {
-    return operator<< <void*>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(
       const void* absl_nullable v) {
-    return operator<< <const void*>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(float v) {
-    return operator<< <float>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(double v) {
-    return operator<< <double>(v);
+    Stream(v);
+    return *this;
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(bool v) {
-    return operator<< <bool>(v);
+    Stream(v);
+    return *this;
   }
   // clang-format on
   // NOLINTEND(google-runtime-int)
@@ -332,7 +349,7 @@ class LogMessage {
   void ToSinkOnlyImpl(absl::LogSink* absl_nonnull sink);
 
   template <typename T>
-  ABSL_ATTRIBUTE_NOINLINE void Stream(const T& v);
+  ABSL_ATTRIBUTE_NOINLINE void Stream(T v);
 
   enum class StringType {
     kLiteral,
@@ -418,20 +435,23 @@ class StringifySink final {
 
 template <typename T>
 inline LogMessage& LogMessage::operator<<(const T& v) {
-  Stream(v);
+  Stream<const T&>(v);
   return *this;
 }
 
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
 template <typename T>
-void LogMessage::Stream(const T& v) {
-  if constexpr (absl::HasAbslStringify<T>::value) {
+void LogMessage::Stream(T v) {
+  // `T` may be `const U&` (from the generic `operator<<`); strip `&` and
+  // `const` (preserving `volatile`) so trait and `NullGuard` lookups see `U`.
+  using RawT = std::remove_const_t<std::remove_reference_t<T>>;
+  if constexpr (absl::HasAbslStringify<RawT>::value) {
     StringifySink sink(*this);
     // Replace with public API.
     AbslStringify(sink, v);
   } else {
     OstreamView view(*data_);
-    view.stream() << log_internal::NullGuard<T>().Guard(v);
+    view.stream() << log_internal::NullGuard<RawT>().Guard(v);
   }
 }
 
@@ -458,22 +478,22 @@ LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
 // emitting a function call either way.
 // NOLINTBEGIN(runtime/int)
 // NOLINTBEGIN(google-runtime-int)
-extern template void LogMessage::Stream(const char& v);
-extern template void LogMessage::Stream(const signed char& v);
-extern template void LogMessage::Stream(const unsigned char& v);
-extern template void LogMessage::Stream(const short& v);
-extern template void LogMessage::Stream(const unsigned short& v);
-extern template void LogMessage::Stream(const int& v);
-extern template void LogMessage::Stream(const unsigned int& v);
-extern template void LogMessage::Stream(const long& v);
-extern template void LogMessage::Stream(const unsigned long& v);
-extern template void LogMessage::Stream(const long long& v);
-extern template void LogMessage::Stream(const unsigned long long& v);
-extern template void LogMessage::Stream(void* absl_nullable const& v);
-extern template void LogMessage::Stream(const void* absl_nullable const& v);
-extern template void LogMessage::Stream(const float& v);
-extern template void LogMessage::Stream(const double& v);
-extern template void LogMessage::Stream(const bool& v);
+extern template void LogMessage::Stream(char v);
+extern template void LogMessage::Stream(signed char v);
+extern template void LogMessage::Stream(unsigned char v);
+extern template void LogMessage::Stream(short v);
+extern template void LogMessage::Stream(unsigned short v);
+extern template void LogMessage::Stream(int v);
+extern template void LogMessage::Stream(unsigned int v);
+extern template void LogMessage::Stream(long v);
+extern template void LogMessage::Stream(unsigned long v);
+extern template void LogMessage::Stream(long long v);
+extern template void LogMessage::Stream(unsigned long long v);
+extern template void LogMessage::Stream(void* absl_nullable v);
+extern template void LogMessage::Stream(const void* absl_nullable v);
+extern template void LogMessage::Stream(float v);
+extern template void LogMessage::Stream(double v);
+extern template void LogMessage::Stream(bool v);
 // NOLINTEND(google-runtime-int)
 // NOLINTEND(runtime/int)
 
