@@ -66,8 +66,9 @@
 // == block size customization
 //
 // chunked_queue allows customization of the block size for each block. By
-// default the block size is set to 1 element and the size doubles for the next
-// block until it reaches the default max block size, which is 128 elements.
+// default the block size is set to 1 element and the size grows by 1.5x for the
+// next block until it reaches the default max block size, which is 128
+// elements.
 //
 // = fixed size
 //
@@ -86,12 +87,11 @@
 // sizes for the blocks. Initially the queue starts with the min block size and
 // as it grows, the size of each block grows until it reaches the max block
 // size.
-// New blocks are double the size of the tail block (so they at least
-// double the size of the queue).
+// New blocks are 1.5x the size of the tail block.
 //
-//   chunked_queue<T, 4, 64>: first block 4 elements, second block 8 elements,
-//                            third block 16 elements, fourth block 32 elements,
-//                            all other blocks 64 elements
+//   chunked_queue<T, 4, 16>: first block 4 elements, second block 6 elements,
+//                            third block 9 elements, fourth block 13 elements,
+//                            all other blocks 16 elements
 //
 // One can specify a min and max such that small queues will not waste memory
 // and large queues will not have too many blocks.
@@ -580,11 +580,16 @@ class chunked_queue {
   void AddTailBlock();
   // Returns the capacity (in elements) to allocate for a new block adjacent to
   // `b` (`head_.block` when prepending or `tail_.block` when appending). Starts
-  // at `kBlockSizeMin` when `b` is null, otherwise doubles `b->size()` and
-  // clamps to `[kBlockSizeMin, kBlockSizeMax]`.
+  // at `kBlockSizeMin` when `b` is null, otherwise grows `b->size()` by 1.5x
+  // and clamps to `[kBlockSizeMin, kBlockSizeMax]`.
   size_t NewBlockSize(Block* b) {
     if (!b) return kBlockSizeMin;
-    return (std::min)(kBlockSizeMax, 2 * b->size());
+    const size_t prev_size = b->size();
+    // Ensure the block size grows by at least 1 when `prev_size == 1` (since
+    // `static_cast<size_t>(1.5 * 1)` truncates to 1).
+    const size_t new_size =
+        (std::max)(static_cast<size_t>(1.5 * prev_size), prev_size + 1);
+    return (std::min)(kBlockSizeMax, new_size);
   }
 
   T* AllocateBack();
