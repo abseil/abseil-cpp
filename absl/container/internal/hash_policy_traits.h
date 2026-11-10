@@ -30,6 +30,18 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
+// Avoid comparing function addresses with nullptr during constant evaluation,
+// which GCC rejects with UBSan enabled (GCC bug 71962).
+template <HashSlotFn kPolicyFn, HashSlotFn kFallbackFn>
+struct HashSlotFnSelector {
+  static constexpr HashSlotFn kValue = kPolicyFn;
+};
+
+template <HashSlotFn kFallbackFn>
+struct HashSlotFnSelector<nullptr, kFallbackFn> {
+  static constexpr HashSlotFn kValue = kFallbackFn;
+};
+
 // Defines how slots are initialized/destroyed/moved.
 template <class Policy, class = void>
   struct hash_policy_traits : common_policy_traits<Policy> {
@@ -149,21 +161,10 @@ template <class Policy, class = void>
 
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-// get_hash_slot_fn may return nullptr to signal that non type erased function
-// should be used. GCC warns against comparing function address with nullptr.
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-// silent error: the address of * will never be NULL [-Werror=address]
-#pragma GCC diagnostic ignored "-Waddress"
-#endif
-    return Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>() ==
-                   nullptr
-               ? &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>
-               : Policy::template get_hash_slot_fn<Hash, kIsAbsl,
-                                                   kSeedShift>();
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+    // A null policy function selects the non-type-erased fallback.
+    return HashSlotFnSelector<
+        Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>(),
+        &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>>::kValue;
   }
 
  private:
