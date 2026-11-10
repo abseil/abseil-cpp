@@ -706,15 +706,17 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       uintptr_t dst_addr = reinterpret_cast<uintptr_t>(d);
       size_t bytes_to_align =
           (kAlignment - (dst_addr & (kAlignment - 1))) & (kAlignment - 1);
-      std::memcpy(d, p, bytes_to_align);
-      d += bytes_to_align;
-      while (bytes_to_align >= 8) {
-        ABSL_INTERNAL_STEP8(l, p);
-        bytes_to_align -= 8;
-      }
-      while (bytes_to_align > 0) {
-        ABSL_INTERNAL_STEP1(l, p);
-        bytes_to_align -= 1;
+      if (bytes_to_align != 0) {
+        std::memcpy(d, p, bytes_to_align);
+        d += bytes_to_align;
+        while (bytes_to_align >= 8) {
+          ABSL_INTERNAL_STEP8(l, p);
+          bytes_to_align -= 8;
+        }
+        while (bytes_to_align > 0) {
+          ABSL_INTERNAL_STEP1(l, p);
+          bytes_to_align -= 1;
+        }
       }
     } else {
       // Point x at first 8-byte aligned byte in string.
@@ -927,15 +929,11 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       if constexpr (copy_type != CopyType::kNone) {
         d = reinterpret_cast<char*>(
             dst_pclmul_streams[kNumActivePclmulStreams - 1]);
-        size_t remaining_to_copy = static_cast<size_t>(e - p);
-        std::memcpy(d, p, remaining_to_copy);
       }
     } else {
       p = crc_streams[kNumActiveCrcStreams - 1];
       if constexpr (copy_type != CopyType::kNone) {
         d = reinterpret_cast<char*>(dst_crc_streams[kNumActiveCrcStreams - 1]);
-        size_t remaining_to_copy = static_cast<size_t>(e - p);
-        std::memcpy(d, p, remaining_to_copy);
       }
     }
 
@@ -963,15 +961,26 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
 
     *crc = l;
 
-    if constexpr (copy_type == CopyType::kNonTemporal) {
-      // According to the Intel 64 Software Developer's Manual
-      // (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html),
-      // non-temporal stores are weakly ordered due to bypassing caches, so
-      // they have to be fenced before the copy is visible to other threads.
-      // Regular stores are ordered and need no fence. Note that the fence is
-      // placed after all stores, to avoid unnecessary serialization and a
-      // performance hit.
-      NonTemporalStoreFence();
+    if constexpr (copy_type != CopyType::kNone) {
+      const uint8_t* copy_src = e - remaining_bytes;
+      while (e - copy_src >= 64) {
+        Copy64Bytes<copy_type>(reinterpret_cast<uint8_t*>(d), copy_src);
+        d += 64;
+        copy_src += 64;
+      }
+      if constexpr (copy_type == CopyType::kNonTemporal) {
+        // According to the Intel 64 Software Developer's Manual
+        // (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html),
+        // non-temporal stores are weakly ordered due to bypassing caches, so
+        // they have to be fenced before the copy is visible to other threads.
+        // Regular stores are ordered and need no fence. Note that the fence is
+        // placed after all non-temporal stores, to avoid unnecessary
+        // serialization and a performance hit.
+        NonTemporalStoreFence();
+      }
+      if (copy_src != e) {
+        std::memcpy(d, copy_src, static_cast<size_t>(e - copy_src));
+      }
     }
   }
 
