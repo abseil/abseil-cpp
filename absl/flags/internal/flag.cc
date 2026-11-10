@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <string>
 #include <typeinfo>
@@ -176,6 +177,23 @@ void IncrementOverflowModCount(const FlagImpl* flag) {
   OverflowModCounts().Increment(flag);
 }
 
+struct FilenameTable {
+  absl::Mutex mutex;
+  std::vector<const char*> files ABSL_GUARDED_BY(mutex);
+};
+
+FilenameTable& GlobalFilenames() {
+  static absl::NoDestructor<FilenameTable> filenames;
+  return *filenames;
+}
+
+const char* GetFilenameById(uint16_t id) {
+  if (id == 0) return "";
+  FilenameTable& table = GlobalFilenames();
+  absl::MutexLock l(table.mutex);
+  return table.files[id - 1];
+}
+
 }  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -280,6 +298,32 @@ void MaskedPointer::ApplyMask(mask_t mask) {
 }
 bool MaskedPointer::CheckMask(mask_t mask) const {
   return (reinterpret_cast<mask_t>(ptr_) & mask) != 0;
+}
+
+void FlagImpl::SetFilename(const char* filename) {
+  // Keep the first registration's filename so FlagRegistry::RegisterFlag can
+  // report both files when dynamic symbol interposition merges duplicate flag
+  // definitions across shared libraries.
+  if (file_id_ != 0 || filename == nullptr) return;
+  FilenameTable& table = GlobalFilenames();
+  absl::MutexLock l(table.mutex);
+  // Flags are typically defined in .cc files whose dynamic initializers run
+  // consecutively per translation unit, and compilers that pool string
+  // literals (such as Clang/GCC .rodata.str1.1 or MSVC /GF) share one
+  // __FILE__ literal address per file. Checking pointer equality against the
+  // last entry deduplicates that common case in O(1); if literals are not
+  // pooled or a translation unit spans multiple files, storing extra entries
+  // only uses an additional table slot without affecting correctness.
+  if (!table.files.empty() && table.files.back() == filename) {
+    file_id_ = static_cast<uint16_t>(table.files.size());
+    return;
+  }
+  if (ABSL_PREDICT_FALSE(table.files.size() >=
+                         std::numeric_limits<uint16_t>::max())) {
+    ABSL_INTERNAL_LOG(FATAL, "Too many flag filenames");
+  }
+  table.files.push_back(filename);
+  file_id_ = static_cast<uint16_t>(table.files.size());
 }
 
 void FlagImpl::Init() {
@@ -444,7 +488,8 @@ absl::string_view FlagImpl::TypeName() const {
 }
 
 std::string FlagImpl::Filename() const {
-  return flags_internal::GetUsageConfig().normalize_filename(filename_);
+  return flags_internal::GetUsageConfig().normalize_filename(
+      GetFilenameById(file_id_));
 }
 
 std::string FlagImpl::Help() const {
@@ -457,8 +502,7 @@ FlagFastTypeId FlagImpl::TypeId() const {
 }
 
 int64_t FlagImpl::ModificationCount() const {
-  const uint8_t mod_count =
-      mu_state_.load(std::memory_order_relaxed).mod_count;
+  const uint8_t mod_count = mu_state_.load(std::memory_order_relaxed).mod_count;
   if (ABSL_PREDICT_TRUE(mod_count < kMaxInlineModCount)) {
     return mod_count;
   }

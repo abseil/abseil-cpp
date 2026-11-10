@@ -46,7 +46,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
 
-    namespace absl {
+namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -689,11 +689,10 @@ class FlagImpl final : public CommandLineFlag {
   static_assert(std::atomic<MuState>::is_always_lock_free);
 
  public:
-  constexpr FlagImpl(FlagNameArg name, const char* filename, FlagOpFn op,
-                     FlagHelpArg help, FlagValueStorageKind value_kind,
+  constexpr FlagImpl(FlagNameArg name, FlagOpFn op, FlagHelpArg help,
+                     FlagValueStorageKind value_kind,
                      FlagDefaultArg default_arg)
       : name_(name.name),
-        filename_(filename),
         op_(op),
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
@@ -701,6 +700,7 @@ class FlagImpl final : public CommandLineFlag {
         type_id_(name.type_id),
         mu_state_(MuState{static_cast<uint8_t>(default_arg.kind), false, false,
                           false, 0}),
+        file_id_(0),
         default_value_(default_arg.source),
         data_guard_{} {}
 
@@ -729,6 +729,7 @@ class FlagImpl final : public CommandLineFlag {
 
   // Mutating access methods
   void Write(const void* src) ABSL_LOCKS_EXCLUDED(DataGuard());
+  void SetFilename(const char* filename);
 
   // Interfaces to operate on callbacks.
   void SetCallback(const FlagCallbackFunc mutation_callback)
@@ -845,9 +846,6 @@ class FlagImpl final : public CommandLineFlag {
   // Flags name passed to ABSL_FLAG as second arg (followed by NUL-terminated
   // type name when `type_id_ == kCustomFlagTypeId`).
   const char* const name_;
-
-  // The file name where ABSL_FLAG resides.
-  const char* const filename_;
   // Type-specific operations vtable.
   const FlagOpFn op_;
   // Help message literal or function to generate it.
@@ -862,6 +860,9 @@ class FlagImpl final : public CommandLineFlag {
 
   // Mutable state updated under DataGuard() and read with relaxed atomic loads.
   std::atomic<MuState> mu_state_;
+
+  // Deduplicated filename index assigned on registration (0 = unset).
+  uint16_t file_id_;
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
@@ -898,21 +899,23 @@ ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE)
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(FlagNameArg name, const char* filename, FlagHelpArg help,
+  constexpr Flag(FlagNameArg name, FlagHelpArg help,
                  const FlagDefaultArg default_arg)
-      : impl_(name, filename, &FlagOps<T>, help,
-              flags_internal::StorageKind<T>(), default_arg),
+      : impl_(name, &FlagOps<T>, help, flags_internal::StorageKind<T>(),
+              default_arg),
         value_() {}
-  constexpr Flag(const char* name, const char* filename, FlagHelpArg help,
+  constexpr Flag(const char* name, FlagHelpArg help,
                  const FlagDefaultArg default_arg)
-      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, filename, help, default_arg) {
-  }
+      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
+  constexpr Flag(const char* name, const char* /*filename*/, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
   // Kept for backwards compatibility.
   constexpr Flag(const char* name, const char* type_name,
-                 const char* filename, FlagHelpArg help,
+                 const char* /*filename*/, FlagHelpArg help,
                  const FlagDefaultArg default_arg)
-      : Flag(FlagNameArg{name, LookupCommonOrEmptyFlagTypeId(type_name)},
-             filename, help, default_arg) {}
+      : Flag(FlagNameArg{name, LookupCommonOrEmptyFlagTypeId(type_name)}, help,
+             default_arg) {}
 
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }
@@ -1065,8 +1068,12 @@ class FlagRegistrar {
  public:
   constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename)
       : flag_(flag) {
-    if (do_register)
+    if (filename != nullptr) {
+      flag_.impl_.SetFilename(filename);
+    }
+    if (do_register) {
       flags_internal::RegisterCommandLineFlag(flag_.impl_, filename);
+    }
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
