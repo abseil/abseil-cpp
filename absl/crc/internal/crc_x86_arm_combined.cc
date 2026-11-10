@@ -515,8 +515,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
   // instruction, and up to kMaxStreams blocks computed with PCLMULQDQ, which
   // are combined in the end.
   static constexpr size_t kMaxStreams = 3;
-  // When copying, at most kMaxCopyStreams streams are used in total.
-  static constexpr size_t kMaxCopyStreams = 2;
   // On AArch64, full-cache-line stores engage hardware write-streaming, and
   // software destination prefetches force unnecessary DRAM reads.
 #if defined(__aarch64__)
@@ -965,24 +963,22 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
   };
 
   // Returns the number of crc and pclmul streams to use. Copying adds loads and
-  // stores, so fewer streams are needed to saturate the dispatch width. In copy
-  // mode, at most kMaxCopyStreams of the configured streams are used, taken in
-  // the order: pclmul 1, crc 1, pclmul 2, crc 2, pclmul 3, crc 3.
+  // stores, so fewer streams are needed to saturate the dispatch width.
   static constexpr StreamCounts GetStreamCounts(CopyType copy_type) {
-    if (copy_type == CopyType::kNone) {
+    if (copy_type == CopyType::kNone || num_pclmul_streams == 0) {
       return {num_crc_streams, num_pclmul_streams};
     }
-    StreamCounts counts = {0, 0};
-    for (size_t i = 0; i < kMaxStreams; ++i) {
-      if (i < num_pclmul_streams &&
-          counts.crc + counts.pclmul < kMaxCopyStreams) {
-        counts.pclmul++;
-      }
-      if (i < num_crc_streams && counts.crc + counts.pclmul < kMaxCopyStreams) {
-        counts.crc++;
-      }
+    // A single 256-bit VPCLMUL stream keeps up with temporal copies on its own.
+    if (pclmul_stream_type == PclmulStreamType::VPCLMUL &&
+        copy_type == CopyType::kTemporal) {
+      return {0, 1};
     }
-    return counts;
+    // Non-temporal copies benefit from a second crc stream, notably on AMD
+    // Zen 2-4.
+    if (copy_type == CopyType::kNonTemporal && num_crc_streams >= 2) {
+      return {2, 1};
+    }
+    return {1, 1};
   }
 
   // Whether PCLMUL streams are folded with 256-bit `vpclmulqdq`.
