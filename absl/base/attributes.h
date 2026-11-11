@@ -289,7 +289,11 @@
 // https://gcc.gnu.org/gcc-4.8/changes.html
 #if defined(ABSL_HAVE_ADDRESS_SANITIZER) && \
     ABSL_HAVE_ATTRIBUTE(no_sanitize_address)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize_address)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS [[gnu::no_sanitize_address]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
+#endif
 #elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && defined(_MSC_VER) && \
     _MSC_VER >= 1928
 // https://docs.microsoft.com/en-us/cpp/cpp/no-sanitize-address
@@ -299,8 +303,12 @@
 // features to detect similar bugs with less CPU and memory overhead.
 // NOTE: GCC supports HWAddressSanitizer(hwasan) since 11.
 // https://gcc.gnu.org/gcc-11/changes.html
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS [[gnu::no_sanitize("hwaddress")]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS \
   __attribute__((no_sanitize("hwaddress")))
+#endif
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 #endif
@@ -313,7 +321,9 @@
 // attribute is similar to the ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS attribute
 // above, but deals with initialized-ness rather than addressability issues.
 // NOTE: MemorySanitizer(msan) is supported by Clang but not GCC.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize_memory)
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::no_sanitize_memory)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY [[clang::no_sanitize_memory]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize_memory)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY __attribute__((no_sanitize_memory))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
@@ -324,7 +334,9 @@
 // Tells the ThreadSanitizer to not instrument a given function.
 // NOTE: GCC supports ThreadSanitizer(tsan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize_thread)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize_thread)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD [[gnu::no_sanitize_thread]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize_thread)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD __attribute__((no_sanitize_thread))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD
@@ -340,8 +352,12 @@
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
   __attribute__((no_sanitize_undefined))
 #elif ABSL_HAVE_ATTRIBUTE(no_sanitize)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED [[gnu::no_sanitize("undefined")]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
   __attribute__((no_sanitize("undefined")))
+#endif
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED
 #endif
@@ -373,7 +389,9 @@
 //
 // Tells the SafeStack to not instrument a given function.
 // See https://clang.llvm.org/docs/SafeStack.html for details.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK [[gnu::no_sanitize("safe-stack")]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK \
   __attribute__((no_sanitize("safe-stack")))
 #else
