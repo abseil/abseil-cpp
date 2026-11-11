@@ -19,7 +19,10 @@
 #include <cstdint>
 #include <limits>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/endian.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/internal/memutil.h"
 
@@ -248,9 +251,9 @@ constexpr int DigitMagnitude<16>() {
 // ConsumeDigits does not protect against overflow on *out; max_digits must
 // be chosen with respect to type T to avoid the possibility of overflow.
 template <int base, typename T>
-ptrdiff_t ConsumeDigits(const char* begin, const char* end,
-                        ptrdiff_t max_digits, T* out,
-                        bool* dropped_nonzero_digit) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline ptrdiff_t ConsumeDigits(
+    const char* begin, const char* end, ptrdiff_t max_digits, T* out,
+    bool* dropped_nonzero_digit) {
   if (base == 10) {
     assert(max_digits <= std::numeric_limits<T>::digits10);
   } else if (base == 16) {
@@ -266,6 +269,31 @@ ptrdiff_t ConsumeDigits(const char* begin, const char* end,
   T accumulator = *out;
   const char* significant_digits_end =
       (end - begin > max_digits) ? begin + max_digits : end;
+  if constexpr (base == 10 && sizeof(T) == 8) {
+    if (ABSL_PREDICT_FALSE(end - begin > max_digits)) {
+      while (significant_digits_end - begin >= 8) {
+        uint64_t chunk = little_endian::Load64(begin);
+        uint64_t d = chunk - 0x3030303030303030ULL;
+        if (((d | (d + 0x7676767676767676ULL)) & 0x8080808080808080ULL) != 0) {
+          break;
+        }
+        d = ((d * 2561ULL) >> 8) & 0x00ff00ff00ff00ffULL;
+        d = ((d * 6553601ULL) >> 16) & 0x0000ffff0000ffffULL;
+        uint64_t chunk_val = (d * 42949672960001ULL) >> 32;
+        accumulator = accumulator * 100000000ULL + static_cast<T>(chunk_val);
+        begin += 8;
+      }
+    } else if (significant_digits_end - begin >= 4) {
+      uint32_t chunk = little_endian::Load32(begin);
+      uint32_t d = chunk - 0x30303030U;
+      if (((d | (d + 0x76767676U)) & 0x80808080U) == 0) {
+        d = ((d * 2561U) >> 8) & 0x00ff00ffU;
+        uint32_t chunk_val = (d * 6553601U) >> 16;
+        accumulator = accumulator * 10000ULL + static_cast<T>(chunk_val);
+        begin += 4;
+      }
+    }
+  }
   while (begin < significant_digits_end && IsDigit<base>(*begin)) {
     // Do not guard against *out overflow; max_digits was chosen to avoid this.
     // Do assert against it, to detect problems in debug builds.
@@ -276,13 +304,26 @@ ptrdiff_t ConsumeDigits(const char* begin, const char* end,
     accumulator += digit;
     ++begin;
   }
-  bool dropped_nonzero = false;
-  while (begin < end && IsDigit<base>(*begin)) {
-    dropped_nonzero = dropped_nonzero || (*begin != '0');
-    ++begin;
-  }
-  if (dropped_nonzero && dropped_nonzero_digit != nullptr) {
-    *dropped_nonzero_digit = true;
+  if (ABSL_PREDICT_FALSE(begin == significant_digits_end && begin < end)) {
+    bool dropped_nonzero = false;
+    if constexpr (base == 10) {
+      while (end - begin >= 8) {
+        uint64_t chunk = little_endian::Load64(begin);
+        uint64_t d = chunk - 0x3030303030303030ULL;
+        if (((d | (d + 0x7676767676767676ULL)) & 0x8080808080808080ULL) != 0) {
+          break;
+        }
+        dropped_nonzero = dropped_nonzero || (d != 0);
+        begin += 8;
+      }
+    }
+    while (begin < end && IsDigit<base>(*begin)) {
+      dropped_nonzero = dropped_nonzero || (*begin != '0');
+      ++begin;
+    }
+    if (dropped_nonzero && dropped_nonzero_digit != nullptr) {
+      *dropped_nonzero_digit = true;
+    }
   }
   *out = accumulator;
   return begin - original_begin;
@@ -363,7 +404,8 @@ strings_internal::ParsedFloat ParseFloat(const char* begin, const char* end,
   if (begin == end) return result;
 
   // Handle the infinity and NaN cases.
-  if (ParseInfinityOrNan(begin, end, &result)) {
+  if (ABSL_PREDICT_FALSE(((*begin | 0x20) == 'i' || (*begin | 0x20) == 'n') &&
+                         ParseInfinityOrNan(begin, end, &result))) {
     return result;
   }
 
@@ -375,20 +417,29 @@ strings_internal::ParsedFloat ParseFloat(const char* begin, const char* end,
 
   ptrdiff_t exponent_adjustment = 0;
   bool mantissa_is_inexact = false;
-  ptrdiff_t pre_decimal_digits = ConsumeDigits<base>(
-      begin, end, MantissaDigitsMax<base>(), &mantissa, &mantissa_is_inexact);
-  begin += pre_decimal_digits;
   ptrdiff_t digits_left;
-  if (pre_decimal_digits >= DigitLimit<base>()) {
-    // refuse to parse pathological inputs
-    return result;
-  } else if (pre_decimal_digits > MantissaDigitsMax<base>()) {
-    // We dropped some non-fraction digits on the floor.  Adjust our exponent
-    // to compensate.
-    exponent_adjustment = pre_decimal_digits - MantissaDigitsMax<base>();
-    digits_left = 0;
+  if (begin < end && *begin == '.') {
+    digits_left = MantissaDigitsMax<base>();
+  } else if (base == 10 && end - begin >= 2 && begin[1] == '.' &&
+             IsDigit<10>(*begin)) {
+    mantissa = static_cast<uint64_t>(*begin - '0');
+    ++begin;
+    digits_left = MantissaDigitsMax<base>() - 1;
   } else {
-    digits_left = MantissaDigitsMax<base>() - pre_decimal_digits;
+    ptrdiff_t pre_decimal_digits = ConsumeDigits<base>(
+        begin, end, MantissaDigitsMax<base>(), &mantissa, &mantissa_is_inexact);
+    begin += pre_decimal_digits;
+    if (pre_decimal_digits >= DigitLimit<base>()) {
+      // refuse to parse pathological inputs
+      return result;
+    } else if (pre_decimal_digits > MantissaDigitsMax<base>()) {
+      // We dropped some non-fraction digits on the floor.  Adjust our exponent
+      // to compensate.
+      exponent_adjustment = pre_decimal_digits - MantissaDigitsMax<base>();
+      digits_left = 0;
+    } else {
+      digits_left = MantissaDigitsMax<base>() - pre_decimal_digits;
+    }
   }
   if (begin < end && *begin == '.') {
     ++begin;
