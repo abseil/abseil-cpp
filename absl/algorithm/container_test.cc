@@ -923,7 +923,6 @@ TEST(MutatingTest, CopyNContainerWithNoSizeMethod) {
   EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
 }
 
-
 bool IsHardened() {
   bool hardened = false;
   ABSL_HARDENING_ASSERT([&hardened]() {
@@ -1166,7 +1165,6 @@ TEST(MutatingTest, MoveFromCArray) {
   ASSERT_NE(actual[0], nullptr);
   EXPECT_EQ(*actual[0], 1);
 }
-
 
 TEST(MutatingTest, MoveToCArrayInvalidSize) {
   std::vector<int> input = {1, 2, 3};
@@ -1869,7 +1867,7 @@ TEST(ConstexprTest, Contains) {
 TEST(ConstexprTest, FindIf) {
   static constexpr std::array<int, 3> kArray = {1, 2, 3};
   static_assert(absl::c_find_if(kArray, [](int x) { return x > 2; }) ==
-                kArray.begin() + 2);
+                std::next(kArray.begin(), 2));
   static_assert(absl::c_find_if(kArray, [](int x) { return x > 5; }) ==
                 kArray.end());
 }
@@ -1885,7 +1883,8 @@ TEST(ConstexprTest, FindIfNot) {
 TEST(ConstexprTest, FindEnd) {
   static constexpr std::array<int, 5> kHaystack = {1, 2, 3, 2, 3};
   static constexpr std::array<int, 2> kNeedle = {2, 3};
-  static_assert(absl::c_find_end(kHaystack, kNeedle) == kHaystack.begin() + 3);
+  static_assert(absl::c_find_end(kHaystack, kNeedle) ==
+                std::next(kHaystack.begin(), 3));
 }
 
 TEST(ConstexprTest, FindFirstOf) {
@@ -1895,7 +1894,7 @@ TEST(ConstexprTest, FindFirstOf) {
 
 TEST(ConstexprTest, AdjacentFind) {
   static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
-  static_assert(absl::c_adjacent_find(kArray) == kArray.begin() + 1);
+  static_assert(absl::c_adjacent_find(kArray) == std::next(kArray.begin(), 1));
 }
 
 TEST(ConstexprTest, AdjacentFindWithPredicate) {
@@ -2010,14 +2009,14 @@ TEST(ConstexprTest, ContainsSubrangeWithPredicate) {
 TEST(ConstexprTest, SearchN) {
   static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
   static_assert(absl::c_search_n(kArray, 1, 1) == kArray.begin());
-  static_assert(absl::c_search_n(kArray, 2, 2) == kArray.begin() + 1);
+  static_assert(absl::c_search_n(kArray, 2, 2) == std::next(kArray.begin(), 1));
   static_assert(absl::c_search_n(kArray, 1, 4) == kArray.end());
 }
 
 TEST(ConstexprTest, SearchNWithPredicate) {
   static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
   static_assert(absl::c_search_n(kArray, 1, 1, std::not_equal_to<int>()) ==
-                kArray.begin() + 1);
+                std::next(kArray.begin(), 1));
   static_assert(absl::c_search_n(kArray, 2, 2, std::not_equal_to<int>()) ==
                 kArray.end());
   static_assert(absl::c_search_n(kArray, 1, 4, std::not_equal_to<int>()) ==
@@ -2250,7 +2249,7 @@ TEST(ConstexprTest, Rotate) {
   static constexpr std::array kArray = {1, 2, 3};
   static constexpr auto kArrayRotate = [] {
     std::array array = kArray;
-    absl::c_rotate(array, array.begin() + 1);
+    absl::c_rotate(array, std::next(array.begin(), 1));
     return array;
   }();
   static_assert(kArrayRotate == std::array{2, 3, 1});
@@ -2260,7 +2259,7 @@ TEST(ConstexprTest, RotateCopy) {
   static constexpr std::array kArray = {1, 2, 3};
   static constexpr auto kArrayRotateCopy = [] {
     std::array<int, 3> array;
-    absl::c_rotate_copy(kArray, kArray.begin() + 1, array.begin());
+    absl::c_rotate_copy(kArray, std::next(kArray.begin(), 1), array.begin());
     return array;
   }();
   static_assert(kArrayRotateCopy == std::array{2, 3, 1});
@@ -2344,7 +2343,7 @@ TEST(ConstexprTest, PartialSort) {
   static constexpr std::array kArray = {3, 1, 4, 2};
   static constexpr auto kArrayPartialSort = [] {
     std::array array = kArray;
-    absl::c_partial_sort(array, array.begin() + 2);
+    absl::c_partial_sort(array, std::next(array.begin(), 2));
     return array;
   }();
   static_assert(kArrayPartialSort[0] == 1);
@@ -2355,7 +2354,7 @@ TEST(ConstexprTest, PartialSortWithPredicate) {
   static constexpr std::array kArray = {3, 1, 4, 2};
   static constexpr auto kArrayPartialSort = [] {
     std::array array = kArray;
-    absl::c_partial_sort(array, array.begin() + 2, std::greater<>());
+    absl::c_partial_sort(array, std::next(array.begin(), 2), std::greater<>());
     return array;
   }();
   static_assert(kArrayPartialSort[0] == 4);
@@ -2389,7 +2388,7 @@ TEST(ConstexprTest, IsSortedUntil) {
   static_assert(absl::c_is_sorted_until(kSortedArray) == kSortedArray.end());
   static constexpr std::array kUnsortedArray = {1, 3, 2};
   static_assert(absl::c_is_sorted_until(kUnsortedArray) ==
-                kUnsortedArray.begin() + 2);
+                std::next(kUnsortedArray.begin(), 2));
 }
 
 TEST(ConstexprTest, IsSortedUntilWithPredicate) {
@@ -2398,14 +2397,14 @@ TEST(ConstexprTest, IsSortedUntilWithPredicate) {
                 kSortedArray.end());
   static constexpr std::array kUnsortedArray = {1, 3, 2};
   static_assert(absl::c_is_sorted_until(kUnsortedArray, std::greater<>()) ==
-                kUnsortedArray.begin() + 1);
+                std::next(kUnsortedArray.begin(), 1));
 }
 
 TEST(ConstexprTest, NthElement) {
   static constexpr std::array kArray = {2, 1, 3, 4};
   static constexpr auto kArrayNthElement = [] {
     std::array array = kArray;
-    absl::c_nth_element(array, array.begin() + 2);
+    absl::c_nth_element(array, std::next(array.begin(), 2));
     return array;
   }();
   static_assert(kArrayNthElement[2] == 3);
@@ -2418,7 +2417,7 @@ TEST(ConstexprTest, NthElementWithPredicate) {
   static constexpr std::array kArray = {1, 2, 3, 4};
   static constexpr auto kArrayNthElement = [] {
     std::array array = kArray;
-    absl::c_nth_element(array, array.begin() + 2, std::greater<>());
+    absl::c_nth_element(array, std::next(array.begin(), 2), std::greater<>());
     return array;
   }();
   static_assert(kArrayNthElement[2] == 2);
@@ -2433,42 +2432,42 @@ TEST(ConstexprTest, NthElementWithPredicate) {
 TEST(ConstexprTest, LowerBound) {
   static constexpr std::array kArray = {1, 2, 3, 4};
   static constexpr auto kLowerBound = absl::c_lower_bound(kArray, 2);
-  static_assert(kLowerBound == kArray.begin() + 1);
+  static_assert(kLowerBound == std::next(kArray.begin(), 1));
 }
 
 TEST(ConstexprTest, LowerBoundWithPredicate) {
   static constexpr std::array kArray = {4, 3, 2, 1};
   static constexpr auto kLowerBound =
       absl::c_lower_bound(kArray, 2, std::greater<>());
-  static_assert(kLowerBound == kArray.begin() + 2);
+  static_assert(kLowerBound == std::next(kArray.begin(), 2));
 }
 
 TEST(ConstexprTest, UpperBound) {
   static constexpr std::array kArray = {1, 2, 3, 4};
   static constexpr auto kUpperBound = absl::c_upper_bound(kArray, 2);
-  static_assert(kUpperBound == kArray.begin() + 2);
+  static_assert(kUpperBound == std::next(kArray.begin(), 2));
 }
 
 TEST(ConstexprTest, UpperBoundWithPredicate) {
   static constexpr std::array kArray = {4, 3, 2, 1};
   static constexpr auto kUpperBound =
       absl::c_upper_bound(kArray, 2, std::greater<>());
-  static_assert(kUpperBound == kArray.begin() + 3);
+  static_assert(kUpperBound == std::next(kArray.begin(), 3));
 }
 
 TEST(ConstexprTest, EqualRange) {
   static constexpr std::array kArray = {1, 2, 3, 4};
   static constexpr auto kEqualRange = absl::c_equal_range(kArray, 2);
-  static_assert(kEqualRange.first == kArray.begin() + 1);
-  static_assert(kEqualRange.second == kArray.begin() + 2);
+  static_assert(kEqualRange.first == std::next(kArray.begin(), 1));
+  static_assert(kEqualRange.second == std::next(kArray.begin(), 2));
 }
 
 TEST(ConstexprTest, EqualRangeWithPredicate) {
   static constexpr std::array kArray = {4, 3, 2, 1};
   static constexpr auto kEqualRange =
       absl::c_equal_range(kArray, 2, std::greater<>());
-  static_assert(kEqualRange.first == kArray.begin() + 2);
-  static_assert(kEqualRange.second == kArray.begin() + 3);
+  static_assert(kEqualRange.first == std::next(kArray.begin(), 2));
+  static_assert(kEqualRange.second == std::next(kArray.begin(), 3));
 }
 
 TEST(ConstexprTest, BinarySearch) {
@@ -2702,7 +2701,8 @@ TEST(ConstexprTest, IsHeapUntil) {
   static constexpr std::array kHeap = {4, 2, 3, 1};
   static_assert(absl::c_is_heap_until(kHeap) == kHeap.end());
   static constexpr std::array kNotHeap = {4, 2, 3, 5};
-  static_assert(absl::c_is_heap_until(kNotHeap) == kNotHeap.begin() + 3);
+  static_assert(absl::c_is_heap_until(kNotHeap) ==
+                std::next(kNotHeap.begin(), 3));
 }
 
 TEST(ConstexprTest, IsHeapUntilWithPredicate) {
@@ -2710,7 +2710,7 @@ TEST(ConstexprTest, IsHeapUntilWithPredicate) {
   static_assert(absl::c_is_heap_until(kHeap, std::greater<>()) == kHeap.end());
   static constexpr std::array kNotHeap = {1, 2, 3, 0};
   static_assert(absl::c_is_heap_until(kNotHeap, std::greater<>()) ==
-                kNotHeap.begin() + 3);
+                std::next(kNotHeap.begin(), 3));
 }
 
 TEST(ConstexprTest, LexicographicalCompare) {
