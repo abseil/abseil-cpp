@@ -352,23 +352,24 @@ inline void SanitizerUnpoisonObject(const T* object) {
 
 namespace memory_internal {
 
-// If Pair is a standard-layout type, OffsetOf<Pair>::kFirst and
-// OffsetOf<Pair>::kSecond are equivalent to offsetof(Pair, first) and
-// offsetof(Pair, second) respectively. Otherwise they are -1.
-//
-// The purpose of OffsetOf is to avoid calling offsetof() on non-standard-layout
-// type, which is non-portable.
-template <class Pair, class = std::true_type>
-struct OffsetOf {
-  static constexpr size_t kFirst = static_cast<size_t>(-1);
-  static constexpr size_t kSecond = static_cast<size_t>(-1);
-};
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 
+// OffsetOf<Pair>::kFirst and OffsetOf<Pair>::kSecond are equivalent to
+// offsetof(Pair, first) and offsetof(Pair, second) respectively. `offsetof` on
+// a non-standard-layout type is conditionally-supported, but all the compilers
+// we care about support it for non-static data members.
 template <class Pair>
-struct OffsetOf<Pair, typename std::is_standard_layout<Pair>::type> {
+struct OffsetOf {
   static constexpr size_t kFirst = offsetof(Pair, first);
   static constexpr size_t kSecond = offsetof(Pair, second);
 };
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 template <class K, class V>
 struct IsLayoutCompatible {
@@ -682,8 +683,7 @@ size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
   // NodeHashMapPolicy::get_hash_slot_fn(). In that case, slot_ptr has type
   // `std::pair<const T, mapped_type>**`, which is not safe to dereference as
   // `const T**`. Note that it is safe to dereference `slot` afterwards because
-  // `IsLayoutCompatible` guarantees that `std::pair<const T, mapped_type>` is
-  // standard-layout.
+  // `std::pair<const T, mapped_type>::first` is at offset 0.
   std::memcpy(&slot, slot_ptr, sizeof(slot));
   return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
 }

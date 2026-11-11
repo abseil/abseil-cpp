@@ -31,6 +31,7 @@
 #include "absl/container/internal/unordered_map_lookup_test.h"
 #include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
+#include "absl/hash/hash.h"
 #include "absl/log/check.h"
 #include "absl/meta/type_traits.h"
 
@@ -423,6 +424,13 @@ TEST(FlatHashMap, FlatHashMapPolicyDestroyReturnsTrue) {
           nullptr, nullptr))()));
   EXPECT_FALSE((decltype(FlatHashMapPolicy<int, std::unique_ptr<int>>::destroy<
                          std::allocator<char>>(nullptr, nullptr))()));
+}
+
+TEST(FlatHashMap, NonStandardLayoutKeyAndValueUseTypeErasedSlotFns) {
+  using Policy = FlatHashMapPolicy<NonStandardLayout, NonStandardLayout>;
+  EXPECT_NE((Policy::get_hash_slot_fn<absl::Hash<NonStandardLayout>,
+                                      /*kIsDefault=*/true, /*kSeedShift=*/0>()),
+            nullptr);
 }
 
 struct InconsistentHashEqType {
