@@ -70,6 +70,22 @@ cc_test(
     ],
 )
 
+cc_binary(
+    name = "sample_recorder_benchmark",
+    testonly = True,
+    srcs = ["internal/sample_recorder_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":sample_recorder",
+        "//absl/base:config",
+        "//absl/time",
+        "@google_benchmark//:benchmark_main",
+    ],
+)
+
 cc_library(
     name = "exponential_biased",
     srcs = ["internal/exponential_biased.cc"],
