@@ -44,6 +44,12 @@
 static_assert(absl::internal_any_invocable::kStorageSize >= sizeof(void*),
               "These tests assume that the small object storage is at least "
               "the size of a pointer.");
+static_assert(
+    std::is_trivially_copyable_v<absl::internal_any_invocable::TypeErasedState>,
+    "TypeErasedState must remain trivially copyable.");
+static_assert(std::is_trivially_default_constructible_v<
+                  absl::internal_any_invocable::TypeErasedState>,
+              "TypeErasedState must remain trivially default-constructible.");
 
 namespace absl_any_invocable_test {
 
