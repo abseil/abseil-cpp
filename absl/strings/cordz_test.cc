@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
 #include <cstddef>
 #include <cstring>
 #include <ostream>
 #include <string>
+#include <thread>  // NOLINT
 #include <utility>
 
 #include "gmock/gmock.h"
@@ -458,6 +460,119 @@ TEST(CordzTest, SmallSubCord) {
   Cord src = MakeAppendStringCord(TestCordSize::kLarge);
   Cord cord = src.Subcord(10, kMaxInline + 1);
   EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kSubCord));
+}
+
+TEST(CordzTest, ClearCordPreservingCapacitySampledAndConcurrent) {
+  CordzSamplingIntervalHelper always_sample(/*interval=*/1);
+
+  // Sampled uniquely-owned flat stays tracked across
+  // ClearCordPreservingCapacity and subsequent mutations.
+  {
+    Cord cord(std::string(128, 'a'));
+    const char* old_ptr = cord.TryFlat()->data();
+    const CordzInfo* info = GetCordzInfoForTesting(cord);
+    ASSERT_NE(info, nullptr);
+    EXPECT_TRUE(CordzInfoIsListed(info));
+
+    cord_internal::ClearCordPreservingCapacity(cord);
+    EXPECT_EQ(GetCordzInfoForTesting(cord), info);
+    CordzStatistics stats = info->GetCordzStatistics();
+    EXPECT_EQ(stats.size, 0);
+    EXPECT_EQ(stats.update_tracker.Value(Method::kClear), 1);
+
+    cord_internal::ClearCordPreservingCapacity(cord);
+    cord = "";
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(GetCordzInfoForTesting(cord), info);
+    EXPECT_EQ(info->GetCordzStatistics().size, 0);
+
+    cord = "0123456789";
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(GetCordzInfoForTesting(cord), info);
+    EXPECT_EQ(info->GetCordzStatistics().size, 10);
+
+    std::string next(96, 'b');
+    cord = absl::string_view(next);
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(GetCordzInfoForTesting(cord), info);
+    EXPECT_EQ(info->GetCordzStatistics().size, 96);
+
+    cord_internal::ClearCordPreservingCapacity(cord);
+    cord.Append("0123456789abcdef0123456789");
+    EXPECT_EQ(cord.TryFlat()->data(), old_ptr);
+    EXPECT_EQ(info->GetCordzStatistics().size, 26);
+
+    // Non-retained sampled cords (shared flat, B-tree) untrack on clear.
+    Cord copy = cord;
+    cord_internal::ClearCordPreservingCapacity(cord);
+    EXPECT_EQ(GetCordzInfoForTesting(cord), nullptr);
+    EXPECT_EQ(copy, "0123456789abcdef0123456789");
+
+    const std::string btree_data(16 << 10, 't');
+    Cord btree_cord(btree_data);
+    ASSERT_NE(GetCordzInfoForTesting(btree_cord), nullptr);
+    cord_internal::ClearCordPreservingCapacity(btree_cord);
+    EXPECT_EQ(GetCordzInfoForTesting(btree_cord), nullptr);
+  }
+
+  // Concurrent Cordz collection vs ClearCordPreservingCapacity / reuse under
+  // TSan (exercises transient RefCordRep() refcount > 1 races).
+  {
+    std::atomic<bool> stop{false};
+    const std::string init_data(1024, 'x');
+    Cord cord(init_data);
+    std::thread collector([&stop]() {
+      while (!stop.load(std::memory_order_relaxed)) {
+        CordzSampleToken token;
+        for (const CordzInfo& sampled : token) {
+          (void)sampled.GetCordzStatistics();
+        }
+      }
+    });
+
+    std::string payload_a(200, 'a');
+    std::string payload_b(120, 'b');
+    Cord src_cord(std::string(80, 'c'));
+    Cord inline_src("inline123");
+    for (int i = 0; i < 500; ++i) {
+      cord_internal::ClearCordPreservingCapacity(cord);
+      cord = "";
+      EXPECT_TRUE(cord.empty());
+      cord = "0123456789";
+      EXPECT_EQ(cord.size(), 10);
+      cord = absl::string_view(payload_a);
+      EXPECT_EQ(cord.size(), payload_a.size());
+
+      cord_internal::ClearCordPreservingCapacity(cord);
+      std::string wasteful(600, 'w');
+      wasteful.reserve(4096);
+      cord = std::move(wasteful);
+      EXPECT_EQ(cord.size(), 600);
+
+      cord_internal::ClearCordPreservingCapacity(cord);
+      cord.Append(absl::string_view(payload_b));
+      EXPECT_EQ(cord.size(), payload_b.size());
+
+      cord_internal::ClearCordPreservingCapacity(cord);
+      cord.Append(src_cord);
+      EXPECT_EQ(cord.size(), src_cord.size());
+
+      cord_internal::ClearCordPreservingCapacity(cord);
+      cord.Append(inline_src);
+      EXPECT_EQ(cord.size(), inline_src.size());
+      cord = absl::string_view(payload_a);
+
+      cord_internal::ClearCordPreservingCapacity(cord);
+      CordBuffer buf = cord.GetAppendBuffer(128);
+      std::memset(buf.data(), 'd', 64);
+      buf.SetLength(64);
+      cord.Append(std::move(buf));
+      EXPECT_EQ(cord.size(), 64);
+    }
+
+    stop.store(true, std::memory_order_relaxed);
+    collector.join();
+  }
 }
 
 }  // namespace

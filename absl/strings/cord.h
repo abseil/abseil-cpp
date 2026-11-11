@@ -114,6 +114,18 @@ void CopyCordToString(const Cord& src, std::string* absl_nonnull dst);
 void AppendCordToString(const Cord& src, std::string* absl_nonnull dst);
 [[nodiscard]] size_t CopyCordToSpan(const Cord& src, absl::Span<char> dst);
 
+#define ABSL_INTERNAL_HAVE_CLEAR_CORD_PRESERVING_CAPACITY 1
+
+namespace cord_internal {
+// Clears `cord` to empty (`size() == 0`), retaining its backing `CordRepFlat`
+// buffer when `cord` uniquely owns a flat node of at most `kMaxFlatSize`
+// bytes so subsequent writes can reuse the allocation in place. While
+// `cord.empty()` is `true` and `cord.size() == 0`,
+// `cord.EstimatedMemoryUsage()` continues to report the retained flat's
+// capacity until explicitly cleared via `Cord::Clear()` or replaced.
+void ClearCordPreservingCapacity(Cord& cord);
+}  // namespace cord_internal
+
 // Cord memory accounting modes
 enum class CordMemoryAccounting {
   // Counts the *approximate* number of bytes held in full or in part by this
@@ -866,6 +878,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
 
   friend class ::strings::CordReader;
   friend class CordTestPeer;
+  friend void cord_internal::ClearCordPreservingCapacity(Cord& cord);
   friend bool operator==(const Cord& lhs, const Cord& rhs);
   friend bool operator==(const Cord& lhs, absl::string_view rhs);
 
@@ -1004,6 +1017,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
     void CopyToArray(char* absl_nonnull dst) const;
 
     bool is_tree() const { return data_.is_tree(); }
+    bool is_inline_empty() const { return data_.is_empty(); }
 
     // Returns true if the Cord is being profiled by cordz.
     bool is_profiled() const { return data_.is_tree() && data_.is_profiled(); }
@@ -1029,6 +1043,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
 
    private:
     friend class Cord;
+    friend void cord_internal::ClearCordPreservingCapacity(Cord& cord);
 
     void AssignSlow(const InlineRep& src);
     // Unrefs the tree and stops profiling.
@@ -1042,8 +1057,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
     // Empty cords that carry a checksum have a CordRepCrc node with a null
     // child node. The code can avoid lots of special cases where it would
     // otherwise transition from tree to inline storage if we just remove the
-    // CordRepCrc node before mutations. Must never be called inside a
-    // CordzUpdateScope since it untracks the cordz info.
+    // CordRepCrc node before mutations. 0-length CordRepFlat nodes from
+    // ClearCordPreservingCapacity are intentionally kept so mutators can reuse
+    // their capacity. Must never be called inside a CordzUpdateScope since it
+    // untracks the cordz info.
     void MaybeRemoveEmptyCrcNode();
 
     cord_internal::InlineData data_;
@@ -1185,8 +1202,12 @@ constexpr Cord::InlineRep::InlineRep(absl::string_view sv,
 
 inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src) {
   if (CordRep* tree = src.tree()) {
-    EmplaceTree(CordRep::Ref(tree), src.data_,
-                CordzUpdateTracker::kConstructorCord);
+    if (ABSL_PREDICT_TRUE(tree->length > 0 || tree->IsCrc())) {
+      EmplaceTree(CordRep::Ref(tree), src.data_,
+                  CordzUpdateTracker::kConstructorCord);
+    } else {
+      data_ = {};
+    }
   } else {
     data_ = src.data_;
   }
@@ -1355,10 +1376,9 @@ inline void Cord::InlineRep::CopyToArray(char* absl_nonnull dst) const {
 
 inline void Cord::InlineRep::MaybeRemoveEmptyCrcNode() {
   CordRep* rep = tree();
-  if (rep == nullptr || ABSL_PREDICT_TRUE(rep->length > 0)) {
+  if (rep == nullptr || ABSL_PREDICT_TRUE(rep->length > 0) || !rep->IsCrc()) {
     return;
   }
-  assert(rep->IsCrc());
   assert(rep->crc()->child == nullptr);
   CordzInfo::MaybeUntrackCord(cordz_info());
   CordRep::Unref(rep);
@@ -1477,14 +1497,16 @@ inline void Cord::Prepend(CordBuffer buffer) {
 }
 
 inline CordBuffer Cord::GetAppendBuffer(size_t capacity, size_t min_capacity) {
-  if (empty()) return CordBuffer::CreateWithDefaultLimit(capacity);
+  if (contents_.is_inline_empty()) {
+    return CordBuffer::CreateWithDefaultLimit(capacity);
+  }
   return GetAppendBufferSlowPath(0, capacity, min_capacity);
 }
 
 inline CordBuffer Cord::GetCustomAppendBuffer(size_t block_size,
                                               size_t capacity,
                                               size_t min_capacity) {
-  if (empty()) {
+  if (contents_.is_inline_empty()) {
     return block_size ? CordBuffer::CreateWithCustomLimit(block_size, capacity)
                       : CordBuffer::CreateWithDefaultLimit(capacity);
   }
@@ -1519,7 +1541,7 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
 inline void Cord::CopyToArrayImpl(char* absl_nonnull dst) const {
   if (!contents_.is_tree()) {
     if (!empty()) contents_.CopyToArray(dst);
-  } else {
+  } else if (!empty()) {
     CopyToArraySlowPath(dst);
   }
 }
