@@ -14,6 +14,8 @@
 
 common --show_timestamps
 
+common --noremote_accept_cached
+
 # Retry longer to avoid flakes when fetching external dependencies.
 common --http_connector_attempts=10
 common --http_timeout_scaling=2.0

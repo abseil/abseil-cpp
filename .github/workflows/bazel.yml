@@ -96,7 +96,7 @@ jobs:
           cache-save: true
           bazelisk-cache: true
           external-cache: true
-          repository-cache: true
+          repository-cache: false
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: common --config=${{ inputs.remote_config }}
 
