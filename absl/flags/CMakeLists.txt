@@ -92,7 +92,6 @@ absl_cc_library(
     absl::int128
     absl::log_severity
     absl::optional
-    absl::str_format
     absl::string_view
     absl::strings
 )
