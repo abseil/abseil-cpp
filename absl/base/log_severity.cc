@@ -14,10 +14,12 @@
 
 #include "absl/base/log_severity.h"
 
-#include <ostream>
-
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
+
+#include <ostream>
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -52,5 +54,8 @@ std::ostream& operator<<(std::ostream& os, absl::LogSeverityAtMost s) {
   }
   return os;
 }
+
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
