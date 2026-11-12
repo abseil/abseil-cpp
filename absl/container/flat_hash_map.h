@@ -711,6 +711,10 @@ struct FlatHashMapPolicy : FlatHashMapPolicyBase {
     return GetTypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>();
   }
 
+  static constexpr auto get_eq_slot_fn() {
+    return SlotEqFn<K, /*kDerefSlot=*/false>{};
+  }
+
   static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }
 };
 

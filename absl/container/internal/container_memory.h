@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <tuple>
@@ -637,6 +638,25 @@ struct EqualElement {
   type_traits_internal::AddConstRefIfExpensiveToCopy<K1> rhs;
   ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
   type_traits_internal::AddConstRefIfExpensiveToCopy<KeyEqual> eq;
+};
+
+// Type-erased slot equality functor with the key at offset 0 of `slot` (or
+// `*slot` if `kDerefSlot` is true).
+template <class SlotKey, bool kDerefSlot>
+struct SlotEqFn {
+  using SlotKeyType = const SlotKey;
+
+  template <class Eq, class SearchKey>
+  bool operator()(const Eq& eq, const void* slot, const SearchKey& key) const {
+    if constexpr (kDerefSlot) {
+      const void* node;
+      // Copy the pointer to avoid strict aliasing issues.
+      std::memcpy(&node, slot, sizeof(node));
+      slot = node;
+    }
+    return EqualElement<SearchKey, Eq>{key,
+                                       eq}(*static_cast<const SlotKey*>(slot));
+  }
 };
 
 // Type erased function for computing hash of the slot.

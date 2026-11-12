@@ -687,6 +687,10 @@ class NodeHashMapPolicy
     static_assert(memory_internal::OffsetOf<value_type>::kFirst == 0);
     return GetTypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsAbsl, kSeedShift>();
   }
+
+  static constexpr auto get_eq_slot_fn() {
+    return SlotEqFn<Key, /*kDerefSlot=*/true>{};
+  }
 };
 }  // namespace container_internal
 

@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -398,6 +399,41 @@ TEST(HashKeyTest, NonCanonicalUsesHasher) {
   EXPECT_EQ(hk.data().ToPtr<HashKeyCustom>(), &hk);
   EXPECT_EQ(HashKeyCustom::get_hash_fn()(hk.data(), seed),
             (HashElement<decltype(hash), /*kIsAbsl=*/false, 0>(hash, seed)(a)));
+}
+
+TEST(EqSlotFnTest, SlotEqFnWorks) {
+  auto test_eq = [](auto eq) {
+    std::string key = "a";
+    SlotEqFn<std::string, /*kDerefSlot=*/false> eq_slot;
+    static_assert(std::is_empty_v<decltype(eq_slot)>);
+    static_assert(
+        std::is_same_v<typename decltype(eq_slot)::SlotKeyType,
+                       const std::string>);
+    std::string slot_match = "a";
+    std::string slot_mismatch = "b";
+    EXPECT_TRUE(eq_slot(eq, &slot_match, key));
+    EXPECT_FALSE(eq_slot(eq, &slot_mismatch, key));
+
+    SlotEqFn<std::string, /*kDerefSlot=*/true> eq_deref;
+    static_assert(std::is_empty_v<decltype(eq_deref)>);
+    static_assert(
+        std::is_same_v<typename decltype(eq_deref)::SlotKeyType,
+                       const std::string>);
+    std::string* slot_match_ptr = &slot_match;
+    std::string* slot_mismatch_ptr = &slot_mismatch;
+    EXPECT_TRUE(eq_deref(eq, &slot_match_ptr, key));
+    EXPECT_FALSE(eq_deref(eq, &slot_mismatch_ptr, key));
+  };
+
+  test_eq(std::equal_to<std::string>{});
+
+  struct StatefulEq {
+    int dummy = 0;
+    bool operator()(const std::string& lhs, const std::string& rhs) const {
+      return lhs == rhs;
+    }
+  };
+  test_eq(StatefulEq{1});
 }
 
 TEST(HashElement, DefaultHash) {

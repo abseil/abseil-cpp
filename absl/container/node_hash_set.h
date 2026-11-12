@@ -587,6 +587,10 @@ struct NodeHashSetPolicy
   static constexpr HashSlotFn get_hash_slot_fn() {
     return GetTypeErasedDerefAndApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>();
   }
+
+  static constexpr auto get_eq_slot_fn() {
+    return SlotEqFn<T, /*kDerefSlot=*/true>{};
+  }
 };
 }  // namespace container_internal
 

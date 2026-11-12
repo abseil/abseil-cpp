@@ -593,6 +593,10 @@ struct FlatHashSetPolicy {
   static constexpr HashSlotFn get_hash_slot_fn() {
     return GetTypeErasedApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>();
   }
+
+  static constexpr auto get_eq_slot_fn() {
+    return SlotEqFn<T, /*kDerefSlot=*/false>{};
+  }
 };
 }  // namespace container_internal
 
