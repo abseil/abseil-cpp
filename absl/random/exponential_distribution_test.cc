@@ -146,6 +146,24 @@ TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {
 
 // http://www.itl.nist.gov/div898/handbook/eda/section3/eda3667.htm
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(ExponentialDistributionTypedTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "0",   // lambda == 0
+           "-1",  // lambda < 0
+       }) {
+    absl::exponential_distribution<TypeParam> dist(2);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 class ExponentialModel {
  public:
   explicit ExponentialModel(double lambda)

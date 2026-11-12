@@ -161,6 +161,25 @@ TYPED_TEST(PoissonDistributionInterfaceTest, SerializeTest) {
 
 // See http://www.itl.nist.gov/div898/handbook/eda/section3/eda366j.htm
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(PoissonDistributionInterfaceTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "-1",     // mean < 0
+           "1e11",   // mean > 1e10
+           "1e300",  // mean > the largest result_type
+       }) {
+    absl::poisson_distribution<TypeParam> dist(3);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 class PoissonModel {
  public:
   explicit PoissonModel(double mean) : mean_(mean) {}
