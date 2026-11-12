@@ -51,6 +51,7 @@
 #include "absl/strings/internal/cord_data_edge.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
+#include "absl/strings/internal/cord_rep_btree_navigator.h"
 #include "absl/strings/internal/cord_rep_crc.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
@@ -1005,15 +1006,110 @@ int Cord::CompareImpl(const Cord& rhs) const {
   return SharedCompareImpl(*this, rhs);
 }
 
+namespace {
+
+// Tests whether the bytes of `tree` end with `suffix`.
+//
+// REQUIRES: `tree` holds at least `suffix.size()` bytes.
+ABSL_ATTRIBUTE_NOINLINE bool BtreeEndsWith(CordRepBtree* absl_nonnull tree,
+                                           absl::string_view suffix) {
+  assert(tree->length >= suffix.size());
+  cord_internal::CordRepBtreeNavigator nav;
+  absl::string_view chunk = cord_internal::EdgeData(nav.InitLast(tree));
+  // While `suffix` is longer than the current chunk, the whole chunk must
+  // match the end of `suffix`. The precondition guarantees that a previous
+  // chunk exists.
+  while (suffix.size() > chunk.size()) {
+    if (!absl::EndsWith(suffix, chunk)) {
+      return false;
+    }
+    suffix.remove_suffix(chunk.size());
+    chunk = cord_internal::EdgeData(nav.Previous());
+  }
+  return absl::EndsWith(chunk, suffix);
+}
+
+// Tests whether the bytes of `lhs` end with the bytes of `rhs`.
+//
+// REQUIRES: `lhs` holds at least as many bytes as `rhs`.
+ABSL_ATTRIBUTE_NOINLINE bool BtreeEndsWith(CordRepBtree* absl_nonnull lhs,
+                                           CordRepBtree* absl_nonnull rhs) {
+  assert(lhs->length >= rhs->length);
+  cord_internal::CordRepBtreeNavigator lhs_nav;
+  cord_internal::CordRepBtreeNavigator rhs_nav;
+  absl::string_view lhs_piece = cord_internal::EdgeData(lhs_nav.InitLast(lhs));
+  absl::string_view rhs_piece = cord_internal::EdgeData(rhs_nav.InitLast(rhs));
+  size_t remaining = rhs->length;
+  while (remaining > 0) {
+    // Replaces an empty piece with the previous chunk of its tree. The
+    // precondition guarantees that this chunk exists.
+    if (lhs_piece.empty()) {
+      lhs_piece = cord_internal::EdgeData(lhs_nav.Previous());
+    }
+    if (rhs_piece.empty()) {
+      rhs_piece = cord_internal::EdgeData(rhs_nav.Previous());
+    }
+    // As the chunk boundaries of the two trees may differ, each step compares
+    // as many bytes as the shorter piece holds.
+    size_t n = std::min(lhs_piece.size(), rhs_piece.size());
+    absl::string_view lhs_tail = lhs_piece.substr(lhs_piece.size() - n);
+    absl::string_view rhs_tail = rhs_piece.substr(rhs_piece.size() - n);
+    // Pieces at the same address are the same bytes: the Cords share a chunk.
+    if (lhs_tail.data() != rhs_tail.data() && lhs_tail != rhs_tail) {
+      return false;
+    }
+    lhs_piece.remove_suffix(n);
+    rhs_piece.remove_suffix(n);
+    remaining -= n;
+  }
+  return true;
+}
+
+}  // namespace
+
+// Helper routine. Locates the last flat or external chunk of the Cord without
+// initializing the iterator, and returns a string_view referencing the data.
+// Returns an empty string_view if the Cord is empty.
+inline absl::string_view Cord::InlineRep::FindFlatEndPiece() const {
+  if (!is_tree()) {
+    return absl::string_view(data_.as_chars(), data_.inline_size());
+  }
+
+  CordRep* node = cord_internal::SkipCrcNode(tree());
+  // An empty Cord with an expected checksum is a CRC node without a child.
+  if (ABSL_PREDICT_FALSE(node == nullptr)) return {};
+
+  if (node->IsBtree()) {
+    CordRepBtree* tree = node->btree();
+    int height = tree->height();
+    while (--height >= 0) {
+      tree = tree->Edge(CordRepBtree::kBack)->btree();
+    }
+    return tree->Data(tree->back());
+  }
+
+  return cord_internal::EdgeData(node);
+}
+
 bool Cord::EndsWith(absl::string_view rhs) const {
   size_t my_size = size();
   size_t rhs_size = rhs.size();
 
   if (my_size < rhs_size) return false;
 
-  Cord tmp(*this);
-  tmp.RemovePrefix(my_size - rhs_size);
-  return tmp.EqualsImpl(rhs, rhs_size);
+  absl::string_view last_chunk = contents_.FindFlatEndPiece();
+  if (rhs_size <= last_chunk.size()) {
+    // Compares a one-byte suffix, such as "\n", without calling memcmp.
+    if (rhs_size == 1) {
+      return last_chunk.back() == rhs[0];
+    }
+    return absl::EndsWith(last_chunk, rhs);
+  }
+
+  // The suffix is longer than the last chunk; the Cord therefore has more than
+  // one chunk and is a B-tree.
+  return BtreeEndsWith(cord_internal::SkipCrcNode(contents_.tree())->btree(),
+                       rhs);
 }
 
 bool Cord::EndsWith(const Cord& rhs) const {
@@ -1021,10 +1117,24 @@ bool Cord::EndsWith(const Cord& rhs) const {
   size_t rhs_size = rhs.size();
 
   if (my_size < rhs_size) return false;
+  if (contents_.IsSame(rhs.contents_)) return true;
 
-  Cord tmp(*this);
-  tmp.RemovePrefix(my_size - rhs_size);
-  return tmp.EqualsImpl(rhs, rhs_size);
+  // Compares an empty or single-chunk `rhs` as a string_view.
+  absl::string_view rhs_last = rhs.contents_.FindFlatEndPiece();
+  if (rhs_size == rhs_last.size()) {
+    return EndsWith(rhs_last);
+  }
+
+  // Compares an `rhs` that fits in `last_chunk` with the end of that chunk.
+  absl::string_view last_chunk = contents_.FindFlatEndPiece();
+  if (rhs_size <= last_chunk.size()) {
+    return rhs == last_chunk.substr(last_chunk.size() - rhs_size);
+  }
+
+  // Both Cords have more than one chunk and are therefore B-trees.
+  return BtreeEndsWith(
+      cord_internal::SkipCrcNode(contents_.tree())->btree(),
+      cord_internal::SkipCrcNode(rhs.contents_.tree())->btree());
 }
 
 // --------------------------------------------------------------------
