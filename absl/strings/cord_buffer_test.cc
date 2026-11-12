@@ -301,6 +301,22 @@ TEST(CordLargeBufferTest, CreateWithSmallLimit) {
   EXPECT_THAT(buffer.capacity(), Le(MaxCapacityFor(512, 498)));
 }
 
+TEST(CordLargeBufferTest, CreateWithTinyBlockSizeDoesNotBlowUp) {
+  // Block sizes at or below the flat overhead (13 bytes) used to underflow
+  // `capacity - kOverhead` and return a 256 KiB buffer (capacity 262131)
+  // for a 100-byte request.  They must now return the smallest flat
+  // allocation instead -- the same capacity a block size of 16 produces.
+  for (size_t block_size : {size_t{1}, size_t{2}, size_t{4}, size_t{8}}) {
+    CordBuffer buffer = CordBuffer::CreateWithCustomLimit(block_size, 100);
+    EXPECT_THAT(buffer.capacity(), Le(size_t{64}));
+    EXPECT_THAT(buffer.capacity(), Ge(size_t{1}));
+    EXPECT_THAT(buffer.length(), Eq(0));
+  }
+  CordBuffer sixteen = CordBuffer::CreateWithCustomLimit(16, 100);
+  CordBuffer eight = CordBuffer::CreateWithCustomLimit(8, 100);
+  EXPECT_THAT(eight.capacity(), Eq(sixteen.capacity()));
+}
+
 TEST(CordLargeBufferTest, CreateWasteFull) {
   // 15 KiB gets rounded down to next pow2 value.
   const size_t requested = (15 << 10);
