@@ -50,7 +50,7 @@ TEST(CordzFunctionsTest, ShouldProfileDisable) {
   cordz_set_next_sample_for_testing(0);
   EXPECT_EQ(cordz_should_profile(), 0);
   // 1 << 16 is from kIntervalIfDisabled in cordz_functions.cc.
-  EXPECT_THAT(cordz_next_sample.next_sample, Eq(1 << 16));
+  EXPECT_THAT(cordz_next_sample.next_sample(), Eq(1 << 16));
 
   set_cordz_mean_interval(orig_sample_rate);
 }
@@ -61,7 +61,7 @@ TEST(CordzFunctionsTest, ShouldProfileAlways) {
   set_cordz_mean_interval(1);
   cordz_set_next_sample_for_testing(1);
   EXPECT_GT(cordz_should_profile(), 0);
-  EXPECT_THAT(cordz_next_sample.next_sample, Le(1));
+  EXPECT_THAT(cordz_next_sample.next_sample(), Le(1));
 
   set_cordz_mean_interval(orig_sample_rate);
 }
@@ -93,7 +93,7 @@ TEST(CordzFunctionsTest, ShouldProfileRate) {
     // new value for next_sample each iteration.
     cordz_set_next_sample_for_testing(0);
     cordz_should_profile();
-    sum_of_intervals += cordz_next_sample.next_sample;
+    sum_of_intervals += cordz_next_sample.next_sample();
   }
 
   // The sum of independent exponential variables is an Erlang distribution,
@@ -124,6 +124,40 @@ TEST(CordzFunctionsTest, ShouldProfileRate) {
   // [1] 10618100
   EXPECT_THAT(sum_of_intervals, Ge(9396115));
   EXPECT_THAT(sum_of_intervals, Le(10618100));
+
+  set_cordz_mean_interval(orig_sample_rate);
+}
+
+TEST(CordzFunctionsTest, SampleWeightEqualsMeanInterval) {
+  const int32_t orig_sample_rate = get_cordz_mean_interval();
+  constexpr int32_t kInterval = 16;
+  constexpr int kTrials = 100000;
+  set_cordz_mean_interval(kInterval);
+
+  // Both the first Cord on a fresh thread and steady-state Cords must return
+  // constant weight `kInterval` and sum to `kTrials` in expectation.
+  int64_t first_cord_weight_sum = 0;
+  for (int i = 0; i < kTrials; ++i) {
+    cordz_set_next_sample_for_testing(-1);
+    const int64_t w = cordz_should_profile();
+    if (w > 0) {
+      ASSERT_EQ(w, kInterval);
+      first_cord_weight_sum += w;
+    }
+  }
+  EXPECT_NEAR(static_cast<double>(first_cord_weight_sum), kTrials,
+              0.10 * kTrials);
+
+  cordz_set_next_sample_for_testing(-1);
+  int64_t steady_weight_sum = 0;
+  for (int i = 0; i < kTrials; ++i) {
+    const int64_t w = cordz_should_profile();
+    if (w > 0) {
+      ASSERT_EQ(w, kInterval);
+      steady_weight_sum += w;
+    }
+  }
+  EXPECT_NEAR(static_cast<double>(steady_weight_sum), kTrials, 0.10 * kTrials);
 
   set_cordz_mean_interval(orig_sample_rate);
 }
