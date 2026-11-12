@@ -705,12 +705,36 @@ TYPED_TEST(AnySpanTest, IndexingAt) {
   EXPECT_EQ(&v.at(3), &v.at(3));
 }
 
-TYPED_TEST(AnySpanTest, AtThrows) {
-  using T = typename TestFixture::template MaybeConst<std::string>;
-  std::vector<std::string> v = {"a", "b", "c", "d"};
-  AnySpan<T> span(v);
-  ABSL_BASE_INTERNAL_EXPECT_FAIL(span.at(4), std::out_of_range,
-                                 "failed bounds check");
+TEST(AnySpanDeathTest, AtThrows) {
+  // Test mutable case
+  {
+    std::vector<std::string> v = {"a", "b", "c", "d"};
+    AnySpan<std::string> span(v);
+    ABSL_BASE_INTERNAL_EXPECT_FAIL(span.at(4), std::out_of_range,
+                                   "failed bounds check");
+  }
+  // Test const case
+  {
+    std::vector<std::string> v = {"a", "b", "c", "d"};
+    AnySpan<const std::string> span(v);
+    ABSL_BASE_INTERNAL_EXPECT_FAIL(span.at(4), std::out_of_range,
+                                   "failed bounds check");
+  }
+}
+
+TEST(AnySpanDeathTest, SubspanToEnd) {
+  int arr[] = {0, 1, 2};
+  AnySpan<int> span(arr);
+  EXPECT_THAT(span.subspan(0, AnySpan<int>::npos), ElementsAre(0, 1, 2));
+  EXPECT_THAT(span.subspan(1, AnySpan<int>::npos), ElementsAre(1, 2));
+  EXPECT_THAT(span.subspan(2, AnySpan<int>::npos), ElementsAre(2));
+  EXPECT_THAT(span.subspan(3, AnySpan<int>::npos), ElementsAre());
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    EXPECT_DEATH(span.subspan(4, AnySpan<int>::npos), "");
+    EXPECT_DEATH(span.subspan(AnySpan<int>::npos, AnySpan<int>::npos), "");
+  }
+#endif
 }
 
 TYPED_TEST(AnySpanTest, FrontBack) {
@@ -1033,20 +1057,6 @@ TEST(MutableAnySpanTest, MutateThroughSubSpan) {
   EXPECT_THAT(v, ElementsAre(1, 42, 42, 4));
 }
 
-TYPED_TEST(AnySpanTest, SubspanToEnd) {
-  int arr[] = {0, 1, 2};
-  AnySpan<int> span(arr);
-  EXPECT_THAT(span.subspan(0, AnySpan<int>::npos), ElementsAre(0, 1, 2));
-  EXPECT_THAT(span.subspan(1, AnySpan<int>::npos), ElementsAre(1, 2));
-  EXPECT_THAT(span.subspan(2, AnySpan<int>::npos), ElementsAre(2));
-  EXPECT_THAT(span.subspan(3, AnySpan<int>::npos), ElementsAre());
-#if GTEST_HAS_DEATH_TEST
-  if (IsHardened()) {
-    EXPECT_DEATH(span.subspan(4, AnySpan<int>::npos), "");
-    EXPECT_DEATH(span.subspan(AnySpan<int>::npos, AnySpan<int>::npos), "");
-  }
-#endif
-}
 
 TEST(MutableAnySpanTest, NonTruncatingSubspan) {
   std::vector<int> v = {1, 2, 3, 4};
