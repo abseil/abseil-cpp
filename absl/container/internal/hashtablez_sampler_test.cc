@@ -287,16 +287,18 @@ TEST(HashtablezSamplerTest, SmallSampleParameter) {
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(100);
 
+  ExponentialSampler next_sample;
   for (int i = 0; i < 1000; ++i) {
-    SamplingState next_sample = {0, 0};
+    next_sample.SetStateForTesting(0, 100);
     HashtablezInfo* sample =
         SampleSlow(next_sample, test_element_size,
                    /*key_size=*/test_key_size, /*value_size=*/test_value_size,
 
                    /*soo_capacity=*/0);
-    EXPECT_GT(next_sample.next_sample, 0);
-    EXPECT_EQ(next_sample.next_sample, next_sample.sample_stride);
-    EXPECT_NE(sample, nullptr);
+    EXPECT_GT(next_sample.next_sample(), 0);
+    EXPECT_EQ(next_sample.sample_period(), 100);
+    ASSERT_NE(sample, nullptr);
+    EXPECT_EQ(sample->weight, 100);
     UnsampleSlow(sample);
   }
 }
@@ -305,18 +307,21 @@ TEST(HashtablezSamplerTest, LargeSampleParameter) {
   const size_t test_element_size = 31;
   const size_t test_key_size = 33;
   const size_t test_value_size = 35;
+  constexpr int32_t kMaxParam = (std::numeric_limits<int32_t>::max)();
   SetHashtablezEnabled(true);
-  SetHashtablezSampleParameter(std::numeric_limits<int32_t>::max());
+  SetHashtablezSampleParameter(kMaxParam);
 
+  ExponentialSampler next_sample;
   for (int i = 0; i < 1000; ++i) {
-    SamplingState next_sample = {0, 0};
+    next_sample.SetStateForTesting(0, kMaxParam);
     HashtablezInfo* sample =
         SampleSlow(next_sample, test_element_size,
                    /*key_size=*/test_key_size, /*value_size=*/test_value_size,
                    /*soo_capacity=*/0);
-    EXPECT_GT(next_sample.next_sample, 0);
-    EXPECT_EQ(next_sample.next_sample, next_sample.sample_stride);
-    EXPECT_NE(sample, nullptr);
+    EXPECT_GT(next_sample.next_sample(), 0);
+    EXPECT_EQ(next_sample.sample_period(), kMaxParam);
+    ASSERT_NE(sample, nullptr);
+    EXPECT_EQ(sample->weight, kMaxParam);
     UnsampleSlow(sample);
   }
 }
