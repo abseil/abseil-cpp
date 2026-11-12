@@ -31,6 +31,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/functional/overload.h"
+#include "absl/hash/hash.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
@@ -329,6 +330,27 @@ TEST(ApplyTest, TypeErasedApplyToSlotFn) {
                 fn, seed)(x)));
 }
 
+TEST(ApplyTest, GetTypeErasedApplyToSlotFnCanonicalizesTypes) {
+  enum class MyEnum : uint32_t { kOne = 1, kTwo = 2 };
+  HashSlotFn fn = GetTypeErasedApplyToSlotFn<absl::Hash<int32_t>, int32_t,
+                                             /*kIsAbsl=*/true, 0>();
+  EXPECT_EQ(fn, (GetTypeErasedApplyToSlotFn<absl::Hash<uint32_t>, uint32_t,
+                                            /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(fn, (GetTypeErasedApplyToSlotFn<absl::Hash<MyEnum>, MyEnum,
+                                            /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(fn,
+            (GetTypeErasedApplyToSlotFn<absl::TransparentHash<int32_t, int64_t>,
+                                        int32_t,
+                                        /*kIsAbsl=*/true, 0>()));
+  EXPECT_NE(fn, (GetTypeErasedApplyToSlotFn<absl::Hash<int32_t>, int32_t,
+                                            /*kIsAbsl=*/false, 0>()));
+  MyEnum c = MyEnum::kTwo;
+  size_t seed = 100;
+  EXPECT_EQ(fn(nullptr, &c, seed),
+            (HashElement<absl::Hash<MyEnum>, /*kIsAbsl=*/true, 0>(
+                absl::Hash<MyEnum>{}, seed)(c)));
+}
+
 TEST(ApplyTest, TypeErasedDerefAndApplyToSlotFn) {
   size_t x = 7;
   size_t seed = 100;
@@ -340,6 +362,42 @@ TEST(ApplyTest, TypeErasedDerefAndApplyToSlotFn) {
                                        /*kSeedShift=*/0>(&fn, &x_ptr, seed)),
       (HashElement<decltype(fn), /*kIsAbsl=*/false, /*kSeedShift=*/0>(
           fn, seed)(x)));
+}
+
+TEST(ApplyTest, GetTypeErasedDerefAndApplyToSlotFnCanonicalizesTypes) {
+  enum class MyEnum : uint32_t { kOne = 1, kTwo = 2 };
+  HashSlotFn fn =
+      GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<int32_t>, int32_t,
+                                         /*kIsAbsl=*/true, 0>();
+  EXPECT_EQ(fn,
+            (GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<uint32_t>, uint32_t,
+                                                /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(fn, (GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<MyEnum>, MyEnum,
+                                                    /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(fn, (GetTypeErasedDerefAndApplyToSlotFn<
+                    absl::TransparentHash<int32_t, int64_t>, int32_t,
+                    /*kIsAbsl=*/true, 0>()));
+  EXPECT_NE(fn,
+            (GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<int32_t>, int32_t,
+                                                /*kIsAbsl=*/false, 0>()));
+  MyEnum c = MyEnum::kTwo;
+  MyEnum* c_ptr = &c;
+  size_t seed = 100;
+  EXPECT_EQ(fn(nullptr, &c_ptr, seed),
+            (HashElement<absl::Hash<MyEnum>, /*kIsAbsl=*/true, 0>(
+                absl::Hash<MyEnum>{}, seed)(c)));
+}
+
+TEST(HashKeyTest, NonCanonicalUsesHasher) {
+  auto hash = [](int32_t v) { return static_cast<size_t>(v + 42); };
+  using HashKeyCustom = HashKey<decltype(hash), int32_t, /*kIsAbsl=*/false,
+                                /*kSeedShift=*/0, /*kUseCanonical=*/false>;
+  int32_t a = 1;
+  size_t seed = 100;
+  HashKeyCustom hk{hash, a};
+  EXPECT_EQ(hk.data().ToPtr<HashKeyCustom>(), &hk);
+  EXPECT_EQ(HashKeyCustom::get_hash_fn()(hk.data(), seed),
+            (HashElement<decltype(hash), /*kIsAbsl=*/false, 0>(hash, seed)(a)));
 }
 
 TEST(HashElement, DefaultHash) {

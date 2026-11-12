@@ -585,7 +585,7 @@ struct NodeHashSetPolicy
 
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedDerefAndApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>;
+    return GetTypeErasedDerefAndApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>();
   }
 };
 }  // namespace container_internal

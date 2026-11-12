@@ -17,8 +17,8 @@ name: Tests
 on:
   # continuous runs
   schedule:
-    # Run every hour
-    - cron: "0 * * * *"
+    # Run every hour (staggered to avoid top-of-the-hour runner queue spikes)
+    - cron: "30 * * * *"
 
   # postsubmit runs
   push:
@@ -136,7 +136,7 @@ jobs:
           # windows-msvc-2022-cxx17-dbg-cmake.cfg
           # windows-msvc-2022-cxx17-dbg-dll-cmake.cfg
           - name: Windows MSVC 2022
-            os: windows-2022
+            os: windows-2022-8-core
             build_types: '["Debug"]'
             link_modes: '["static", "shared"]'
     uses: ./.github/workflows/cmake.yml
@@ -156,10 +156,10 @@ jobs:
         config:
           # windows-msvc-2022-cxx{17,20}-{dbg,opt}-bazel.cfg
           - name: MSVC 2022
-            toolchain: ci-windows-msvc
+            toolchain: windows-msvc
           # windows-msvc-2022-alternate-options-cxx{17,20}-dbg-bazel.cfg (dbg only)
           - name: MSVC 2022 Alternate Options
-            toolchain: ci-windows-msvc
+            toolchain: windows-msvc
             alternate_options: true
             compilation_modes: '["dbg"]'
           # windows-clangcl-cxx17-fastbuild-bazel.cfg
@@ -170,7 +170,7 @@ jobs:
     uses: ./.github/workflows/bazel.yml
     secrets: inherit
     with:
-      os: windows-2022
+      os: windows-2022-8-core
       toolchain: ${{ matrix.config.toolchain }}
       remote_config: remote-cache
       alternate_options: ${{ matrix.config.alternate_options || false }}

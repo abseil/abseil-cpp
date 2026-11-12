@@ -91,6 +91,10 @@ struct RawHashSetTestOnlyAccess {
   static size_t CountTombstones(const C& c) {
     return c.common().TombstonesCount();
   }
+  template <typename C>
+  static const PolicyFunctions& GetPolicyFunctions() {
+    return C::GetPolicyFunctions();
+  }
 };
 
 namespace {
@@ -965,8 +969,7 @@ TEST(Batch, DropDeletes) {
   }
 }
 
-template <class T, bool kTransferable = false, bool kSoo = false,
-          bool kDestroyTrivial = false>
+template <class T, bool kTransferable = false, bool kDestroyTrivial = false>
 struct ValuePolicy {
   using slot_type = T;
   using key_type = T;
@@ -1015,8 +1018,6 @@ struct ValuePolicy {
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
-
-  static constexpr bool soo_enabled() { return kSoo; }
 };
 
 using IntPolicy = ValuePolicy<int64_t>;
@@ -1058,9 +1059,8 @@ class SizedValue {
   static_assert(N >= sizeof(int64_t));
   int64_t vals_[N / sizeof(int64_t)];
 };
-template <int N, bool kSoo>
-using SizedValuePolicy =
-    ValuePolicy<SizedValue<N>, /*kTransferable=*/true, kSoo>;
+template <int N>
+using SizedValuePolicy = ValuePolicy<SizedValue<N>, /*kTransferable=*/true>;
 
 // Value is aligned as type T and contains N copies of it.
 template <typename T, int N>
@@ -1185,10 +1185,10 @@ struct StringTable
   using Base::Base;
 };
 
-template <typename T, bool kTransferable = false, bool kSoo = false,
-          bool kDestroyTrivial = false, class Alloc = std::allocator<T>>
+template <typename T, bool kTransferable = false, bool kDestroyTrivial = false,
+          class Alloc = std::allocator<T>>
 struct ValueTable : InstantiateRawHashSet<
-                        ValuePolicy<T, kTransferable, kSoo, kDestroyTrivial>,
+                        ValuePolicy<T, kTransferable, kDestroyTrivial>,
                         hash_default_hash<T>, std::equal_to<T>, Alloc>::type {
   using Base = typename ValueTable::raw_hash_set;
   using Base::Base;
@@ -1294,7 +1294,7 @@ struct FreezableAlloc : std::allocator<T> {
 
 template <int N>
 struct FreezableSizedValueSooTable
-    : raw_hash_set<SizedValuePolicy<N, /*kSoo=*/true>,
+    : raw_hash_set<SizedValuePolicy<N>,
                    container_internal::hash_default_hash<SizedValue<N>>,
                    std::equal_to<SizedValue<N>>,
                    FreezableAlloc<SizedValue<N>>> {
@@ -1328,23 +1328,18 @@ using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
 static_assert(sizeof(NonSooIntTableSlotType) > MaxSooSlotSize(), "too small");
 using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
 using NonSooIntTableTrivialDestroy =
-    ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false, /*kSoo=*/false,
+    ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false,
                /*kDestroyTrivial=*/true>;
-using SooInt32Table =
-    ValueTable<int32_t, /*kTransferable=*/true, /*kSoo=*/true>;
-using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true>;
+using SooInt32Table = ValueTable<int32_t, /*kTransferable=*/true>;
+using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true>;
 using SooIntTableTrivialDestroy =
-    ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
-               /*kDestroyTrivial=*/true>;
-using NonMemcpyableSooIntTable =
-    ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true>;
+    ValueTable<int64_t, /*kTransferable=*/true, /*kDestroyTrivial=*/true>;
+using NonMemcpyableSooIntTable = ValueTable<int64_t, /*kTransferable=*/false>;
 using MemcpyableSooIntCustomAllocTable =
-    ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
-               /*kDestroyTrivial=*/false,
+    ValueTable<int64_t, /*kTransferable=*/true, /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 using NonMemcpyableSooIntCustomAllocTable =
-    ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true,
-               /*kDestroyTrivial=*/false,
+    ValueTable<int64_t, /*kTransferable=*/false, /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 
 TEST(Table, EmptyFunctorOptimization) {
@@ -1398,6 +1393,39 @@ TEST(Table, EmptyFunctorOptimization) {
       sizeof(
           raw_hash_set<StringPolicy, StatefulHash,
                        std::equal_to<absl::string_view>, std::allocator<int>>));
+}
+
+TEST(Table, StandardLayout) {
+  struct StatelessHash {
+    size_t operator()(absl::string_view) const { return 0; }
+  };
+  struct StatefulHash : StatelessHash {
+    uint64_t dummy;
+  };
+
+  // CommonFields is not standard-layout when generations are enabled because
+  // both CommonFields and its base class CommonFieldsGenerationInfoEnabled
+  // have non-static data members.
+  // TODO(b/556853247): Consider using composition with
+  // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS instead of inheritance for
+  // CommonFieldsGenerationInfo to satisfy standard layout in ASan/MSan as well.
+  const bool expected = !SwisstableGenerationsEnabled();
+  EXPECT_EQ(std::is_standard_layout_v<CommonFields>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<raw_hash_set<IntPolicy>>, expected);
+  EXPECT_EQ(
+      (std::is_standard_layout_v<
+          raw_hash_set<StringPolicy, StatelessHash,
+                       std::equal_to<absl::string_view>, std::allocator<int>>>),
+      expected);
+  EXPECT_EQ(
+      (std::is_standard_layout_v<
+          raw_hash_set<StringPolicy, StatefulHash,
+                       std::equal_to<absl::string_view>, std::allocator<int>>>),
+      expected);
+  EXPECT_EQ(std::is_standard_layout_v<IntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<SooIntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<NonSooIntTable>, expected);
+  EXPECT_EQ(std::is_standard_layout_v<ChangingSizeAllocIntTable>, expected);
 }
 
 TEST(InstantiateRawHashSetTest, VerifyTypes) {
@@ -1810,6 +1838,9 @@ TYPED_TEST(ExtendedSooTest, ClearDifferentSizes) {
 }
 
 TYPED_TEST(ExtendedSooTest, ReserveTwice) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   for (int reserve_size = 0; reserve_size < 32; ++reserve_size) {
     for (int reserve_size2 = reserve_size; reserve_size2 < 32;
          ++reserve_size2) {
@@ -2367,6 +2398,9 @@ TYPED_TEST(SooTest, HintInsert) {
 }
 
 TYPED_TEST(SooTest, RehashZeroForSmallTable) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   TypeParam t{0};
   EXPECT_EQ(t.capacity(), 1);
   t.rehash(0);
@@ -2379,6 +2413,9 @@ TYPED_TEST(SooTest, RehashZeroForSmallTable) {
 }
 
 TYPED_TEST(SooTest, RangeConstructorReservation) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   constexpr int kMaxSize = 25;
   std::vector<int> v;
   for (int size = 1; size <= kMaxSize; ++size) {
@@ -2530,6 +2567,9 @@ TYPED_TEST(SooTest, UnstablePointers) {
 TYPED_TEST(SooTest, IteratorInvalidAssertsEqualityOperator) {
   if (!IsAssertEnabled() && !SwisstableGenerationsEnabled())
     GTEST_SKIP() << "Assertions not enabled.";
+
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
 
   TypeParam t;
   t.insert(1);
@@ -2757,24 +2797,22 @@ class SmallTableResizeTest : public testing::Test {};
 using SmallTableTypes = ::testing::Types<
     IntTable, TransferableIntTable, SooIntTable,
     // int8
-    ValueTable<int8_t, /*kTransferable=*/true, /*kSoo=*/true>,
-    ValueTable<int8_t, /*kTransferable=*/false, /*kSoo=*/true>,
+    ValueTable<int8_t, /*kTransferable=*/true>,
+    ValueTable<int8_t, /*kTransferable=*/false>,
     // int16
-    ValueTable<int16_t, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<int16_t, /*kTransferable=*/true>,
     // int128
-    ValueTable<SizedValue<16>, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<SizedValue<16>, /*kTransferable=*/true>,
     // Special tables.
     MinimumAlignmentUint8Table, CustomAllocIntTable, ChangingSizeAllocIntTable,
     BadTable,
     // alignment 1, size 2.
-    ValueTable<AlignedValue<uint8_t, 2>, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<AlignedValue<uint8_t, 2>, /*kTransferable=*/true>,
     // alignment 1, size 7.
-    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/true, /*kSoo=*/true>,
-    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/false,
-               /*kSoo=*/true>,
+    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/true>,
+    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/false>,
     // alignment 2, size 6.
-    ValueTable<AlignedValue<uint16_t, 3>, /*kTransferable=*/true,
-               /*kSoo=*/true>>;
+    ValueTable<AlignedValue<uint16_t, 3>, /*kTransferable=*/true>>;
 TYPED_TEST_SUITE(SmallTableResizeTest, SmallTableTypes);
 
 TYPED_TEST(SmallTableResizeTest, InsertIntoSmallTable) {
@@ -3840,9 +3878,8 @@ TEST(Table, StringViewConversionCount) {
     }
   };
 
-  const auto test_table = [](auto soo) {
-    using Policy = ValuePolicy<absl::string_view, /*kTransferable=*/true,
-                               /*kSoo=*/decltype(soo)::value>;
+  const auto test_table = [] {
+    using Policy = ValuePolicy<absl::string_view, /*kTransferable=*/true>;
     using Table = raw_hash_set<Policy, hash_default_hash<absl::string_view>,
                                hash_default_eq<absl::string_view>>;
     Table t;
@@ -3907,8 +3944,7 @@ TEST(Table, StringViewConversionCount) {
     }
   };
 
-  test_table(/*soo=*/std::false_type{});
-  test_table(/*soo=*/std::true_type{});
+  test_table();
 }
 
 TEST(Iterator, IsDefaultConstructible) {
@@ -4818,10 +4854,17 @@ TEST(Table, InvalidReferenceUseCrashesWithSanitizers) {
   // RehashProbabilityConstant().
   int i = 0;
   while (t.capacity() <= RehashProbabilityConstant()) {
-    // ptr will become invalidated on rehash.
-    const auto* ptr = &*t.begin();
-    t.insert(++i);
-    EXPECT_DEATH_IF_SUPPORTED(std::cout << **ptr, "use-after-free") << i;
+    ++i;
+    EXPECT_DEATH_IF_SUPPORTED(
+        {
+          // ptr will become invalidated on rehash.
+          const auto* ptr = &*t.begin();
+          t.insert(i);
+          std::cout << **ptr;
+        },
+        "use-after-free")
+        << i;
+    t.insert(i);
   }
 }
 
@@ -4860,18 +4903,20 @@ using RawHashSetAlloc = raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
 TEST(Table, AllocatorPropagation) { TestAllocPropagation<RawHashSetAlloc>(); }
 
 struct CountedHash {
+  explicit CountedHash(int* count) : count(count) {}
   size_t operator()(int64_t value) const {
-    ++count;
+    ++(*count);
     return static_cast<size_t>(value);
   }
-  mutable int count = 0;
+  int* count = nullptr;
 };
 
 struct CountedHashIntTable
     : raw_hash_set<IntPolicy, CountedHash, std::equal_to<int>,
                    std::allocator<int>> {
   using Base = typename CountedHashIntTable::raw_hash_set;
-  using Base::Base;
+  CountedHashIntTable() : Base(0, CountedHash(&count)) {}
+  int count = 0;
 };
 
 TEST(Table, CountedHash) {
@@ -4889,7 +4934,7 @@ TEST(Table, CountedHash) {
   DisableSampling();
 
   using Table = CountedHashIntTable;
-  auto HashCount = [](const Table& t) { return t.hash_function().count; };
+  auto HashCount = [](const Table& t) { return t.count; };
   {
     Table t;
     t.find(0);
@@ -5483,6 +5528,137 @@ TEST(Table, GrowExtremelyLargeTable) {
     }
   }
   EXPECT_EQ(t.capacity(), kTargetCapacity);
+}
+
+TEST(Table, PointerConversionCount) {
+  DisableSampling();
+
+  struct Base {};
+  struct Derived : Base {};
+
+  struct ConvertibleToPtr {
+    explicit ConvertibleToPtr(Derived* v) : value(v) {}
+    ConvertibleToPtr(const ConvertibleToPtr&) = delete;
+    ConvertibleToPtr& operator=(const ConvertibleToPtr&) = delete;
+
+    operator Derived*() const {
+      ++num_conversions;
+      return value;
+    }
+
+    Derived* value;
+    mutable int num_conversions = 0;
+  };
+
+  Derived a, b, c, z;
+  absl::flat_hash_set<const Base*> t;
+
+  // Empty table: no conversion to pointer.
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 0);
+  }
+
+  // Single-element table: 1 conversion to pointer.
+  t.insert(&a);
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_NE(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&b};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+
+  // Many-element table: 1 conversion to pointer (would be 2 on hits without
+  // FindLargeKey canonicalization).
+  t.insert(&b);
+  t.insert(&c);
+  ASSERT_FALSE(RawHashSetTestOnlyAccess::GetCommon(t).is_small());
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_NE(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&z};
+    EXPECT_EQ(t.find(k), t.end());
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+  {
+    ConvertibleToPtr k{&a};
+    EXPECT_FALSE(t.emplace(k).second);
+    EXPECT_EQ(k.num_conversions, 1);
+  }
+}
+
+enum class EnumPtr : uintptr_t {};
+enum class Enum64 : int64_t {};
+
+template <class Table>
+const PolicyFunctions* GetPolicyFunctionsPtr() {
+  return &RawHashSetTestOnlyAccess::GetPolicyFunctions<Table>();
+}
+
+TEST(Table, PolicyFunctionsAreSharedForRelocatableSlots) {
+  // Tables with the same slot layout and type erased slot hash function share
+  // a single `PolicyFunctions` instance. Use pointer-sized integers so that
+  // `alignof(slot_type) <= alignof(size_t)` and `sizeof(EnumPtr) ==
+  // sizeof(const void*)` on both 32-bit and 64-bit platforms.
+  const PolicyFunctions* intptr_pair_policy =
+      GetPolicyFunctionsPtr<absl::flat_hash_map<intptr_t, intptr_t>>();
+  EXPECT_EQ(intptr_pair_policy,
+            (GetPolicyFunctionsPtr<absl::flat_hash_map<uintptr_t, EnumPtr>>()));
+  EXPECT_EQ(
+      intptr_pair_policy,
+      (GetPolicyFunctionsPtr<absl::flat_hash_map<EnumPtr, const void*>>()));
+  EXPECT_EQ(
+      intptr_pair_policy,
+      (GetPolicyFunctionsPtr<absl::flat_hash_map<const void*, intptr_t>>()));
+
+  // Different slot size.
+  EXPECT_NE(intptr_pair_policy,
+            (GetPolicyFunctionsPtr<absl::flat_hash_map<int8_t, int8_t>>()));
+  // Same slot size, but different slot hash function.
+  EXPECT_NE(intptr_pair_policy,
+            GetPolicyFunctionsPtr<absl::flat_hash_set<absl::string_view>>());
+  // Custom allocators have a distinct `AllocPolicy`, so `PolicyFunctions` is
+  // not shared, but the transfer function is still shared.
+  using CustomAllocTable = absl::flat_hash_map<
+      intptr_t, intptr_t, absl::Hash<intptr_t>, std::equal_to<intptr_t>,
+      CountingAllocator<std::pair<const intptr_t, intptr_t>>>;
+  EXPECT_NE(intptr_pair_policy, GetPolicyFunctionsPtr<CustomAllocTable>());
+  EXPECT_EQ(intptr_pair_policy->transfer_unprobed_elements_to_next_capacity,
+            GetPolicyFunctionsPtr<CustomAllocTable>()
+                ->transfer_unprobed_elements_to_next_capacity);
+}
+
+TEST(Table, GrowthWithSharedPolicyFunctions) {
+  // Exercise the shared transfer function across the growth paths from SOO up
+  // to a few resizes, including probed elements, for a few layouts.
+  const auto test = [](auto table) {
+    constexpr int kCount = 25;
+    using T = decltype(table);
+    using V = typename T::key_type;
+    for (int i = 0; i < kCount; ++i) {
+      table.insert(static_cast<V>(i));
+      ASSERT_EQ(table.size(), static_cast<size_t>(i + 1));
+    }
+    for (int i = 0; i < kCount; ++i) {
+      ASSERT_TRUE(table.contains(static_cast<V>(i))) << i;
+    }
+    ASSERT_FALSE(table.contains(static_cast<V>(kCount)));
+  };
+  test(absl::flat_hash_set<int8_t>());
+  test(absl::flat_hash_set<int16_t>());
+  test(absl::flat_hash_set<int32_t>());
+  test(absl::flat_hash_set<int64_t>());
+  test(absl::flat_hash_set<Enum64>());
+  // Non-canonical hasher that forces probing on every growth.
+  test(absl::flat_hash_set<int32_t, ZeroHash>());
 }
 
 }  // namespace
