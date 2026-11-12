@@ -501,6 +501,314 @@ TEST_P(CordTest, StartsEndsWith) {
   ASSERT_TRUE(!empty.EndsWith("xyz"));
 }
 
+TEST_P(CordTest, EndsWith_SingleChunkAndInlined) {
+  // The Cord stores its 11 bytes inline, or in one flat chunk when
+  // MaybeHarden() adds a checksum.
+  absl::Cord cord("hello world");
+  MaybeHarden(cord);
+
+  // Suffixes of five bytes and of one byte
+  EXPECT_TRUE(cord.EndsWith("world"));
+  EXPECT_TRUE(cord.EndsWith("d"));
+  EXPECT_TRUE(cord.EndsWith(absl::Cord("world")));
+  EXPECT_TRUE(cord.EndsWith(absl::Cord("d")));
+
+  // One-byte mismatch
+  EXPECT_FALSE(cord.EndsWith("x"));
+  EXPECT_FALSE(cord.EndsWith(absl::Cord("x")));
+
+  // Five-byte mismatch
+  EXPECT_FALSE(cord.EndsWith("earth"));
+  EXPECT_FALSE(cord.EndsWith(absl::Cord("earth")));
+}
+
+TEST_P(CordTest, EndsWith_MultiChunkStringView) {
+  // Cord of five chunks
+  absl::Cord cord = absl::MakeFragmentedCord(
+      {"The quick ", "brown fox ", "jumps over ", "the lazy ", "dog."});
+  MaybeHarden(cord);
+
+  // Suffix within the last chunk ("dog.")
+  EXPECT_TRUE(cord.EndsWith("."));
+  EXPECT_TRUE(cord.EndsWith("g."));
+  EXPECT_TRUE(cord.EndsWith("dog."));
+
+  // Suffix spanning the last two chunks ("the lazy " and "dog.")
+  EXPECT_TRUE(cord.EndsWith("lazy dog."));
+  EXPECT_TRUE(cord.EndsWith("the lazy dog."));
+
+  // Suffixes spanning three and four chunks
+  EXPECT_TRUE(cord.EndsWith("jumps over the lazy dog."));
+  EXPECT_TRUE(cord.EndsWith("brown fox jumps over the lazy dog."));
+
+  // Suffix equal to the whole Cord
+  EXPECT_TRUE(cord.EndsWith("The quick brown fox jumps over the lazy dog."));
+
+  // Mismatch in the last chunk
+  EXPECT_FALSE(cord.EndsWith("cat."));
+  EXPECT_FALSE(cord.EndsWith("!"));
+
+  // Mismatch in the chunk before the last
+  EXPECT_FALSE(cord.EndsWith("busy dog."));
+  EXPECT_FALSE(cord.EndsWith("the hazy dog."));
+  EXPECT_FALSE(cord.EndsWith("the crazy dog."));
+}
+
+TEST_P(CordTest, EndsWith_CordOperandAsymmetricChunks) {
+  absl::Cord lhs = absl::MakeFragmentedCord(
+      {"The quick ", "brown fox ", "jumps over ", "the lazy ", "dog."});
+  MaybeHarden(lhs);
+
+  // Single-chunk suffixes
+  absl::Cord rhs_single_char(".");
+  absl::Cord rhs_single_chunk("dog.");
+  MaybeHarden(rhs_single_char);
+  MaybeHarden(rhs_single_chunk);
+  EXPECT_TRUE(lhs.EndsWith(rhs_single_char));
+  EXPECT_TRUE(lhs.EndsWith(rhs_single_chunk));
+
+  // Multi-chunk suffix whose chunk boundaries differ from those of `lhs`
+  // LHS: ["The quick ", "brown fox ", "jumps over ", "the lazy ", "dog."]
+  // RHS: ["jumps ", "over the ", "lazy dog."]
+  absl::Cord rhs_multi =
+      absl::MakeFragmentedCord({"jumps ", "over the ", "lazy dog."});
+  MaybeHarden(rhs_multi);
+  EXPECT_TRUE(lhs.EndsWith(rhs_multi));
+
+  // Mismatch in the first chunk of the suffix ("leaps " for "jumps ")
+  absl::Cord rhs_diff_head =
+      absl::MakeFragmentedCord({"leaps ", "over the ", "lazy dog."});
+  MaybeHarden(rhs_diff_head);
+  EXPECT_FALSE(lhs.EndsWith(rhs_diff_head));
+
+  // Mismatch in the middle chunk of the suffix
+  absl::Cord rhs_diff_mid =
+      absl::MakeFragmentedCord({"jumps ", "across the ", "lazy dog."});
+  MaybeHarden(rhs_diff_mid);
+  EXPECT_FALSE(lhs.EndsWith(rhs_diff_mid));
+
+  // Mismatch in the last chunk of the suffix ("lazy cat.")
+  absl::Cord rhs_diff_tail =
+      absl::MakeFragmentedCord({"jumps ", "over the ", "lazy cat."});
+  MaybeHarden(rhs_diff_tail);
+  EXPECT_FALSE(lhs.EndsWith(rhs_diff_tail));
+}
+
+TEST_P(CordTest, EndsWith_SubcordAndExternal) {
+  absl::Cord cord = absl::MakeFragmentedCord(
+      {"The quick ", "brown fox ", "jumps over ", "the lazy ", "dog."});
+  MaybeHarden(cord);
+
+  // `sub` is a B-tree whose first and last chunks are substrings of chunks of
+  // `cord`. It holds "quick brown fox jumps over the".
+  absl::Cord sub = cord.Subcord(4, 30);
+  EXPECT_TRUE(sub.EndsWith("the"));
+  EXPECT_TRUE(sub.EndsWith("over the"));
+  EXPECT_TRUE(sub.EndsWith("brown fox jumps over the"));
+  EXPECT_FALSE(sub.EndsWith("dog."));
+  EXPECT_FALSE(sub.EndsWith("lazy"));
+  EXPECT_FALSE(sub.EndsWith("fox"));
+
+  // External Cord (CordRepExternal node)
+  static const char kStaticBuffer[] = "static external buffer payload 12345";
+  absl::Cord external_cord =
+      absl::MakeCordFromExternal(kStaticBuffer, [](absl::string_view) {});
+  EXPECT_TRUE(external_cord.EndsWith("12345"));
+  EXPECT_TRUE(external_cord.EndsWith("payload 12345"));
+  EXPECT_FALSE(external_cord.EndsWith("67890"));
+  EXPECT_FALSE(external_cord.EndsWith("buffer 67890"));
+}
+
+// Returns 1000 strings of 100 bytes each. A Cord with one chunk per string is
+// a B-tree several levels deep.
+static std::vector<std::string> MakeThousandChunks() {
+  std::vector<std::string> chunks;
+  chunks.reserve(1000);
+  for (int i = 0; i < 1000; ++i) {
+    chunks.push_back(std::string(100, static_cast<char>('A' + (i % 26))));
+  }
+  return chunks;
+}
+
+TEST_P(CordTest, EndsWith_DeepMultiLevelBtree) {
+  // `deep_cord` is a B-tree several levels deep. The suffixes below cover at
+  // most its last two chunks.
+  const std::vector<std::string> deep_chunks = MakeThousandChunks();
+  absl::Cord deep_cord = absl::MakeFragmentedCord(deep_chunks);
+  MaybeHarden(deep_cord);
+
+  // Suffix that is exactly the last chunk
+  std::string deep_suffix = deep_chunks.back();
+  EXPECT_TRUE(deep_cord.EndsWith(deep_suffix));
+  EXPECT_TRUE(deep_cord.EndsWith(absl::Cord(deep_suffix)));
+
+  // Suffix spanning the last two chunks
+  std::string deep_multi_suffix = deep_chunks[998] + deep_chunks[999];
+  EXPECT_TRUE(deep_cord.EndsWith(deep_multi_suffix));
+  EXPECT_TRUE(deep_cord.EndsWith(absl::Cord(deep_multi_suffix)));
+
+  // Mismatch in the last chunk
+  std::string deep_mismatch_suffix = deep_chunks[998] + std::string(100, 'Z');
+  EXPECT_FALSE(deep_cord.EndsWith(deep_mismatch_suffix));
+  EXPECT_FALSE(deep_cord.EndsWith(absl::Cord(deep_mismatch_suffix)));
+}
+
+TEST_P(CordTest, EndsWith_StringViewSuffixSpanningBtreeNodes) {
+  const std::vector<std::string> chunks = MakeThousandChunks();
+  absl::Cord cord = absl::MakeFragmentedCord(chunks);
+  MaybeHarden(cord);
+  // `suffix` is the second half of chunk 499 and all of chunks 500 to 999. It
+  // covers half of the tree; EndsWith must therefore step back across leaf and
+  // internal nodes.
+  std::string suffix = chunks[499].substr(50);
+  for (size_t i = 500; i < chunks.size(); ++i) {
+    suffix += chunks[i];
+  }
+  std::string wrong_first_byte = suffix;
+  wrong_first_byte[0] = '!';
+  std::string wrong_middle_byte = suffix;
+  wrong_middle_byte[suffix.size() / 2] = '!';
+
+  EXPECT_TRUE(cord.EndsWith(suffix));
+  EXPECT_FALSE(cord.EndsWith(wrong_first_byte));
+  EXPECT_FALSE(cord.EndsWith(wrong_middle_byte));
+}
+
+TEST_P(CordTest, EndsWith_CordSuffixSpanningBtreeNodes) {
+  const std::vector<std::string> chunks = MakeThousandChunks();
+  absl::Cord cord = absl::MakeFragmentedCord(chunks);
+  MaybeHarden(cord);
+  // `suffix_cord` holds the bytes of chunks 500 to 999 in 150-byte chunks, so
+  // that the chunk boundaries of the two B-trees differ.
+  std::string suffix;
+  for (size_t i = 500; i < chunks.size(); ++i) {
+    suffix += chunks[i];
+  }
+  std::vector<std::string> suffix_chunks;
+  for (size_t pos = 0; pos < suffix.size(); pos += 150) {
+    suffix_chunks.push_back(suffix.substr(pos, 150));
+  }
+  absl::Cord suffix_cord = absl::MakeFragmentedCord(suffix_chunks);
+  MaybeHarden(suffix_cord);
+  std::vector<std::string> wrong_chunks = suffix_chunks;
+  wrong_chunks[0][0] = '!';
+  absl::Cord wrong_first_byte = absl::MakeFragmentedCord(wrong_chunks);
+  MaybeHarden(wrong_first_byte);
+
+  EXPECT_TRUE(cord.EndsWith(suffix_cord));
+  EXPECT_FALSE(cord.EndsWith(wrong_first_byte));
+}
+
+TEST_P(CordTest, EndsWith_MultiChunkCordSuffixWithinLastChunk) {
+  absl::Cord cord = absl::MakeFragmentedCord({"abc", "0123456789"});
+  MaybeHarden(cord);
+  // The suffix's two chunks together are shorter than the last chunk of `cord`.
+  absl::Cord suffix = absl::MakeFragmentedCord({"67", "89"});
+  MaybeHarden(suffix);
+  absl::Cord not_suffix = absl::MakeFragmentedCord({"67", "8X"});
+  MaybeHarden(not_suffix);
+
+  EXPECT_TRUE(cord.EndsWith(suffix));
+  EXPECT_FALSE(cord.EndsWith(not_suffix));
+}
+
+TEST_P(CordTest, EndsWith_MultiChunkCordSuffixOfSingleChunkCord) {
+  // `cord` is one flat chunk; the suffixes are B-trees of two chunks.
+  absl::Cord cord("The quick brown fox");
+  MaybeHarden(cord);
+  absl::Cord suffix = absl::MakeFragmentedCord({"brown ", "fox"});
+  MaybeHarden(suffix);
+  absl::Cord not_suffix = absl::MakeFragmentedCord({"brown ", "fax"});
+  MaybeHarden(not_suffix);
+
+  EXPECT_TRUE(cord.EndsWith(suffix));
+  EXPECT_FALSE(cord.EndsWith(not_suffix));
+}
+
+TEST_P(CordTest, EndsWith_StringViewSuffixStartingAtLastByteOfChunk) {
+  absl::Cord cord = absl::MakeFragmentedCord({"abc", "0123456789", "xy"});
+  MaybeHarden(cord);
+
+  // The first byte of each suffix is the last byte of a chunk of `cord`.
+  EXPECT_TRUE(cord.EndsWith("9xy"));
+  EXPECT_FALSE(cord.EndsWith("8xy"));
+  EXPECT_TRUE(cord.EndsWith("c0123456789xy"));
+  EXPECT_FALSE(cord.EndsWith("d0123456789xy"));
+}
+
+TEST_P(CordTest, EndsWith_CordSuffixStartingWithOneByteChunk) {
+  absl::Cord cord = absl::MakeFragmentedCord({"abc", "0123456789", "xy"});
+  MaybeHarden(cord);
+  // The first chunk of each suffix is one byte; that byte is therefore the
+  // last piece that EndsWith compares.
+  absl::Cord suffix = absl::MakeFragmentedCord({"9", "xy"});
+  MaybeHarden(suffix);
+  absl::Cord not_suffix = absl::MakeFragmentedCord({"8", "xy"});
+  MaybeHarden(not_suffix);
+
+  EXPECT_TRUE(cord.EndsWith(suffix));
+  EXPECT_FALSE(cord.EndsWith(not_suffix));
+}
+
+TEST_P(CordTest, EndsWith_SuffixSharingChunksWithCord) {
+  absl::Cord cord = absl::MakeFragmentedCord(
+      {std::string(20, 'a'), std::string(20, 'b'), std::string(20, 'c'),
+       std::string(20, 'd'), std::string(20, 'e')});
+  MaybeHarden(cord);
+  // A Subcord references the chunks of `cord` instead of copying them; the
+  // last 50 bytes are therefore the same memory in both Cords.
+  absl::Cord suffix = cord.Subcord(cord.size() - 50, 50);
+  MaybeHarden(suffix);
+  // This Subcord references the same chunks but stops 10 bytes before the end
+  // of `cord`.
+  absl::Cord not_suffix = cord.Subcord(cord.size() - 60, 50);
+  MaybeHarden(not_suffix);
+
+  EXPECT_TRUE(cord.EndsWith(suffix));
+  EXPECT_FALSE(cord.EndsWith(not_suffix));
+}
+
+TEST_P(CordTest, EndsWith_SubstringRoot) {
+  // The root of `cord` is a substring node that stops before the end of the
+  // flat buffer under it: the buffer goes on with "yyyy...".
+  absl::Cord flat(std::string(100, 'x') + "tail" + std::string(20, 'y'));
+  absl::Cord cord = absl::CordTestPeer::MakeSubstring(flat, 10, 94);
+  MaybeHarden(cord);
+
+  EXPECT_TRUE(cord.EndsWith("tail"));
+  EXPECT_FALSE(cord.EndsWith("tall"));
+  EXPECT_FALSE(cord.EndsWith("yyyy"));
+}
+
+TEST_P(CordTest, EndsWith_BoundaryAndEmptyEdgeCases) {
+  absl::Cord cord = absl::MakeFragmentedCord({"foo", "bar", "baz"});
+  MaybeHarden(cord);
+  absl::Cord empty("");
+  MaybeHarden(empty);
+
+  // The empty string is a suffix of every Cord.
+  EXPECT_TRUE(cord.EndsWith(""));
+  EXPECT_TRUE(cord.EndsWith(absl::Cord("")));
+  EXPECT_TRUE(cord.EndsWith(empty));
+  EXPECT_TRUE(empty.EndsWith(""));
+  EXPECT_TRUE(empty.EndsWith(absl::Cord("")));
+  EXPECT_TRUE(empty.EndsWith(empty));
+
+  // An empty Cord ends only with the empty string.
+  EXPECT_FALSE(empty.EndsWith("a"));
+  EXPECT_FALSE(empty.EndsWith(absl::Cord("a")));
+  EXPECT_FALSE(empty.EndsWith("foobarbaz"));
+
+  // No Cord ends with a longer string.
+  EXPECT_FALSE(cord.EndsWith("extra_prefix_foobarbaz"));
+  EXPECT_FALSE(cord.EndsWith(absl::Cord("extra_prefix_foobarbaz")));
+  EXPECT_FALSE(
+      cord.EndsWith(absl::MakeFragmentedCord({"extra_prefix_", "foobarbaz"})));
+
+  // A Cord ends with itself.
+  EXPECT_TRUE(cord.EndsWith(cord));
+}
+
 TEST_P(CordTest, Contains) {
   auto flat_haystack = absl::Cord("this is a flat cord");
   auto fragmented_haystack = absl::MakeFragmentedCord(
