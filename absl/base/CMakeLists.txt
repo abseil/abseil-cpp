@@ -733,6 +733,30 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    log_severity_no_ostream_test
+  SRCS
+    "log_severity.cc"
+    "log_severity.h"
+    "log_severity_no_ostream_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  # Predefine standard library <ostream> include guards so hosted #include
+  # <ostream> is empty (matching _LIBCPP_HAS_LOCALIZATION == 0) and unguarded
+  # std::ostream references fail at compile time.
+  DEFINES
+    "_GLIBCXX_OSTREAM"
+    "_LIBCPP_HAS_NO_LOCALIZATION"
+    "_LIBCPP_OSTREAM"
+    "_OSTREAM_"
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+)
+
+absl_cc_test(
+  NAME
     log_severity_test
   SRCS
     "log_severity_test.cc"
