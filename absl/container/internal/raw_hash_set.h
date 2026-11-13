@@ -2850,64 +2850,6 @@ class raw_hash_set_base {
                     std::is_same_v<absl::remove_cvref_t<K>,
                                    absl::remove_cvref_t<SlotKey>>>;
   };
-
-  // `policy` is a runtime argument so that tables that differ only in other
-  // policy functions share one instantiation.
-  template <class Key, size_t kSlotSize, bool kIsDefaultAlloc, bool kSooEnabled,
-            class Hash, size_t kHasherOffset, class Eq, size_t kEqOffset,
-            class SlotEq>
-  std::pair<void*, bool> find_or_prepare_insert_large(
-      const PolicyFunctions& policy, Key key) {
-    using SlotKeyType = typename SlotEq::SlotKeyType;
-    using Params = HashParams<Hash, SlotKeyType>;
-
-    prefetch_heap_block<kIsDefaultAlloc>();
-    const Hash& hash_ref = *reinterpret_cast<const Hash*>(
-        reinterpret_cast<const char*>(this) + kHasherOffset);
-    const Eq& eq_ref = *reinterpret_cast<const Eq*>(
-        reinterpret_cast<const char*>(this) + kEqOffset);
-    const size_t hash = HashElement<Hash, Params::kIsAbsl, Params::kSeedShift>{
-        hash_ref, common().seed().seed()}(key);
-    const size_t cap = capacity<sizeof(SlotKeyType), kSlotSize, kSooEnabled>();
-    auto seq = probe(ProbeCapacity{cap}, hash);
-    const h2_t h2 = H2(hash);
-    const ctrl_t* ctrl = control<kIsDefaultAlloc>();
-    using SlotBytes = char[kSlotSize];
-    auto* slot_array =
-        static_cast<SlotBytes*>(this->slot_array<kIsDefaultAlloc>(cap));
-    while (true) {
-      // Loading the group before slot prefetch decreases critical path latency.
-      Group g{ctrl + seq.offset()};
-#ifndef ABSL_HAVE_MEMORY_SANITIZER
-      absl::PrefetchToLocalCache(slot_array + seq.offset());
-#endif
-      // Predict one iteration (common case for insert-hit).
-      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
-        do {
-          void* slot = slot_array + seq.offset(*match);
-          if (ABSL_PREDICT_TRUE(SlotEq{}(eq_ref, slot, key)))
-            return {slot, false};
-        } while (ABSL_PREDICT_FALSE(++match));
-      }
-      auto mask_empty = g.MaskEmpty();
-      if (ABSL_PREDICT_TRUE(mask_empty)) {
-        size_t target_group_offset = seq.offset();
-        void* slot;
-        if constexpr (SwisstableGenerationsEnabled()) {
-          using Hasher = typename Params::template HashKeyFor<Key>;
-          Hasher hash_key{hash_ref, key};
-          slot = PrepareInsertLargeGenerationsEnabled(
-              common(), policy, hash, mask_empty, target_group_offset,
-              hash_key.data(), Hasher::get_hash_fn());
-        } else {
-          slot = PrepareInsertLarge(common(), policy, hash, mask_empty,
-                                    target_group_offset);
-        }
-        return {slot, true};
-      }
-      seq.next();
-    }
-  }
 };
 
 // A SwissTable.
@@ -4326,11 +4268,44 @@ class raw_hash_set : public raw_hash_set_base {
   std::pair<slot_type*, bool> find_or_prepare_insert_large(
       absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
-    auto [slot, inserted] = raw_hash_set_base::find_or_prepare_insert_large<
-        K, sizeof(slot_type), kIsDefaultAlloc, SooEnabled(), hasher,
-        HasherOffset(), key_equal, EqOffset(), typename PolicyTraits::SlotEq>(
-        GetPolicyFunctions(), key);
-    return {to_slot(slot), inserted};
+    prefetch_heap_block();
+    const size_t hash = hash_of(key);
+    const size_t cap = capacity();
+    auto seq = probe(ProbeCapacity{cap}, hash);
+    const h2_t h2 = H2(hash);
+    const ctrl_t* ctrl = control();
+    slot_type* slot_array = this->slot_array(cap);
+    while (true) {
+      // Loading the group before slot prefetch decreases critical path latency.
+      Group g{ctrl + seq.offset()};
+#ifndef ABSL_HAVE_MEMORY_SANITIZER
+      absl::PrefetchToLocalCache(slot_array + seq.offset());
+#endif
+      // Predict one iteration (common case for insert-hit).
+      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
+        do {
+          slot_type* slot = slot_array + seq.offset(*match);
+          if (ABSL_PREDICT_TRUE(equal_to<K>(key, slot))) return {slot, false};
+        } while (ABSL_PREDICT_FALSE(++match));
+      }
+      auto mask_empty = g.MaskEmpty();
+      if (ABSL_PREDICT_TRUE(mask_empty)) {
+        size_t target_group_offset = seq.offset();
+        void* slot;
+        if constexpr (SwisstableGenerationsEnabled()) {
+          using Hasher = HashKeyFor<K>;
+          Hasher hash_key{hash_ref(), key};
+          slot = PrepareInsertLargeGenerationsEnabled(
+              common(), GetPolicyFunctions(), hash, mask_empty,
+              target_group_offset, hash_key.data(), Hasher::get_hash_fn());
+        } else {
+          slot = PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
+                                    mask_empty, target_group_offset);
+        }
+        return {to_slot(slot), true};
+      }
+      seq.next();
+    }
   }
 
   template <class InputIt>
@@ -4541,10 +4516,6 @@ class raw_hash_set : public raw_hash_set_base {
   static constexpr size_t HasherOffset() {
     static_assert(offsetof(raw_hash_set, common_) == 0);
     return offsetof(raw_hash_set, hash_) - offsetof(raw_hash_set, common_);
-  }
-  static constexpr size_t EqOffset() {
-    static_assert(offsetof(raw_hash_set, common_) == 0);
-    return offsetof(raw_hash_set, eq_) - offsetof(raw_hash_set, common_);
   }
   static constexpr size_t AllocOffset() {
     static_assert(offsetof(raw_hash_set, common_) == 0);
