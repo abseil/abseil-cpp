@@ -62,7 +62,7 @@ class alignas(8) randen_engine {
     return (std::numeric_limits<result_type>::max)();
   }
 
-  randen_engine() : randen_engine(0) {}
+  randen_engine() : randen_engine(result_type{0}) {}
   explicit randen_engine(result_type seed_value) { seed(seed_value); }
 
   template <class SeedSequence,
