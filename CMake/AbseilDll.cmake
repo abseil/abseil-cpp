@@ -685,7 +685,8 @@ Version: ${absl_VERSION}\n\
 Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:-l${_dll}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
   INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/${_dll}.pc"
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+    COMPONENT Development)
 
   target_compile_definitions(
     ${_dll}
@@ -707,9 +708,9 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
   endif()
 
   install(TARGETS ${_dll} EXPORT ${PROJECT_NAME}Targets
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Runtime
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Runtime
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
   )
 
   add_library(absl::${_dll} ALIAS ${_dll})
