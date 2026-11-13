@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <mutex>  // NOLINT(build/c++11)
 #include <random>
@@ -294,6 +295,96 @@ TEST(SpinLockTest, IsCooperative) {
 TEST(SpinLockTest, ScopedLock) {
   SpinLock s;
   std::scoped_lock l(s);
+}
+
+TEST(SpinLockTest, ComputeSpinIterationsScalesWithCapacityAndLoopSpeed) {
+  constexpr int kNumCpus = 80;
+  constexpr int64_t kRefLatencyCycles = 4000;
+  constexpr int64_t kSlowCoreLatencyCycles = 6000;
+  constexpr int64_t kFastCoreLatencyCycles = 3000;
+  constexpr int64_t kOneCyclePerSpinIter = kProbeSteps;
+
+  // In the unclamped regime, doubling NumCPUs() halves the target cycle budget.
+  const int base_iters =
+      ComputeSpinIterations(kNumCpus, kRefLatencyCycles, kOneCyclePerSpinIter);
+  const int double_cpu_iters = ComputeSpinIterations(
+      2 * kNumCpus, kRefLatencyCycles, kOneCyclePerSpinIter);
+  EXPECT_GT(double_cpu_iters, kMinSpinIterations);
+  EXPECT_LT(base_iters, kMaxSpinIterations);
+  EXPECT_NEAR(base_iters, 2 * double_cpu_iters, 1);
+
+  // Faster cores (fewer latency-probe cycles) get a smaller spin budget at the
+  // same CPU count and spin-loop speed.
+  const int slow_core = ComputeSpinIterations(kNumCpus, kSlowCoreLatencyCycles,
+                                              kOneCyclePerSpinIter);
+  const int fast_core = ComputeSpinIterations(kNumCpus, kFastCoreLatencyCycles,
+                                              kOneCyclePerSpinIter);
+  EXPECT_LT(slow_core, kMaxSpinIterations);
+  EXPECT_GT(slow_core, base_iters);
+  EXPECT_GT(base_iters, fast_core);
+  EXPECT_GT(fast_core, kMinSpinIterations);
+
+  // Faster spin loops (fewer cycles per probe) run proportionally more
+  // iterations for the same target cycle budget.
+  const int half_cycle_per_iter = ComputeSpinIterations(
+      kNumCpus, kRefLatencyCycles, kOneCyclePerSpinIter / 2);
+  const int quarter_cycle_per_iter = ComputeSpinIterations(
+      kNumCpus, kRefLatencyCycles, kOneCyclePerSpinIter / 4);
+  EXPECT_LT(quarter_cycle_per_iter, kMaxSpinIterations);
+  EXPECT_NEAR(half_cycle_per_iter, 2 * base_iters, 1);
+  EXPECT_NEAR(quarter_cycle_per_iter, 2 * half_cycle_per_iter, 1);
+
+  // Low-CPU-count machines spin as long as a minimum-size machine would, well
+  // below kMaxSpinIterations.
+  const int low_cpu_8 =
+      ComputeSpinIterations(8, kRefLatencyCycles, kOneCyclePerSpinIter);
+  const int low_cpu_16 =
+      ComputeSpinIterations(16, kRefLatencyCycles, kOneCyclePerSpinIter);
+  EXPECT_GT(low_cpu_8, base_iters);
+  EXPECT_LT(low_cpu_8, kMaxSpinIterations);
+  EXPECT_EQ(low_cpu_8, low_cpu_16);
+}
+
+// Checks that CalibrateSpinIterations() measures real probe costs, so that a
+// regression (e.g. an elided probe loop) can't silently pin the result to
+// kMinSpinIterations or kMaxSpinIterations.
+TEST(SpinLockTest, CalibrateSpinIterationsMeasuresProbeCost) {
+  if (NumCPUs() <= 1) GTEST_SKIP() << "Uniprocessors don't calibrate";
+
+  // The spin probe runs RunLatencyProbe() for 1/divisor of the steps. Both
+  // probes then run the same compiled loop, so their cycle ratio is `divisor`
+  // on any machine or build mode, which makes the expected result exact.
+  // Static so the captureless probe below can read it.
+  static int divisor;
+  int expected;
+  // Start at 2, since a probe whose cost doesn't scale with `steps` gives a
+  // ratio of 1. Grow it so the expected count is far above the lower clamp
+  // (which large machines hit in real calibration) and a result stuck there
+  // fails clearly.
+  constexpr int kMinExpected = 3 * kMinSpinIterations;
+  for (divisor = 2;; ++divisor) {
+    expected = ComputeSpinIterations(NumCPUs(), int64_t{kProbeSteps} * divisor,
+                                     kProbeSteps);
+    if (expected >= kMinExpected) break;
+  }
+  ASSERT_LT(expected, kMaxSpinIterations);  // Also unclamped at the top.
+
+  // Keep the closest of a few calibrations to tolerate preemption.
+  int best = 0;
+  for (int i = 0; i < 5; ++i) {
+    const int iterations = CalibrateSpinIterations(
+        [](int steps) { RunLatencyProbe(steps / divisor); });
+    if (std::abs(iterations - expected) < std::abs(best - expected)) {
+      best = iterations;
+    }
+  }
+  // Bugs move the result far off: to a clamp, or to about expected / divisor.
+  // Noise is a few percent, but fixed per-timing overhead (clock reads, calls)
+  // biases the ratio low: negligible with hardware cycle counters, ~10% under
+  // emulation with a steady_clock-based CycleClock (e.g. Android ARM32). So
+  // allow 10% above and 1/3 below, which still excludes expected / 2.
+  EXPECT_LE(best, expected + expected / 10);
+  EXPECT_GE(best, expected - expected / 3);
 }
 
 }  // namespace

@@ -562,6 +562,8 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   ABSL_ATTRIBUTE_COLD void LockSlow(MuHow absl_nonnull how,
                                     const Condition* absl_nullable cond,
                                     int flags);
+  // Contended exclusive lock(): spins, then falls back to LockSlow().
+  void LockSlowWithSpinning();
   // slow path release
   ABSL_ATTRIBUTE_COLD void UnlockSlow(SynchWaitParams* absl_nullable waitp);
   // TryLock slow path.
