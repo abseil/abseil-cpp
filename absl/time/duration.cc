@@ -244,6 +244,14 @@ inline Duration ScaleDouble(Duration d, double r) {
   double hi_doub = op(static_cast<double>(time_internal::GetRepHi(d)), r);
   double lo_doub = op(static_cast<double>(time_internal::GetRepLo(d)), r);
 
+  // A partial result that overflows a double is far outside the range of
+  // Duration. The two parts cannot be combined in that case because rep_lo is
+  // never negative, so for a negative `d` they overflow in opposite directions.
+  if (!IsFinite(hi_doub) || !IsFinite(lo_doub)) {
+    const bool is_neg = std::signbit(r) != (time_internal::GetRepHi(d) < 0);
+    return is_neg ? -InfiniteDuration() : InfiniteDuration();
+  }
+
   double hi_int = 0;
   double hi_frac = std::modf(hi_doub, &hi_int);
 
