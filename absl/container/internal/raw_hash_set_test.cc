@@ -2876,23 +2876,28 @@ TYPED_TEST(SmallTableResizeTest, ResizeReduceSmallTables) {
   }
 }
 
+extern const char kLazyEmplaceKey[];
+
 TEST(Table, LazyEmplace) {
   StringTable t;
   bool called = false;
-  auto it = t.lazy_emplace("abc", [&](const StringTable::constructor& f) {
-    called = true;
-    f("abc", "ABC");
-  });
+  auto it =
+      t.lazy_emplace(kLazyEmplaceKey, [&](const StringTable::constructor& f) {
+        called = true;
+        f("abc", "ABC");
+      });
   EXPECT_TRUE(called);
   EXPECT_THAT(*it, Pair("abc", "ABC"));
   called = false;
-  it = t.lazy_emplace("abc", [&](const StringTable::constructor& f) {
+  it = t.lazy_emplace(kLazyEmplaceKey, [&](const StringTable::constructor& f) {
     called = true;
     f("abc", "DEF");
   });
   EXPECT_FALSE(called);
   EXPECT_THAT(*it, Pair("abc", "ABC"));
 }
+
+const char kLazyEmplaceKey[] = "abc";
 
 int decompose_constructed;
 int decompose_copy_constructed;
