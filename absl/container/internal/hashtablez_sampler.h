@@ -89,6 +89,8 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> hashes_bitwise_or;
   std::atomic<size_t> hashes_bitwise_and;
   std::atomic<size_t> max_reserve;
+  std::atomic<size_t> num_compactions;
+  std::atomic<size_t> bytes_reclaimed;
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
   // mutated in `Record*` functions.  They are logically `const` in that sense.
@@ -122,6 +124,8 @@ void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
                           size_t distance_from_desired);
 
 void RecordEraseSlow(HashtablezInfo* info);
+
+void RecordCompactionSlow(HashtablezInfo* info, size_t bytes);
 
 struct SamplingState {
   int64_t next_sample;
@@ -184,6 +188,11 @@ class HashtablezInfoHandle {
     RecordEraseSlow(info_);
   }
 
+  void RecordCompaction(size_t bytes) {
+    if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
+    RecordCompactionSlow(info_, bytes);
+  }
+
   friend inline void swap(HashtablezInfoHandle& lhs,
                           HashtablezInfoHandle& rhs) {
     std::swap(lhs.info_, rhs.info_);
@@ -210,6 +219,7 @@ class HashtablezInfoHandle {
   inline void RecordInsertMiss(size_t /*hash*/,
                                size_t /*distance_from_desired*/) {}
   inline void RecordErase() {}
+  void RecordCompaction(size_t /*bytes*/) {}
 
   friend inline void swap(HashtablezInfoHandle& /*lhs*/,
                           HashtablezInfoHandle& /*rhs*/) {}

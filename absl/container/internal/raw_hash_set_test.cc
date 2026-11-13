@@ -4567,6 +4567,27 @@ TEST(RawHashSamplerTest, MovedFromTableIsNotSampled) {
   EXPECT_EQ(latest_info->size.load(std::memory_order_relaxed), 2);
 }
 
+TEST(RawHashSamplerTest, GtlReclaimExcessCapacityRecordsCompaction) {
+  std::vector<const HashtablezInfo*> infos =
+      SampleNonSooMutation([](NonSooIntTable& t) {
+        for (int i = 0; i < 64; ++i) {
+          t.insert(i);
+        }
+        const size_t old_cap = t.capacity();
+        for (int i = 10; i < 64; ++i) {
+          t.erase(i);
+        }
+        GtlReclaimExcessCapacity(t);
+        EXPECT_LT(t.capacity(), old_cap);
+      });
+
+  for (const HashtablezInfo* info : infos) {
+    EXPECT_EQ(info->num_compactions.load(std::memory_order_relaxed), 1);
+    EXPECT_GT(info->bytes_reclaimed.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(info->max_reserve.load(std::memory_order_relaxed), 0);
+  }
+}
+
 #endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
 
 TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
@@ -5659,6 +5680,171 @@ TEST(Table, GrowthWithSharedPolicyFunctions) {
   test(absl::flat_hash_set<Enum64>());
   // Non-canonical hasher that forces probing on every growth.
   test(absl::flat_hash_set<int32_t, ZeroHash>());
+}
+
+TEST(Table, GtlReclaimExcessCapacityEmptySoo) {
+  // Small slot type (`sizeof(slot_type) <= 4`) guarantees SOO on both 32-bit
+  // and 64-bit platforms.
+  absl::flat_hash_map<uint8_t, uint8_t> soo_map;
+  for (int i = 0; i < 200; ++i) {
+    soo_map[static_cast<uint8_t>(i)] = static_cast<uint8_t>(i * 2);
+  }
+  EXPECT_GT(soo_map.capacity(), 100);
+  for (int i = 0; i < 200; ++i) {
+    soo_map.erase(static_cast<uint8_t>(i));
+  }
+  EXPECT_TRUE(soo_map.empty());
+  EXPECT_GT(soo_map.capacity(), 100);
+
+  GtlReclaimExcessCapacity(soo_map);
+  EXPECT_TRUE(soo_map.empty());
+  EXPECT_EQ(soo_map.capacity(), SooCapacity());
+
+  // Back-to-back call on an already empty SOO table is a no-op.
+  GtlReclaimExcessCapacity(soo_map);
+  EXPECT_EQ(soo_map.capacity(), SooCapacity());
+}
+
+TEST(Table, GtlReclaimExcessCapacityEmptyNonSoo) {
+  NonSooIntTable non_soo;
+  for (int i = 0; i < 200; ++i) {
+    non_soo.insert(i);
+  }
+  for (int i = 0; i < 200; ++i) {
+    non_soo.erase(i);
+  }
+  EXPECT_TRUE(non_soo.empty());
+  EXPECT_GT(non_soo.capacity(), 100);
+
+  GtlReclaimExcessCapacity(non_soo);
+  EXPECT_TRUE(non_soo.empty());
+  EXPECT_EQ(non_soo.capacity(), 0);
+
+  // Back-to-back call on an already empty non-SOO table is a no-op.
+  GtlReclaimExcessCapacity(non_soo);
+  EXPECT_EQ(non_soo.capacity(), 0);
+}
+
+TEST(Table, GtlReclaimExcessCapacitySingleElementSoo) {
+  absl::flat_hash_set<uint8_t> soo_set;
+  for (int i = 0; i < 200; ++i) {
+    soo_set.insert(static_cast<uint8_t>(i));
+  }
+  const size_t peak_capacity = soo_set.capacity();
+  EXPECT_GT(peak_capacity, 100);
+
+  for (int i = 1; i < 200; ++i) {
+    soo_set.erase(static_cast<uint8_t>(i));
+  }
+  EXPECT_EQ(soo_set.size(), 1);
+  EXPECT_EQ(soo_set.capacity(), peak_capacity);
+
+  GtlReclaimExcessCapacity(soo_set);
+  EXPECT_THAT(soo_set, UnorderedElementsAre(0));
+  // Unsampled SOO tables shrink to inline SOO (`1`); sampled SOO tables retain
+  // `NextCapacity(SooCapacity())` (`3`).
+  EXPECT_LE(soo_set.capacity(), NextCapacity(SooCapacity()));
+
+  const size_t compacted_soo_cap = soo_set.capacity();
+  GtlReclaimExcessCapacity(soo_set);
+  EXPECT_EQ(soo_set.capacity(), compacted_soo_cap);
+}
+
+TEST(Table, GtlReclaimExcessCapacitySingleElementNonSoo) {
+  StringTable non_soo_map;
+  for (int i = 0; i < 200; ++i) {
+    non_soo_map.emplace(std::to_string(i), "payload");
+  }
+  EXPECT_GT(non_soo_map.capacity(), 100);
+  for (int i = 1; i < 200; ++i) {
+    non_soo_map.erase(std::to_string(i));
+  }
+  EXPECT_EQ(non_soo_map.size(), 1);
+
+  GtlReclaimExcessCapacity(non_soo_map);
+  const size_t compacted_non_soo_cap = non_soo_map.capacity();
+  EXPECT_EQ(compacted_non_soo_cap, NextCapacity(SizeToCapacity(1)));
+  const std::string* val_ptr_before = &non_soo_map.find("0")->second;
+  // Back-to-back call on a compacted 1-element non-SOO table must not rehash or
+  // invalidate references.
+  GtlReclaimExcessCapacity(non_soo_map);
+  EXPECT_EQ(non_soo_map.capacity(), compacted_non_soo_cap);
+  EXPECT_EQ(&non_soo_map.find("0")->second, val_ptr_before);
+}
+
+TEST(Table, GtlReclaimExcessCapacityThreshold) {
+  absl::flat_hash_map<int, int> map;
+  map.reserve(100);
+  const size_t peak_capacity = map.capacity();
+  const size_t compacted_capacity = PreviousCapacity(peak_capacity);
+  const size_t shrink_size =
+      CapacityToGrowth(PreviousCapacity(compacted_capacity));
+  const size_t no_shrink_size = shrink_size + 1;
+
+  for (int i = 0; i < static_cast<int>(no_shrink_size); ++i) {
+    map[i] = i;
+  }
+  GtlReclaimExcessCapacity(map);
+  EXPECT_EQ(map.capacity(), peak_capacity);
+
+  // Removing one more element crosses the shrink threshold and compacts to
+  // `NextCapacity(SizeToCapacity(shrink_size))`.
+  map.erase(static_cast<int>(no_shrink_size - 1));
+  EXPECT_EQ(map.size(), shrink_size);
+  GtlReclaimExcessCapacity(map);
+  EXPECT_EQ(map.capacity(), compacted_capacity);
+}
+
+TEST(Table, GtlReclaimExcessCapacityPreservesGrowthHeadroom) {
+  StringTable table;
+  table.reserve(100);
+  for (int i = 0; i < 20; ++i) {
+    table.emplace(std::to_string(i), "payload");
+  }
+  const size_t peak_capacity = table.capacity();
+
+  GtlReclaimExcessCapacity(table);
+  const size_t compacted_capacity = table.capacity();
+  EXPECT_LT(compacted_capacity, peak_capacity);
+  EXPECT_EQ(compacted_capacity, NextCapacity(SizeToCapacity(table.size())));
+  const std::string* val_ptr = &table.find("0")->second;
+
+  // Calling again without intervening mutations does not rehash again.
+  GtlReclaimExcessCapacity(table);
+  EXPECT_EQ(table.capacity(), compacted_capacity);
+  EXPECT_EQ(&table.find("0")->second, val_ptr);
+
+  // Inserting and erasing elements around the compacted size does not rehash.
+  table.emplace("extra", "payload");
+  EXPECT_EQ(table.capacity(), compacted_capacity);
+  EXPECT_EQ(&table.find("0")->second, val_ptr);
+  table.erase("extra");
+  GtlReclaimExcessCapacity(table);
+  EXPECT_EQ(table.capacity(), compacted_capacity);
+  EXPECT_EQ(&table.find("0")->second, val_ptr);
+}
+
+TEST(Table, GtlReclaimExcessCapacityBelowMinimumCapacityDoesNotShrink) {
+  StringTable small_map;
+  small_map.reserve(5);
+  small_map.emplace("a", "1");
+  const size_t initial_capacity = small_map.capacity();
+  ASSERT_TRUE(is_single_group(initial_capacity));
+  ASSERT_GT(initial_capacity, NextCapacity(SizeToCapacity(small_map.size())));
+  const std::string* val_ptr = &small_map.find("a")->second;
+  GtlReclaimExcessCapacity(small_map);
+  EXPECT_EQ(small_map.capacity(), initial_capacity);
+  EXPECT_EQ(&small_map.find("a")->second, val_ptr);
+
+  absl::flat_hash_set<uint8_t> small_soo;
+  small_soo.insert(1);
+  small_soo.insert(2);
+  small_soo.erase(2);
+  const size_t initial_soo_capacity = small_soo.capacity();
+  ASSERT_TRUE(is_single_group(initial_soo_capacity));
+  ASSERT_GT(initial_soo_capacity, SooCapacity());
+  GtlReclaimExcessCapacity(small_soo);
+  EXPECT_EQ(small_soo.capacity(), initial_soo_capacity);
 }
 
 }  // namespace

@@ -89,6 +89,8 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   hashes_bitwise_or.store(0, std::memory_order_relaxed);
   hashes_bitwise_and.store(~size_t{}, std::memory_order_relaxed);
   max_reserve.store(0, std::memory_order_relaxed);
+  num_compactions.store(0, std::memory_order_relaxed);
+  bytes_reclaimed.store(0, std::memory_order_relaxed);
 
   create_time = absl::Now();
   weight = stride;
@@ -258,6 +260,17 @@ void RecordEraseSlow(HashtablezInfo* info) {
   // instead of using `fetch_add`.
   info->num_erases.store(1 + info->num_erases.load(std::memory_order_relaxed),
                          std::memory_order_relaxed);
+}
+
+void RecordCompactionSlow(HashtablezInfo* info, size_t bytes) {
+  // There is only one concurrent writer, so `load` then `store` is sufficient
+  // instead of using `fetch_add`.
+  info->num_compactions.store(
+      1 + info->num_compactions.load(std::memory_order_relaxed),
+      std::memory_order_relaxed);
+  info->bytes_reclaimed.store(
+      bytes + info->bytes_reclaimed.load(std::memory_order_relaxed),
+      std::memory_order_relaxed);
 }
 
 void SetHashtablezConfigListener(HashtablezConfigListener l) {

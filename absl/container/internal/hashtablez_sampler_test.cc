@@ -107,6 +107,8 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_and.load(), ~size_t{});
   EXPECT_EQ(info.max_reserve.load(), 0);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed), 0);
   EXPECT_GE(info.create_time, test_start);
   EXPECT_EQ(info.weight, test_stride);
   EXPECT_EQ(info.inline_element_size, test_element_size);
@@ -122,6 +124,8 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   info.hashes_bitwise_or.store(1, std::memory_order_relaxed);
   info.hashes_bitwise_and.store(1, std::memory_order_relaxed);
   info.max_reserve.store(1, std::memory_order_relaxed);
+  info.num_compactions.store(3, std::memory_order_relaxed);
+  info.bytes_reclaimed.store(1024, std::memory_order_relaxed);
   info.create_time = test_start - absl::Hours(20);
 
   info.PrepareForSampling(test_stride * 2, test_element_size,
@@ -137,6 +141,8 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.hashes_bitwise_or.load(), 0);
   EXPECT_EQ(info.hashes_bitwise_and.load(), ~size_t{});
   EXPECT_EQ(info.max_reserve.load(), 0);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed), 0);
   EXPECT_EQ(info.weight, 2 * test_stride);
   EXPECT_EQ(info.inline_element_size, test_element_size);
   EXPECT_EQ(info.key_size, test_key_size);
@@ -251,6 +257,38 @@ TEST(HashtablezInfoTest, RecordRehash) {
   EXPECT_EQ(info.key_size, test_key_size);
   EXPECT_EQ(info.value_size, test_value_size);
   EXPECT_EQ(info.soo_capacity, 0);
+}
+
+TEST(HashtablezInfoTest, RecordCompaction) {
+  HashtablezInfo info;
+  absl::MutexLock l(info.init_mu);
+  const int64_t test_stride = 37;
+  const size_t test_element_size = 32;
+  const size_t test_key_size = 16;
+  const size_t test_value_size = 16;
+
+  info.PrepareForSampling(test_stride, test_element_size,
+                          /*key_size=*/test_key_size,
+                          /*value_size=*/test_value_size,
+                          /*soo_capacity_value=*/0);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed), 0);
+
+  RecordCompactionSlow(&info, /*bytes=*/100);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 1);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed), 100);
+
+  RecordCompactionSlow(&info, /*bytes=*/50);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 2);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed), 100 + 50);
+
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+  HashtablezInfoHandle handle(&info);
+  handle.RecordCompaction(/*bytes=*/25);
+  EXPECT_EQ(info.num_compactions.load(std::memory_order_relaxed), 3);
+  EXPECT_EQ(info.bytes_reclaimed.load(std::memory_order_relaxed),
+            100 + 50 + 25);
+#endif
 }
 
 TEST(HashtablezInfoTest, RecordReservation) {
