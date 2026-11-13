@@ -2753,6 +2753,21 @@ class raw_hash_set_base {
     return is_soo<kSooEnabled>() && !empty_when_small();
   }
 
+  template <size_t kKeySize, size_t kSlotSize, bool kSooEnabled>
+  size_t capacity() const {
+    const size_t cap = common().capacity();
+    // Compiler complains when using functions in ASSUME so use local variables.
+    [[maybe_unused]] const bool kIsValid = IsValidCapacity(cap);
+    [[maybe_unused]] constexpr size_t kDefaultCapacity =
+        kSooEnabled ? SooCapacity() : 0;
+    [[maybe_unused]] const size_t kMaxValidCapacity =
+        SizeToCapacity(container_internal::MaxValidSize(kKeySize, kSlotSize));
+    ABSL_ASSUME(kIsValid || cap == 0);
+    ABSL_ASSUME(cap >= kDefaultCapacity);
+    ABSL_ASSUME(cap <= kMaxValidCapacity);
+    return cap;
+  }
+
   template <bool kSooEnabled, bool kIsDefaultAlloc>
   void* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
@@ -2794,6 +2809,47 @@ class raw_hash_set_base {
         static_cast<size_t>(static_cast<const SlotBytes*>(it.slot_) - slot_ptr);
     EraseMetaOnlyLarge(common(), index, kSlotSize);
   }
+
+  template <class Hash, class KeyType>
+  static constexpr bool IsAbslHash() {
+    // Strip `const` so const slot key types match non-const `absl::Hash<K>`.
+    using NonConstKey = std::remove_const_t<KeyType>;
+    return std::is_same_v<Hash, absl::Hash<NonConstKey>> ||
+           (!HasAbslContainerHash<NonConstKey>::value &&
+            std::is_same_v<Hash, typename absl::container_internal::HashEq<
+                                     NonConstKey>::Hash>) ||
+           // Note: this is useful (in addition to the above case) for cases of
+           // `absl_container_hash =
+           // DefaultHashContainerHash<absl::string_view>`.
+           std::is_same_v<Hash, absl::container_internal::StringHash> ||
+           // TODO(b/384509507): resolve `no header providing
+           // "absl::hash_internal::TransparentHash" is directly included`.
+           // Maybe we should make "internal/hash.h" be a separate library.
+           is_instance_of<Hash, absl::hash_internal::TransparentHash>::value;
+  }
+
+  // Hashing parameters shared by `raw_hash_set` and the type-erased
+  // `find_or_prepare_insert_large`.
+  template <class Hash, class SlotKey>
+  struct HashParams {
+    static constexpr bool kIsAbsl = IsAbslHash<Hash, SlotKey>();
+    // For non-default hashers the seed is xor'ed with the hash value rather
+    // than being used as a seed for the hash function. Because we require
+    // random iteration order for small tables, the seed must have entropy in
+    // its low bits. For default absl::Hash, the pre-shifted `data_ & kSeedMask`
+    // value can be passed directly without a right shift.
+    static constexpr size_t kSeedShift =
+        kIsAbsl ? 0 : HashtableInlineData::kSeedShift;
+    // When `kIsAbsl` is true, `Hash` hashes `SlotKey` identically to
+    // `absl::Hash<SlotKey>` (see `GetTypeErasedApplyToSlotFn`), but may convert
+    // other lookup keys first (e.g. `const char*` for `StringHash`).
+    template <class K>
+    using HashKeyFor =
+        HashKey<Hash, K, kIsAbsl, kSeedShift,
+                /*kUseCanonical=*/kIsAbsl &&
+                    std::is_same_v<absl::remove_cvref_t<K>,
+                                   absl::remove_cvref_t<SlotKey>>>;
+  };
 };
 
 // A SwissTable.
@@ -2869,34 +2925,12 @@ class raw_hash_set : public raw_hash_set_base {
 
   using slot_type = typename PolicyTraits::slot_type;
 
-  constexpr static bool kIsAbslHash =
-      std::is_same_v<hasher, absl::Hash<key_type>> ||
-      (!HasAbslContainerHash<key_type>::value &&
-       std::is_same_v<hasher, typename absl::container_internal::HashEq<
-                                  key_type>::Hash>) ||
-      // Note: this is useful (in addition to the above case) for cases of
-      // `absl_container_hash = DefaultHashContainerHash<absl::string_view>`.
-      std::is_same_v<hasher, absl::container_internal::StringHash> ||
-      // TODO(b/384509507): resolve `no header providing
-      // "absl::hash_internal::TransparentHash" is directly included`.
-      // Maybe we should make "internal/hash.h" be a separate library.
-      is_instance_of<hasher, absl::hash_internal::TransparentHash>::value;
-  // For non-default hashers the seed is xor'ed with the hash value rather than
-  // being used as a seed for the hash function. Because we require random
-  // iteration order for small tables, the seed must have entropy in its low
-  // bits. For default absl::Hash, the pre-shifted `data_ & kSeedMask` value can
-  // be passed directly without a right shift.
-  constexpr static size_t kSeedShift =
-      kIsAbslHash ? 0 : HashtableInlineData::kSeedShift;
-
-  // When `kIsAbslHash` is true, `hasher` hashes `key_type` identically to
-  // `absl::Hash<key_type>` (see `GetTypeErasedApplyToSlotFn`), but may convert
-  // other lookup keys first (e.g. `const char*` for `StringHash`).
+  using HashParams = raw_hash_set_base::HashParams<hasher, key_type>;
+  constexpr static bool kIsAbslHash = HashParams::kIsAbsl;
+  constexpr static size_t kSeedShift = HashParams::kSeedShift;
   template <class K>
   using HashKeyFor =
-      HashKey<hasher, absl::remove_cvref_t<K>, kIsAbslHash, kSeedShift,
-              /*kUseCanonical=*/kIsAbslHash &&
-                  std::is_same_v<absl::remove_cvref_t<K>, key_type>>;
+      typename HashParams::template HashKeyFor<absl::remove_cvref_t<K>>;
 
   constexpr static bool SooEnabled() {
     return FitsInSooSlot(sizeof(slot_type), alignof(slot_type));
@@ -3367,15 +3401,8 @@ class raw_hash_set : public raw_hash_set_base {
     return size;
   }
   size_t capacity() const {
-    const size_t cap = common().capacity();
-    // Compiler complains when using functions in ASSUME so use local variables.
-    [[maybe_unused]] const bool kIsValid = IsValidCapacity(cap);
-    [[maybe_unused]] const size_t kDefaultCapacity = DefaultCapacity();
-    [[maybe_unused]] const size_t kMaxValidCapacity = MaxValidCapacity();
-    ABSL_ASSUME(kIsValid || cap == 0);
-    ABSL_ASSUME(cap >= kDefaultCapacity);
-    ABSL_ASSUME(cap <= kMaxValidCapacity);
-    return cap;
+    return raw_hash_set_base::capacity<sizeof(key_type), sizeof(slot_type),
+                                       SooEnabled()>();
   }
   size_t max_size() const { return MaxValidSize(); }
 
