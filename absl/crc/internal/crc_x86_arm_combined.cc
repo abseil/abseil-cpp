@@ -530,14 +530,15 @@ template <size_t num_crc_streams, size_t num_pclmul_streams,
 class CRC32AcceleratedX86ARMCombinedMultipleStreams
     : public CRC32AcceleratedX86ARMCombinedMultipleStreamsBase {
  public:
-  void Extend(uint32_t* crc, const void* bytes,
-              const size_t length) const override {
+  ABSL_ATTRIBUTE_HOT void Extend(uint32_t* crc, const void* bytes,
+                                 const size_t length) const override {
     Extend<CopyType::kNone>(crc, bytes, length);
   }
 
-  void ExtendAndCopy(uint32_t* crc, void* __restrict dst,
-                     const void* __restrict src, size_t length,
-                     bool non_temporal) const override {
+  ABSL_ATTRIBUTE_HOT void ExtendAndCopy(uint32_t* crc, void* __restrict dst,
+                                        const void* __restrict src,
+                                        size_t length,
+                                        bool non_temporal) const override {
     if (non_temporal) {
       Extend<CopyType::kNonTemporal>(crc, src, length, dst);
     } else {
