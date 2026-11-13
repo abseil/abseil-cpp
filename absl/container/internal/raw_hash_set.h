@@ -2845,7 +2845,7 @@ class raw_hash_set_base {
     // other lookup keys first (e.g. `const char*` for `StringHash`).
     template <class K>
     using HashKeyFor =
-        HashKey<Hash, K, kIsAbsl, kSeedShift,
+        HashKey<Hash, absl::remove_cvref_t<K>, kIsAbsl, kSeedShift,
                 /*kUseCanonical=*/kIsAbsl &&
                     std::is_same_v<absl::remove_cvref_t<K>,
                                    absl::remove_cvref_t<SlotKey>>>;
@@ -2987,8 +2987,7 @@ class raw_hash_set : public raw_hash_set_base {
   constexpr static bool kIsAbslHash = HashParams::kIsAbsl;
   constexpr static size_t kSeedShift = HashParams::kSeedShift;
   template <class K>
-  using HashKeyFor =
-      typename HashParams::template HashKeyFor<absl::remove_cvref_t<K>>;
+  using HashKeyFor = typename HashParams::template HashKeyFor<K>;
 
   constexpr static bool SooEnabled() {
     return FitsInSooSlot(sizeof(slot_type), alignof(slot_type));
