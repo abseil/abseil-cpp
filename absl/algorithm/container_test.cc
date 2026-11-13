@@ -419,7 +419,7 @@ TEST_F(NonMutatingTest, UpperBoundTemporarySpanWithPredicate) {
   std::sort(v.begin(), v.end(), std::greater<int>());
   int* i = absl::c_upper_bound(absl::MakeSpan(v), 1, std::greater<int>());
   EXPECT_EQ(3, i - v.data());
-  EXPECT_TRUE(i == v.data() + v.size());
+  EXPECT_TRUE(i == std::next(v.data(), v.size()));
 }
 
 TEST_F(NonMutatingTest, EqualRange) {
@@ -480,7 +480,7 @@ TEST_F(NonMutatingTest, MinElement) {
 
 TEST_F(NonMutatingTest, MinElementTemporarySpan) {
   int* i = absl::c_min_element(absl::MakeSpan(vector_));
-  ASSERT_TRUE(i != vector_.data() + vector_.size());
+  ASSERT_TRUE(i != std::next(vector_.data(), vector_.size()));
   EXPECT_EQ(*i, 1);
 }
 
@@ -493,7 +493,7 @@ TEST_F(NonMutatingTest, MinElementWithPredicate) {
 
 TEST_F(NonMutatingTest, MinElementTemporarySpanWithPredicate) {
   int* i = absl::c_min_element(absl::MakeSpan(vector_), std::greater<int>());
-  ASSERT_TRUE(i != vector_.data() + vector_.size());
+  ASSERT_TRUE(i != std::next(vector_.data(), vector_.size()));
   EXPECT_EQ(*i, 3);
 }
 
@@ -505,7 +505,7 @@ TEST_F(NonMutatingTest, MaxElement) {
 
 TEST_F(NonMutatingTest, MaxElementTemporarySpan) {
   int* i = absl::c_max_element(absl::MakeSpan(vector_));
-  ASSERT_TRUE(i != vector_.data() + vector_.size());
+  ASSERT_TRUE(i != std::next(vector_.data(), vector_.size()));
   EXPECT_EQ(*i, 3);
 }
 
@@ -518,7 +518,7 @@ TEST_F(NonMutatingTest, MaxElementWithPredicate) {
 
 TEST_F(NonMutatingTest, MaxElementTemporarySpanWithPredicate) {
   int* i = absl::c_max_element(absl::MakeSpan(vector_), std::greater<int>());
-  ASSERT_TRUE(i != vector_.data() + vector_.size());
+  ASSERT_TRUE(i != std::next(vector_.data(), vector_.size()));
   EXPECT_EQ(*i, 1);
 }
 
@@ -1600,9 +1600,9 @@ TEST(MutatingTest, PartialSort) {
 
 TEST(MutatingTest, PartialSortTemporarySpan) {
   std::vector<int> sequence{5, 3, 42, 0};
-  absl::c_partial_sort(absl::MakeSpan(sequence), sequence.data() + 2);
+  absl::c_partial_sort(absl::MakeSpan(sequence), std::next(sequence.data(), 2));
   EXPECT_THAT(absl::MakeSpan(sequence).first(2), ElementsAre(0, 3));
-  absl::c_partial_sort(absl::MakeSpan(sequence), sequence.data() + 2,
+  absl::c_partial_sort(absl::MakeSpan(sequence), std::next(sequence.data(), 2),
                        std::greater<int>());
   EXPECT_THAT(absl::MakeSpan(sequence).first(2), ElementsAre(42, 5));
 }
