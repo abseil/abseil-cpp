@@ -25,13 +25,14 @@ ABSL_NAMESPACE_BEGIN
 namespace profiling_internal {
 
 // ExponentialBiased provides a small and fast random number generator for a
-// rounded exponential distribution. This generator manages very little state,
-// and imposes no synchronization overhead. This makes it useful in specialized
-// scenarios requiring minimum overhead, such as stride based periodic sampling.
+// memoryless geometric distribution (the discrete analog of an exponential
+// distribution). This generator manages very little state, and imposes no
+// synchronization overhead. This makes it useful in specialized scenarios
+// requiring minimum overhead, such as stride-based periodic sampling.
 //
 // ExponentialBiased provides two closely related functions, GetSkipCount() and
-// GetStride(), both returning a rounded integer defining a number of events
-// required before some event with a given mean probability occurs.
+// GetStride(), returning the number of events to skip (`>= 0`) or the number
+// of events required (`>= 1`) before an event with a given mean occurs.
 //
 // The distribution is useful to generate a random wait time or some periodic
 // event with a given mean probability. For example, if an action is supposed to
@@ -44,31 +45,26 @@ namespace profiling_internal {
 //   }
 //
 //   void Frobber::Frob(int arg) {
-//     if (--stride == 0) {
+//     if (--stride_ == 0) {
 //       SampleFrob(arg);
 //       stride_ = exponential_biased_.GetStride(1000);
 //     }
 //     ...
 //   }
 //
-// The rounding of the return value creates a bias, especially for smaller means
-// where the distribution of the fraction is not evenly distributed. We correct
-// this bias by tracking the fraction we rounded up or down on each iteration,
-// effectively tracking the distance between the cumulative value, and the
-// rounded cumulative value. For example, given a mean of 2:
-//
-//   raw = 1.63076, cumulative = 1.63076, rounded = 2, bias = -0.36923
-//   raw = 0.14624, cumulative = 1.77701, rounded = 2, bias =  0.14624
-//   raw = 4.93194, cumulative = 6.70895, rounded = 7, bias = -0.06805
-//   raw = 0.24206, cumulative = 6.95101, rounded = 7, bias =  0.24206
-//   etc...
-//
-// Adjusting with rounding bias is relatively trivial:
-//
-//    double value = bias_ + exponential_distribution(mean)();
-//    double rounded_value = std::rint(value);
-//    bias_ = value - rounded_value;
-//    return rounded_value;
+// `GetSkipCount(mean)` evaluates the exact geometric inverse CDF
+// `floor(ln(u) / ln(1 - 1 / (mean + 1)))` (`~= floor(-ln(u) * (mean + 0.5))`):
+//   * Truncating `-ln(u) * mean` directly (`floor`) would underestimate the
+//     mean by ~0.5, which is significant for small means.
+//   * Rounding `-ln(u) * mean` to the nearest integer (`std::rint`) with a
+//     cumulative rounding-error term gives `0` (`stride == 1`) a half-width
+//     bin `[0, 0.5)` while every `k >= 1` has width `1.0`, halving the
+//     probability of `skip == 0` (`stride == 1`) to `~0.5 / (mean + 1)` on a
+//     fresh generator and immediately after each sampled event.
+// Using `floor` with the exact geometric scale `1 / -ln(1 - 1 / (mean + 1))`
+// gives every integer `k >= 0` a full-width geometric bin, exact expectation
+// `mean`, exact `P(GetSkipCount(mean) == 0) = 1 / (mean + 1)` (`P(GetStride(N)
+// == 1) = 1 / N`), and independent memoryless draws without extra state.
 //
 // This class is thread-compatible.
 class ExponentialBiased {
@@ -107,7 +103,6 @@ class ExponentialBiased {
   void Initialize();
 
   uint64_t rng_{0};
-  double bias_{0};
   bool initialized_{false};
 };
 

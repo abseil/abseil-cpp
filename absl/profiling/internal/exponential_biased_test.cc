@@ -137,27 +137,20 @@ TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
   printf("Heads = %d (%f%%)\n", heads, 100.0 * heads / 10000000);
 }
 
-// In simplified idealized world, `GetSkipCount(m) == 0` translates to
-// `-log(X) * m + B <= 1/2`, where X is a uniform random number in (0, 1],
-// and B is uniform random number in [-0.5, 0.5). Let U = 0.5 - B, that makes
-// U a uniform random number in (0, 1]. After exponentiation we get
-// `X >= exp(-U / m)`. Probability of this is `1 - exp(-U / m)`, so we have to
-// integrate for all possible values of U: `1 - m * (1 - exp(-1 / m))`. For
-// simplicity take just two terms of Taylor series expansion:
-// `1/(2*m) - 1/(6*m^2)`. Reciprocal of that is `2*m + 2/3 + O(1/m)`. If we use
-// more math tricks we can get "exact" approximation, but result will still be
-// `2*m + 2/3 + O(1/m)`.
+// `GetSkipCount(m)` is distributed as Geometric(1 / (m + 1)) on {0, 1, ...},
+// so `P(GetSkipCount(n - 1) == 0) == 1 / n`.
 TEST(ExponentialBiasedTest, OnePerNDemoWithGetSkipCount) {
   ExponentialBiased eb;
   int n = 22;
   int rounds = 220000;
   int hits = 0;
   for (int i = 0; i < rounds; i++) {
-    if (eb.GetSkipCount(n / 2) == 0) ++hits;
+    if (eb.GetSkipCount(n - 1) == 0) ++hits;
   }
   double inverse_hit_rate = rounds / static_cast<double>(hits);
-  printf("N = %d, rounds = %d, inverse hit rate = %f (should be ~= N + 0.67)\n",
-         n, rounds, inverse_hit_rate);
+  printf("N = %d, rounds = %d, inverse hit rate = %f (should be ~= N)\n", n,
+         rounds, inverse_hit_rate);
+  EXPECT_THAT(inverse_hit_rate, IsBetween(20.5, 23.5));
 }
 
 // Large requested mean flattens density function near zero, making it almost
@@ -243,6 +236,95 @@ TEST(ExponentialBiasedTest, InitializationModes) {
 
   ExponentialBiased eb_stack;
   EXPECT_THAT(eb_stack.GetSkipCount(2), Ge(0));
+}
+
+TEST(ExponentialBiasedTest, NonPositiveParameters) {
+  ExponentialBiased eb;
+  EXPECT_EQ(eb.GetSkipCount(0), 0);
+  EXPECT_EQ(eb.GetSkipCount(-5), 0);
+  EXPECT_EQ(eb.GetStride(1), 1);
+  EXPECT_EQ(eb.GetStride(0), 1);
+  EXPECT_EQ(eb.GetStride(-5), 1);
+}
+
+TEST(ExponentialBiasedTest, ExactMeanAndFirstDrawProbability) {
+  // Coin toss (`mean == 1`, `period == 2`): exact P(skip == 0) = 0.5 and
+  // E[skip] = 1.0.
+  ExponentialBiased coin;
+  constexpr int kFlips = 200000;
+  int zero_skips = 0;
+  int64_t total_skips = 0;
+  for (int i = 0; i < kFlips; ++i) {
+    const int64_t skip = coin.GetSkipCount(1);
+    if (skip == 0) ++zero_skips;
+    total_skips += skip;
+  }
+  // std(zero_skips) ~= 224; std(total_skips) = sqrt(200000 * 2) ~= 632.
+  EXPECT_THAT(zero_skips, IsBetween(98000, 102000));
+  EXPECT_THAT(total_skips, IsBetween(195000, 205000));
+
+  // Freshly constructed generators must also have exact `1 / kPeriod`
+  // probability of `GetStride(kPeriod) == 1` on their very first draw
+  // (previously `~0.5 / kPeriod` due to `std::rint`'s `[0, 0.5)` zero bin).
+  constexpr int64_t kPeriod = 16;
+  constexpr int kFreshTrials = 160000;
+  int fresh_unit_strides = 0;
+  for (int i = 0; i < kFreshTrials; ++i) {
+    ExponentialBiased fresh;
+    if (fresh.GetStride(kPeriod) == 1) {
+      ++fresh_unit_strides;
+    }
+  }
+  // Expected = 10000, std ~= 96.8.
+  EXPECT_THAT(fresh_unit_strides, IsBetween(9000, 11000));
+}
+
+TEST(ExponentialBiasedTest, MemorylessNoPostSampleRefractoryDip) {
+  ExponentialBiased eb;
+  constexpr int64_t kPeriod = 8;
+  constexpr int kDraws = 640000;
+  bool prev_was_one = false;
+  int prev_one_count = 0;
+  int consecutive_ones = 0;
+  int64_t stride_sum = 0;
+  for (int i = 0; i < kDraws; ++i) {
+    const int64_t s = eb.GetStride(kPeriod);
+    ASSERT_GE(s, 1);
+    stride_sum += s;
+    if (prev_was_one) {
+      ++prev_one_count;
+      if (s == 1) ++consecutive_ones;
+    }
+    prev_was_one = (s == 1);
+  }
+  // Expected sum = 5,120,000, std = sqrt(640000 * 8 * 7) ~= 5987.
+  EXPECT_THAT(stride_sum, IsBetween(5060000, 5180000));
+  // Expected prev_one_count ~= 80000; expected consecutive_ones = 1/8 of that
+  // (~= 10000, std ~= 93.5). Under the old `std::rint` + `bias_` generator,
+  // `P(S == 1)` was ~1/14.7, yielding only ~2900 consecutive ones.
+  const double conditional_rate =
+      static_cast<double>(consecutive_ones) / prev_one_count;
+  EXPECT_THAT(conditional_rate, IsBetween(0.11, 0.14));
+}
+
+TEST(ExponentialBiasedTest, LargeMeanBranchAndClamp) {
+  ExponentialBiased eb;
+  constexpr int64_t kLargeMean = int64_t{1} << 30;
+  constexpr int kDraws = 20000;
+  double sum = 0;
+  for (int i = 0; i < kDraws; ++i) {
+    const int64_t skip = eb.GetSkipCount(kLargeMean);
+    ASSERT_GE(skip, 0);
+    sum += static_cast<double>(skip);
+  }
+  const double expected = static_cast<double>(kDraws) * kLargeMean;
+  // std / expected = 1 / sqrt(20000) ~= 0.71%.
+  EXPECT_THAT(sum, IsBetween(0.94 * expected, 1.06 * expected));
+
+  // Extreme mean near INT64_MAX must clamp cleanly without signed overflow.
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_GE(eb.GetStride(int64_t{1} << 62), 1);
+  }
 }
 
 }  // namespace
