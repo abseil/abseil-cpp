@@ -160,8 +160,9 @@ void SampleRecorder<T>::PushDead(T* sample) {
     dispose(*sample);
   }
 
-  absl::MutexLock graveyard_lock(graveyard_.init_mu);
   absl::MutexLock sample_lock(sample->init_mu);
+  sample->init_mu.ForgetDeadlockInfo();
+  absl::MutexLock graveyard_lock(graveyard_.init_mu);
   sample->dead = graveyard_.dead;
   graveyard_.dead = sample;
 }
@@ -188,6 +189,7 @@ T* SampleRecorder<T>::PopDead(Targs... args) {
   sample->PrepareForSampling(std::forward<Targs>(args)...);
   // SampleRecorder<T>::Iterate acquires the same lock before access to `dead`.
   absl::MutexLock sample_lock(sample->init_mu);
+  sample->init_mu.ForgetDeadlockInfo();
   sample->dead = nullptr;
   return sample;
 }
