@@ -798,6 +798,7 @@ absl_cc_test(
     absl::log_severity
     absl::scoped_mock_log
     absl::vlog_is_on
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -863,6 +864,7 @@ absl_cc_test(
     absl::log_internal_test_matchers
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -925,6 +927,7 @@ absl_cc_test(
     absl::log_internal_test_matchers
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -975,6 +978,7 @@ absl_cc_test(
     absl::log_severity
     absl::scoped_mock_log
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -995,6 +999,7 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1018,6 +1023,7 @@ absl_cc_test(
     absl::str_format
     absl::string_view
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1035,6 +1041,7 @@ absl_cc_test(
     absl::log
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1058,6 +1065,7 @@ absl_cc_test(
     absl::log_sink_registry
     absl::scoped_mock_log
     absl::string_view
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1082,6 +1090,7 @@ absl_cc_test(
     absl::scoped_mock_log
     absl::source_location
     absl::string_view
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1105,6 +1114,7 @@ absl_cc_test(
     absl::string_view
     absl::strings
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1130,6 +1140,7 @@ absl_cc_test(
     absl::string_view
     absl::strings
     absl::synchronization
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
@@ -1190,6 +1201,7 @@ absl_cc_test(
     absl::log_internal_test_matchers
     absl::log_structured
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
