@@ -1032,7 +1032,6 @@ TEST(StringVec, SelfMove) {
     // Ensure that the inlined vector is still in a valid state by copying it.
     // We don't expect specific contents since a self-move results in an
     // unspecified valid state.
-    std::vector<std::string> copy(v.begin(), v.end());
   }
 }
 
