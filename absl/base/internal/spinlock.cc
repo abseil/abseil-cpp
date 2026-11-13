@@ -85,10 +85,10 @@ void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
 // counter wrap very quickly on high-frequency processors we divide to reduce
 // the granularity to 2^kProfileTimestampShift sized units.  Because only 29
 // bits are stored in the 32-bit lock word (and uncontended lock() does not read
-// CycleClock), SlowUnlock only knows the start time modulo 2^36 CycleClock
-// ticks (=~ 34 seconds at a 2 GHz CycleClock) and cannot distinguish a wrapped
-// hold to saturate.
-static constexpr int kProfileTimestampShift = 7;
+// CycleClock), SlowUnlock only knows the start time modulo 2^37 CycleClock
+// ticks (=~ +/-34 seconds as a signed offset at a 2 GHz CycleClock) and cannot
+// distinguish a wrapped hold to saturate.
+static constexpr int kProfileTimestampShift = 8;
 
 // We currently reserve the lower 3 bits.
 static constexpr int kLockwordReservedShift = 3;
@@ -239,13 +239,16 @@ uint32_t SpinLock::EncodeWaitStart(int64_t now) {
 }
 
 int64_t SpinLock::DecodeWaitCycles(uint32_t lock_value, int64_t now) {
-  // Modular subtraction in the width of the stored timestamp.  Encode `now`
-  // the same way as `lock_value` so a timestamp truncated to zero does not
-  // underflow against EncodeWaitStart's rounding to one.
-  const uint32_t scaled_wait_time =
-      (EncodeWaitStart(now) - (lock_value & kWaitTimeMask)) >>
+  // Signed modular subtraction in the width of the stored timestamp so that a
+  // negative clock delta (e.g. from cross-core TSC skew) decodes as <= 0
+  // rather than wrapping to ~2^37 cycles.  Encode `now` the same way as
+  // `lock_value` so a timestamp truncated to zero does not underflow against
+  // EncodeWaitStart's rounding to one.
+  const int32_t scaled_wait_time =
+      static_cast<int32_t>(EncodeWaitStart(now) -
+                           (lock_value & kWaitTimeMask)) >>
       kLockwordReservedShift;
-  return static_cast<int64_t>(scaled_wait_time) << kProfileTimestampShift;
+  return int64_t{scaled_wait_time} * (int64_t{1} << kProfileTimestampShift);
 }
 
 }  // namespace base_internal
