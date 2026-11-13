@@ -156,6 +156,7 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
 }
+
 // Returns an address of RTTI's typeid(T).
 template <typename T>
 inline const std::type_info* GenRuntimeTypeId() {
@@ -167,7 +168,7 @@ inline const std::type_info* GenRuntimeTypeId() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Flag help and name/type-name auxiliary structs.
+// Flag help auxiliary structs.
 
 // This is help argument for absl::Flag encapsulating the string literal pointer
 // or pointer to function generating it as well as enum discriminating two
@@ -188,10 +189,11 @@ struct FixedCharArray {
 inline constexpr uint8_t kEmptyFlagTypeId = 0;
 inline constexpr uint8_t kCustomFlagTypeId = 31;
 
-// Common macro-stringified `#Type` spellings stored as a 5-bit ID in `FlagImpl`
-// so common flags avoid emitting a per-flag type-name string. Entry 0 (`""`) is
-// used when flag names are stripped or omitted; ID 31 (`kCustomFlagTypeId`)
-// indicates that `name_` points to a packed `"<name>\0<type_name>\0"` array.
+// Common macro-stringified `#Type` spellings stored as a compact ID in
+// `FlagMetaHeader` so common flags avoid emitting a per-flag type-name string.
+// Entry 0 (`""`) is used when flag names are stripped or omitted; ID 31
+// (`kCustomFlagTypeId`) indicates that `FlagMeta::name` points to a packed
+// `"<name>\0<type_name>\0"` array.
 inline constexpr absl::string_view kCommonFlagTypeNames[] = {
     "",
     "bool",
@@ -250,14 +252,24 @@ struct FlagNameArg {
   uint8_t type_id;
 };
 
-template <typename Gen>
-constexpr FlagNameArg MakeFlagNameArg() {
-  constexpr uint8_t kTypeId = LookupCommonFlagTypeId(Gen::AbslFlagTypeName());
+template <typename Gen,
+          uint8_t kTypeId = LookupCommonFlagTypeId(Gen::AbslFlagTypeName())>
+constexpr FlagNameArg MakeFlagNameArgImpl(int) {
   if constexpr (kTypeId != kCustomFlagTypeId) {
     return {Gen::AbslFlagName(), kTypeId};
   } else {
     return {Gen::AbslFlagPackedNameAndType(), kCustomFlagTypeId};
   }
+}
+
+template <typename Gen>
+constexpr FlagNameArg MakeFlagNameArgImpl(char) {
+  return {"", kEmptyFlagTypeId};
+}
+
+template <typename Gen>
+constexpr FlagNameArg MakeFlagNameArg() {
+  return MakeFlagNameArgImpl<Gen>(0);
 }
 
 template <typename Gen, size_t N = Gen::Value().size()>
@@ -336,7 +348,7 @@ union FlagDefaultSrc {
 enum class FlagDefaultKind : uint8_t {
   kDynamicValue = 0,
   kGenFunc = 1,
-  kOneWord = 2  // for default values UP to one word in size
+  kOneWord = 2,  // inline default value in descriptor
 };
 
 struct FlagDefaultArg {
@@ -660,6 +672,66 @@ struct DynValueDeleter {
   FlagOpFn op;
 };
 
+struct FlagMetaHeader {
+  constexpr static uint8_t PackKinds(FlagValueStorageKind vk, FlagHelpKind hk,
+                                     FlagDefaultKind dk) {
+    return static_cast<uint8_t>((static_cast<uint8_t>(vk) & 0x7) |
+                                ((static_cast<uint8_t>(hk) & 0x1) << 3) |
+                                ((static_cast<uint8_t>(dk) & 0x3) << 4));
+  }
+
+  uint8_t kinds;
+  uint8_t type_id;
+};
+
+// Pointer-based descriptor for flag metadata (40 B).
+struct FlagMeta {
+  constexpr FlagMeta(FlagMetaHeader hdr_arg, const char* name_arg,
+                     FlagHelpMsg help_arg, FlagDefaultSrc default_value_arg,
+                     FlagOpFn op_arg)
+      : hdr(hdr_arg),
+        name(name_arg),
+        help(help_arg),
+        default_value(default_value_arg),
+        op(op_arg) {}
+
+  FlagMetaHeader hdr;
+  // Flag's name passed to ABSL_FLAG as second arg.
+  const char* const name;
+  // Help message literal or function to generate it.
+  const FlagHelpMsg help;
+  // Initial default value source specified in ABSL_FLAG.
+  const FlagDefaultSrc default_value;
+  // Type-specific operations vtable.
+  const FlagOpFn op;
+};
+
+template <typename T>
+constexpr FlagMeta MakeFlagMeta(FlagNameArg name, FlagHelpArg help,
+                                FlagDefaultArg default_arg) {
+  return FlagMeta(
+      FlagMetaHeader{FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(),
+                                               help.kind, default_arg.kind),
+                     name.type_id},
+      name.name, help.source, default_arg.source, &FlagOps<T>);
+}
+
+template <typename T>
+constexpr FlagMeta MakeFlagMeta(const char* name, FlagHelpArg help,
+                                FlagDefaultArg default_arg) {
+  return MakeFlagMeta<T>(FlagNameArg{name, kEmptyFlagTypeId}, help,
+                         default_arg);
+}
+
+template <typename ValueT, typename GenT, typename HelpGenT, size_t NameLen,
+          typename HelpStorageT>
+constexpr FlagMeta SelectFlagMeta(const char* name [[maybe_unused]],
+                                  const HelpStorageT& help_storage, int) {
+  return MakeFlagMeta<ValueT>(MakeFlagNameArg<GenT>(),
+                              HelpArg<HelpGenT>(help_storage),
+                              DefaultArg<ValueT, GenT>(0));
+}
+
 class FlagState;
 
 // These are only used as constexpr global objects.
@@ -689,19 +761,12 @@ class FlagImpl final : public CommandLineFlag {
   static_assert(std::atomic<MuState>::is_always_lock_free);
 
  public:
-  constexpr FlagImpl(FlagNameArg name, FlagOpFn op, FlagHelpArg help,
-                     FlagValueStorageKind value_kind,
-                     FlagDefaultArg default_arg)
-      : name_(name.name),
-        op_(op),
-        help_(help.source),
-        help_source_kind_(static_cast<uint8_t>(help.kind)),
-        value_storage_kind_(static_cast<uint8_t>(value_kind)),
-        type_id_(name.type_id),
-        mu_state_(MuState{static_cast<uint8_t>(default_arg.kind), false, false,
-                          false, 0}),
+  constexpr explicit FlagImpl(const FlagMetaHeader* meta)
+      : meta_(meta),
+        mu_state_(MuState{static_cast<uint8_t>((meta->kinds >> 4) & 0x3), false,
+                          false, false, 0}),
         file_id_(0),
-        default_value_(default_arg.source),
+        init_control_{},
         data_guard_{} {}
 
   // Constant access methods
@@ -750,6 +815,11 @@ class FlagImpl final : public CommandLineFlag {
   friend class Flag;
   friend class FlagState;
 
+  FlagOpFn op() const;
+  const FlagMeta* PtrMeta() const {
+    return reinterpret_cast<const FlagMeta*>(meta_);
+  }
+
   // Ensures that `data_guard_` is initialized and returns it.
   absl::Mutex& DataGuard() const
       ABSL_LOCK_RETURNED(reinterpret_cast<absl::Mutex*>(data_guard_));
@@ -763,7 +833,7 @@ class FlagImpl final : public CommandLineFlag {
   // respect const correctness, so be very careful using them.
 
   // This is a shared helper routine which encapsulates most of the magic. Since
-  // it is only used inside the three routines below, which are defined in
+  // it is only used inside the routines below, which are defined in
   // flag.cc, we can define it in that file as well.
   template <typename StorageT>
   StorageT* OffsetValue() const;
@@ -789,16 +859,16 @@ class FlagImpl final : public CommandLineFlag {
   void StoreValue(const void* src, ValueSource source)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
 
-  // Copy the flag data, protected by `seq_lock_` into `dst`.
+  // Copy the flag data, protected by `SeqLock()` into `dst`.
   //
   // REQUIRES: ValueStorageKind() == kSequenceLocked.
   void ReadSequenceLockedData(void* dst) const ABSL_LOCKS_EXCLUDED(DataGuard());
 
   FlagHelpKind HelpSourceKind() const {
-    return static_cast<FlagHelpKind>(help_source_kind_);
+    return static_cast<FlagHelpKind>((meta_->kinds >> 3) & 0x1);
   }
   FlagValueStorageKind ValueStorageKind() const {
-    return static_cast<FlagValueStorageKind>(value_storage_kind_);
+    return static_cast<FlagValueStorageKind>(meta_->kinds & 0x7);
   }
 
   // CommandLineFlag interface implementation
@@ -841,35 +911,18 @@ class FlagImpl final : public CommandLineFlag {
                  ValueSource source, std::string& error) override
       ABSL_LOCKS_EXCLUDED(DataGuard());
 
-  // Immutable flag's state.
+  // Pointer to immutable flag descriptor in .rodata / .data.rel.ro.
+  const FlagMetaHeader* const meta_;
 
-  // Flags name passed to ABSL_FLAG as second arg (followed by NUL-terminated
-  // type name when `type_id_ == kCustomFlagTypeId`).
-  const char* const name_;
-  // Type-specific operations vtable.
-  const FlagOpFn op_;
-  // Help message literal or function to generate it.
-  const FlagHelpMsg help_;
-  // Indicates if help message was supplied as literal or generator func.
-  const uint8_t help_source_kind_ : 1;
-  // Kind of storage this flag is using for the flag's value.
-  const uint8_t value_storage_kind_ : 2;
-  // Index into `kCommonFlagTypeNames`, or `kCustomFlagTypeId` when `name_`
-  // stores `"<name>\0<type_name>\0"`.
-  const uint8_t type_id_ : 5;
-
-  // Mutable state updated under DataGuard() and read with relaxed atomic loads.
+  // Mutable state updated under DataGuard() and read with lock-free relaxed
+  // atomic loads (cannot use ABSL_GUARDED_BY(DataGuard()), which also requires
+  // holding the mutex on reads).
   std::atomic<MuState> mu_state_;
 
   // Deduplicated filename index assigned on registration (0 = unset).
   uint16_t file_id_;
 
-  // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
-
-  // Initial default value source specified in ABSL_FLAG. Dynamic default
-  // overrides set via SET_FLAGS_DEFAULT are stored in a side table.
-  const FlagDefaultSrc default_value_;
 
   // This is reserved space for an absl::Mutex to guard flag data. It will be
   // initialized in FlagImpl::Init via placement new.
@@ -896,37 +949,42 @@ struct IsSupportedFlagType : std::false_type {};
 ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE)
 #undef ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE
 
+template <typename T,
+          FlagValueStorageKind Kind = flags_internal::StorageKind<T>()>
+struct FlagStorage {
+  constexpr explicit FlagStorage(const FlagMetaHeader* meta)
+      : impl_(meta), value_() {}
+
+  // The implementation depends on value_ field to be placed exactly after the
+  // impl_ field, so that impl_ can figure out the offset to the value and
+  // access it.
+  FlagImpl impl_;
+  FlagValue<T, Kind> value_;
+};
+
 template <typename T>
-class Flag {
+class Flag : private FlagStorage<T> {
  public:
-  constexpr Flag(FlagNameArg name, FlagHelpArg help,
-                 const FlagDefaultArg default_arg)
-      : impl_(name, &FlagOps<T>, help, flags_internal::StorageKind<T>(),
-              default_arg),
-        value_() {}
-  constexpr Flag(const char* name, FlagHelpArg help,
-                 const FlagDefaultArg default_arg)
-      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
-  constexpr Flag(const char* name, const char* /*filename*/, FlagHelpArg help,
-                 const FlagDefaultArg default_arg)
-      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
-  // Kept for backwards compatibility.
-  constexpr Flag(const char* name, const char* type_name,
-                 const char* /*filename*/, FlagHelpArg help,
-                 const FlagDefaultArg default_arg)
-      : Flag(FlagNameArg{name, LookupCommonOrEmptyFlagTypeId(type_name)}, help,
-             default_arg) {}
+  constexpr explicit Flag(const FlagMetaHeader* meta) : FlagStorage<T>(meta) {}
+
+  // Compatibility constructor for callers that expand ABSL_FLAG_IMPL_* macros
+  // directly instead of using ABSL_FLAG().
+  constexpr Flag(const char* name [[maybe_unused]],
+                 const char* type_name [[maybe_unused]],
+                 const char* filename [[maybe_unused]],
+                 FlagHelpArg help [[maybe_unused]], const FlagMetaHeader* meta)
+      : FlagStorage<T>(meta) {}
 
   // CommandLineFlag interface
-  absl::string_view Name() const { return impl_.Name(); }
-  std::string Filename() const { return impl_.Filename(); }
-  std::string Help() const { return impl_.Help(); }
+  absl::string_view Name() const { return this->impl_.Name(); }
+  std::string Filename() const { return this->impl_.Filename(); }
+  std::string Help() const { return this->impl_.Help(); }
   // Do not use. To be removed.
   bool IsSpecifiedOnCommandLine() const {
-    return impl_.IsSpecifiedOnCommandLine();
+    return this->impl_.IsSpecifiedOnCommandLine();
   }
-  std::string DefaultValue() const { return impl_.DefaultValue(); }
-  std::string CurrentValue() const { return impl_.CurrentValue(); }
+  std::string DefaultValue() const { return this->impl_.DefaultValue(); }
+  std::string CurrentValue() const { return this->impl_.CurrentValue(); }
 
  private:
   template <typename, bool>
@@ -944,39 +1002,34 @@ class Flag {
 
 #if !defined(NDEBUG)
     if constexpr (IsSupportedFlagType<T>::value) {
-      if (ABSL_PREDICT_FALSE(impl_.op_ != &FlagOps<T>)) {
-        impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      if (ABSL_PREDICT_FALSE(this->impl_.op() != &FlagOps<T>)) {
+        this->impl_.AssertValidType(absl::FastTypeId<T>(),
+                                    &GenRuntimeTypeId<T>);
       }
     } else {
-      impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      this->impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     }
 #endif
 
-    if (ABSL_PREDICT_FALSE(!value_.Get(u.value))) {
-      impl_.Read(&u.value);
+    if (ABSL_PREDICT_FALSE(!this->value_.Get(u.value))) {
+      this->impl_.Read(&u.value);
     }
     return std::move(u.value);
   }
   void Set(const T& v) {
     if constexpr (IsSupportedFlagType<T>::value) {
-      if (ABSL_PREDICT_FALSE(impl_.op_ != &FlagOps<T>)) {
-        impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      if (ABSL_PREDICT_FALSE(this->impl_.op() != &FlagOps<T>)) {
+        this->impl_.AssertValidType(absl::FastTypeId<T>(),
+                                    &GenRuntimeTypeId<T>);
       }
     } else {
-      impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      this->impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     }
-    impl_.Write(&v);
+    this->impl_.Write(&v);
   }
 
   // Access to the reflection.
-  const CommandLineFlag& Reflect() const { return impl_; }
-
-  // Flag's data
-  // The implementation depends on value_ field to be placed exactly after the
-  // impl_ field, so that impl_ can figure out the offset to the value and
-  // access it.
-  FlagImpl impl_;
-  FlagValue<T> value_;
+  const CommandLineFlag& Reflect() const { return this->impl_; }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
