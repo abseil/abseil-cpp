@@ -646,6 +646,7 @@ class NodeHashMapPolicy
   using DefaultHash = DefaultHashContainerHash<Key>;
   using DefaultEq = DefaultHashContainerEq<Key>;
   using DefaultAlloc = std::allocator<std::pair<const Key, Value>>;
+  using SlotEq = SlotEqFn<Key, /*kDerefSlot=*/true>;
 
   template <class Allocator, class... Args>
   static value_type* new_element(Allocator* alloc, Args&&... args) {
@@ -686,10 +687,6 @@ class NodeHashMapPolicy
   static constexpr HashSlotFn get_hash_slot_fn() {
     static_assert(memory_internal::OffsetOf<value_type>::kFirst == 0);
     return GetTypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsAbsl, kSeedShift>();
-  }
-
-  static constexpr auto get_eq_slot_fn() {
-    return SlotEqFn<Key, /*kDerefSlot=*/true>{};
   }
 };
 }  // namespace container_internal

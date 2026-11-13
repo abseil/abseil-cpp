@@ -552,6 +552,7 @@ struct NodeHashSetPolicy
   using DefaultHash = DefaultHashContainerHash<T>;
   using DefaultEq = DefaultHashContainerEq<T>;
   using DefaultAlloc = std::allocator<T>;
+  using SlotEq = SlotEqFn<T, /*kDerefSlot=*/true>;
 
   template <class Allocator, class... Args>
   static T* new_element(Allocator* alloc, Args&&... args) {
@@ -586,10 +587,6 @@ struct NodeHashSetPolicy
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return GetTypeErasedDerefAndApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>();
-  }
-
-  static constexpr auto get_eq_slot_fn() {
-    return SlotEqFn<T, /*kDerefSlot=*/true>{};
   }
 };
 }  // namespace container_internal
