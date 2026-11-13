@@ -38,9 +38,12 @@
 // 3) A function pointer to an "invoker" function operation that invokes the  //
 //    target object, directly returning the result.                           //
 //                                                                            //
-// When in the logically empty state, the manager function is an empty        //
-// function and the invoker function is one that would be undefined behavior  //
-// to call.                                                                   //
+// When in the logically empty state, the manager function is shared with     //
+// locally stored trivially copyable targets (LocalManagerTrivial, which      //
+// copies storage on move and is a no-op on dispose) so ~CoreImpl(), Clear(), //
+// and RelocateFrom() can skip indirect calls for both cases with a single    //
+// pointer comparison, and the invoker function is one that would be          //
+// undefined behavior to call.                                                //
 //                                                                            //
 // An additional optimization is performed when converting from one           //
 // AnyInvocable to another where only the noexcept specification and/or the   //
@@ -204,33 +207,60 @@ template <bool SigIsNoexcept, class ReturnType, class... P>
 using InvokerType = ReturnType(
     TypeErasedState*, ForwardedParameterType<P>...) noexcept(SigIsNoexcept);
 
-// The manager that is used when AnyInvocable is empty
+// A no-op manager retained for external `rs_std::DynCallable` callers;
+// `CoreImpl` uses `LocalManagerTrivial` for both empty and trivial-local
+// states.
 inline void EmptyManager(FunctionToCall /*operation*/,
                          TypeErasedState* /*from*/,
                          TypeErasedState* /*to*/) noexcept {}
 
-// The manager that is used when a target function is in local storage and is
-// a trivially copyable type.
-inline void LocalManagerTrivial(FunctionToCall /*operation*/,
+// The manager that is used when `AnyInvocable` is empty or when a target
+// function is in local storage and is a trivially copyable type. Sharing one
+// manager allows `~CoreImpl()`, `Clear()`, and `RelocateFrom()` to skip
+// indirect calls for both states with a single pointer comparison.
+inline void LocalManagerTrivial(FunctionToCall operation,
                                 TypeErasedState* const from,
                                 TypeErasedState* const to) noexcept {
-  // This single statement without branching handles both possible operations.
-  //
-  // For FunctionToCall::dispose, "from" and "to" point to the same state, and
-  // so this assignment logically would do nothing.
-  //
-  // Note: Correctness here relies on http://wg21.link/p0593, which has only
-  // become standard in C++20, though implementations do not break it in
-  // practice for earlier versions of C++.
-  //
-  // The correct way to do this without that paper is to first placement-new a
-  // default-constructed T in "to->storage" prior to the memmove, but doing so
-  // requires a different function to be created for each T that is stored
-  // locally, which can cause unnecessary bloat and be less cache friendly.
-  *to = *from;
-
-  // Note: Because the type is trivially copyable, the destructor does not need
-  // to be called ("trivially copyable" requires a trivial destructor).
+  switch (operation) {
+    case FunctionToCall::relocate_from_to:
+    case FunctionToCall::relocate_from_to_and_query_rust:
+      // Note: Correctness for locally stored trivially copyable types relies on
+      // http://wg21.link/p0593, which has only become standard in C++20, though
+      // implementations do not break it in practice for earlier versions of
+      // C++.
+      //
+      // The correct way to do this without that paper is to first placement-new
+      // a default-constructed T in "to->storage" prior to the memmove, but
+      // doing so requires a different function to be created for each T that is
+      // stored locally, which can cause unnecessary bloat and be less cache
+      // friendly.
+      //
+      // When AnyInvocable is empty or holds a locally stored callable with
+      // `sizeof(RawT) < kStorageSize` or padding, bytes of `*from` are left
+      // unwritten. `*to = *from` copies the `TypeErasedState` union, which is
+      // well-defined because trivial union copy-assignment copies the object
+      // representation as `unsigned char` bytes ([class.copy.assign]) rather
+      // than memberwise copying `remote.target`; suppress GCC's
+      // `-Wuninitialized` diagnostics when `LocalManagerTrivial` is inlined
+      // into `RelocateFrom`.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+      *to = *from;
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+      return;
+    case FunctionToCall::dispose:
+      // Because the type is trivially copyable (or AnyInvocable is empty), the
+      // destructor does not need to be called ("trivially copyable" requires a
+      // trivial destructor).
+      return;
+  }
+  ABSL_UNREACHABLE();
 }
 
 // The manager that is used when a target function is in local storage and is
@@ -405,7 +435,7 @@ class CoreImpl {
  public:
   using result_type = ReturnType;
 
-  CoreImpl() noexcept : manager_(EmptyManager), invoker_(nullptr) {}
+  CoreImpl() noexcept : manager_(LocalManagerTrivial), invoker_(nullptr) {}
 
   // Note: QualDecayedTRef here includes the cv-ref qualifiers associated with
   // the invocation of the Invocable. The unqualified type is the target object
@@ -432,24 +462,19 @@ class CoreImpl {
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-        manager_ = EmptyManager;
+        manager_ = LocalManagerTrivial;
         invoker_ = nullptr;
       } else {
         InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
       }
     } else if constexpr (IsCompatibleAnyInvocable<DecayedT>::value) {
       // In this case we can "steal the guts" of the other AnyInvocable.
-      f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
-      manager_ = f.manager_;
-      invoker_ = f.invoker_;
-
-      f.manager_ = EmptyManager;
-      f.invoker_ = nullptr;
+      RelocateFrom(std::forward<F>(f));
     } else if constexpr (IsAnyInvocable<DecayedT>::value) {
       if (f.HasValue()) {
         InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
       } else {
-        manager_ = EmptyManager;
+        manager_ = LocalManagerTrivial;
         invoker_ = nullptr;
       }
     } else {
@@ -465,13 +490,7 @@ class CoreImpl {
     InitializeStorage<QualTRef>(std::forward<Args>(args)...);
   }
 
-  CoreImpl(CoreImpl&& other) noexcept {
-    other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
-    manager_ = other.manager_;
-    invoker_ = other.invoker_;
-    other.manager_ = EmptyManager;
-    other.invoker_ = nullptr;
-  }
+  CoreImpl(CoreImpl&& other) noexcept { RelocateFrom(std::move(other)); }
 
   CoreImpl& operator=(CoreImpl&& other) noexcept {
     // Put the left-hand operand in an empty state.
@@ -484,25 +503,45 @@ class CoreImpl {
     Clear();
 
     // Perform the actual move/destroy operation on the target function.
-    other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
-    manager_ = other.manager_;
-    invoker_ = other.invoker_;
-    other.manager_ = EmptyManager;
-    other.invoker_ = nullptr;
+    RelocateFrom(std::move(other));
 
     return *this;
   }
 
-  ~CoreImpl() { manager_(FunctionToCall::dispose, &state_, &state_); }
+  ~CoreImpl() {
+    if (manager_ != LocalManagerTrivial) {
+      manager_(FunctionToCall::dispose, &state_, &state_);
+    }
+  }
 
   // Check whether or not the AnyInvocable is in the empty state.
   bool HasValue() const { return invoker_ != nullptr; }
 
   // Effects: Puts the object into its empty state.
   void Clear() {
-    manager_(FunctionToCall::dispose, &state_, &state_);
-    manager_ = EmptyManager;
+    if (manager_ != LocalManagerTrivial) {
+      manager_(FunctionToCall::dispose, &state_, &state_);
+      manager_ = LocalManagerTrivial;
+    }
     invoker_ = nullptr;
+  }
+
+  // Moves the target from `other` into `*this` (which must not hold an active
+  // target), leaving `other` empty.
+  template <bool OtherIsNoexcept>
+  void RelocateFrom(
+      CoreImpl<OtherIsNoexcept, ReturnType, P...>&& other) noexcept {
+    if (other.manager_ == LocalManagerTrivial) {
+      LocalManagerTrivial(FunctionToCall::relocate_from_to, &other.state_,
+                          &state_);
+      manager_ = LocalManagerTrivial;
+    } else {
+      other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
+      manager_ = other.manager_;
+      other.manager_ = LocalManagerTrivial;
+    }
+    invoker_ = other.invoker_;
+    other.invoker_ = nullptr;
   }
 
   // Use local (inline) storage for applicable target object types.

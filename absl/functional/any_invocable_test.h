@@ -374,12 +374,24 @@ struct TestParams {
     return static_cast<VoidThisParamType>(fun);
   }
 
+  using CompatibleQualifiers =
+      std::conditional_t<std::is_rvalue_reference_v<Qual>, const _&&, const _&>;
+
   using CompatibleAnyInvocableFunType =
-      std::conditional_t<std::is_rvalue_reference_v<Qual>,
-                         GiveQualifiersToFun<const _&&, UnqualifiedFunType>,
-                         GiveQualifiersToFun<const _&, UnqualifiedFunType>>;
+      GiveQualifiersToFun<CompatibleQualifiers, UnqualifiedFunType>;
 
   using CompatibleAnyInvType = AnyInvocable<CompatibleAnyInvocableFunType>;
+  using CompatibleAddType =
+      add<kMovability, kDestructibility, CompatibleQualifiers,
+          kCallExceptionSpec, kSize, kAlignment>;
+
+  using CompatibleNoexceptFunType =
+      GiveQualifiersToFun<CompatibleQualifiers,
+                          Int(Int, const int&, int) noexcept>;
+  using CompatibleNoexceptAnyInvType = AnyInvocable<CompatibleNoexceptFunType>;
+  using CompatibleNoexceptAddType =
+      add<kMovability, kDestructibility, CompatibleQualifiers, NothrowCall::yes,
+          kSize, kAlignment>;
 
   using IncompatibleInvocable =
       std::conditional_t<std::is_rvalue_reference_v<Qual>,
@@ -521,16 +533,31 @@ TYPED_TEST_P(AnyInvTestBasic, ConstructionCompatibleAnyInvocableEmpty) {
 TYPED_TEST_P(AnyInvTestBasic, ConstructionCompatibleAnyInvocableNonempty) {
   using AnyInvType = typename TypeParam::AnyInvType;
   using CompatibleAnyInvType = typename TypeParam::CompatibleAnyInvType;
+  using CompatibleAddType = typename TypeParam::CompatibleAddType;
 
-  CompatibleAnyInvType other = &add_function;
-  AnyInvType fun = std::move(other);
+  {
+    CompatibleAnyInvType other = &add_function;
+    AnyInvType fun = std::move(other);
 
-  EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
-  EXPECT_EQ(other, nullptr);               // NOLINT
-  EXPECT_EQ(nullptr, other);               // NOLINT
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_EQ(other, nullptr);               // NOLINT
+    EXPECT_EQ(nullptr, other);               // NOLINT
 
-  EXPECT_TRUE(static_cast<bool>(fun));
-  EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
+
+  {
+    CompatibleAnyInvType other(std::in_place_type<CompatibleAddType>, 5);
+    AnyInvType fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_EQ(other, nullptr);               // NOLINT
+    EXPECT_EQ(nullptr, other);               // NOLINT
+
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
 }
 
 TYPED_TEST_P(AnyInvTestBasic, ConversionToBool) {
@@ -881,15 +908,29 @@ TYPED_TEST_P(AnyInvTestCombinatoric,
              AssignCompatibleAnyInvocableEmptyLhsNonemptyRhs) {
   using AnyInvType = typename TypeParam::AnyInvType;
   using CompatibleAnyInvType = typename TypeParam::CompatibleAnyInvType;
+  using CompatibleAddType = typename TypeParam::CompatibleAddType;
 
-  CompatibleAnyInvType other = &add_function;
-  AnyInvType fun;
-  fun = std::move(other);
+  {
+    CompatibleAnyInvType other = &add_function;
+    AnyInvType fun;
+    fun = std::move(other);
 
-  EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
 
-  EXPECT_TRUE(static_cast<bool>(fun));
-  EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
+
+  {
+    CompatibleAnyInvType other(std::in_place_type<CompatibleAddType>, 5);
+    AnyInvType fun;
+    fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
 }
 
 TYPED_TEST_P(AnyInvTestCombinatoric, AssignNullptrNonemptyLhs) {
@@ -983,16 +1024,31 @@ TYPED_TEST_P(AnyInvTestCombinatoric,
 TYPED_TEST_P(AnyInvTestCombinatoric,
              AssignCompatibleAnyInvocableNonemptyLhsNonemptyRhs) {
   using AnyInvType = typename TypeParam::AnyInvType;
+  using AddType = typename TypeParam::AddType;
   using CompatibleAnyInvType = typename TypeParam::CompatibleAnyInvType;
+  using CompatibleAddType = typename TypeParam::CompatibleAddType;
 
-  CompatibleAnyInvType other = &add_function;
-  AnyInvType fun = &mult_function;
-  fun = std::move(other);
+  {
+    CompatibleAnyInvType other = &add_function;
+    AnyInvType fun = &mult_function;
+    fun = std::move(other);
 
-  EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
 
-  EXPECT_TRUE(static_cast<bool>(fun));
-  EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
+
+  {
+    CompatibleAnyInvType other(std::in_place_type<CompatibleAddType>, 5);
+    AnyInvType fun(std::in_place_type<AddType>, 20);
+    fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
 }
 
 TYPED_TEST_P(AnyInvTestCombinatoric, SwapEmptyLhsEmptyRhs) {
@@ -1203,6 +1259,10 @@ TYPED_TEST_SUITE_P(AnyInvTestNoexceptFalse);
 
 TYPED_TEST_P(AnyInvTestNoexceptFalse, ConversionConstructionConstraints) {
   using AnyInvType = typename TypeParam::AnyInvType;
+  using CompatibleNoexceptAnyInvType =
+      typename TypeParam::CompatibleNoexceptAnyInvType;
+  using CompatibleNoexceptAddType =
+      typename TypeParam::CompatibleNoexceptAddType;
 
   EXPECT_TRUE(
       (std::is_constructible_v<
@@ -1210,10 +1270,34 @@ TYPED_TEST_P(AnyInvTestNoexceptFalse, ConversionConstructionConstraints) {
   EXPECT_FALSE(
       (std::is_constructible_v<AnyInvType,
                                typename TypeParam::IncompatibleInvocable>));
+
+  {
+    CompatibleNoexceptAnyInvType other = &add_function;
+    AnyInvType fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
+
+  {
+    CompatibleNoexceptAnyInvType other(
+        std::in_place_type<CompatibleNoexceptAddType>, 5);
+    AnyInvType fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
 }
 
 TYPED_TEST_P(AnyInvTestNoexceptFalse, ConversionAssignConstraints) {
   using AnyInvType = typename TypeParam::AnyInvType;
+  using AddType = typename TypeParam::AddType;
+  using CompatibleNoexceptAnyInvType =
+      typename TypeParam::CompatibleNoexceptAnyInvType;
+  using CompatibleNoexceptAddType =
+      typename TypeParam::CompatibleNoexceptAddType;
 
   EXPECT_TRUE(
       (std::is_assignable_v<
@@ -1221,6 +1305,27 @@ TYPED_TEST_P(AnyInvTestNoexceptFalse, ConversionAssignConstraints) {
   EXPECT_FALSE(
       (std::is_assignable_v<AnyInvType&,
                             typename TypeParam::IncompatibleInvocable>));
+
+  {
+    CompatibleNoexceptAnyInvType other = &add_function;
+    AnyInvType fun = &mult_function;
+    fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(24, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
+
+  {
+    CompatibleNoexceptAnyInvType other(
+        std::in_place_type<CompatibleNoexceptAddType>, 5);
+    AnyInvType fun(std::in_place_type<AddType>, 20);
+    fun = std::move(other);
+
+    EXPECT_FALSE(static_cast<bool>(other));  // NOLINT
+    EXPECT_TRUE(static_cast<bool>(fun));
+    EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
+  }
 }
 
 template <class T>
