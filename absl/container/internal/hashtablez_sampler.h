@@ -53,6 +53,7 @@
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/internal/container_memory.h"
+#include "absl/profiling/internal/exponential_biased.h"
 #include "absl/profiling/internal/sample_recorder.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
@@ -123,14 +124,9 @@ void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
 
 void RecordEraseSlow(HashtablezInfo* info);
 
-struct SamplingState {
-  int64_t next_sample;
-  // When we make a sampling decision, we record that distance so we can weight
-  // each sample.
-  int64_t sample_stride;
-};
+using ExponentialSampler = ::absl::profiling_internal::ExponentialSampler;
 
-HashtablezInfo* SampleSlow(SamplingState& next_sample,
+HashtablezInfo* SampleSlow(ExponentialSampler& next_sample,
                            size_t inline_element_size, size_t key_size,
                            size_t value_size, uint16_t soo_capacity);
 void UnsampleSlow(HashtablezInfo* info);
@@ -217,7 +213,7 @@ class HashtablezInfoHandle {
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-extern ABSL_PER_THREAD_TLS_KEYWORD SamplingState global_next_sample;
+extern ABSL_PER_THREAD_TLS_KEYWORD ExponentialSampler global_next_sample;
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 // Returns true if the next table should be sampled.
@@ -226,10 +222,7 @@ extern ABSL_PER_THREAD_TLS_KEYWORD SamplingState global_next_sample;
 // ForcedTrySample().
 inline bool ShouldSampleNextTable() {
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-  if (ABSL_PREDICT_TRUE(--global_next_sample.next_sample > 0)) {
-    return false;
-  }
-  return true;
+  return global_next_sample.ShouldSampleNext(/*step=*/1);
 #else
   return false;
 #endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
