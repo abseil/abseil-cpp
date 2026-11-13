@@ -21,6 +21,7 @@
 #include <array>
 #include <cassert>
 #include <cfloat>  // for DBL_DIG and FLT_DIG
+#include <charconv>
 #include <clocale>  // for localeconv
 #include <cmath>   // for HUGE_VAL
 #include <cstdint>
@@ -411,6 +412,26 @@ char* absl_nonnull numbers_internal::FastIntToBuffer(
 static constexpr double kDoublePrecisionCheckMax =
     std::numeric_limits<double>::max() / 1.000000000000001;
 
+// __cpp_lib_to_chars is defined (e.g. by libstdc++ 11+ on hosted IEEE-754
+// targets and MSVC STL) only when both integer and floating-point <charconv>
+// overloads are available. libc++ 14+ provides floating-point std::to_chars
+// for double, but leaves __cpp_lib_to_chars undefined because floating-point
+// std::from_chars is still incomplete. On Apple platforms, floating-point
+// std::to_chars also requires macOS 13.3+ / iOS 16.3+ dylib support (tracked
+// via _LIBCPP_AVAILABILITY_HAS_TO_CHARS_FLOATING_POINT in libc++ 16+ / Xcode
+// 14.3+, and marked unavailable on Apple in libc++ 14-15).
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 1
+#elif defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 14000 &&       \
+    ((defined(_LIBCPP_AVAILABILITY_HAS_TO_CHARS_FLOATING_POINT) &&  \
+      _LIBCPP_AVAILABILITY_HAS_TO_CHARS_FLOATING_POINT) ||          \
+     (!defined(_LIBCPP_AVAILABILITY_HAS_TO_CHARS_FLOATING_POINT) && \
+      !defined(__APPLE__)))
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 1
+#else
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 0
+#endif
+
 char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     double d, char* absl_nonnull buffer) {
   // DBL_DIG is 15 for IEEE-754 doubles, which are used on almost all
@@ -420,12 +441,49 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
   static_assert(std::numeric_limits<double>::digits10 < 20,
                 "std::numeric_limits<double>::digits10 is too big");
 
-  // We avoid snprintf for NaNs because it inconsistently outputs "-nan"
-  // or "nan" when given a nan with the sign bit set.
-  if (std::isnan(d)) {
-    strcpy(buffer, "nan");  // NOLINT(runtime/printf)
+  if (ABSL_PREDICT_FALSE(!std::isfinite(d))) {
+    // Avoid snprintf/to_chars for NaNs because they can output "-nan" when
+    // given a NaN with the sign bit set.
+    if (std::isnan(d)) {
+      std::memcpy(buffer, "nan", sizeof("nan"));
+    } else if (std::signbit(d)) {
+      std::memcpy(buffer, "-inf", sizeof("-inf"));
+    } else {
+      std::memcpy(buffer, "inf", sizeof("inf"));
+    }
     return buffer;
   }
+
+#if ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT
+  // std::to_chars is locale-independent, rounding-mode-independent (matching
+  // absl::SimpleAtod), and substantially faster than the snprintf/strtod
+  // fallback below.
+  auto to_chars = [buffer, d](int precision) {
+    std::to_chars_result result =
+        std::to_chars(buffer, buffer + numbers_internal::kFastToBufferSize - 1,
+                      d, std::chars_format::general, precision);
+    ABSL_ASSERT(result.ec == std::errc());
+    *result.ptr = '\0';
+    return result.ptr;
+  };
+
+  bool full_precision_needed = true;
+  if (std::abs(d) <= kDoublePrecisionCheckMax) {
+    char* end = to_chars(std::numeric_limits<double>::digits10);
+    double parsed_value = 0;
+    absl::from_chars_result parse_result =
+        absl::from_chars(buffer, end, parsed_value);
+    full_precision_needed = parse_result.ec != std::errc() ||
+                            parse_result.ptr != end || parsed_value != d;
+  }
+
+  if (full_precision_needed) {
+    to_chars(std::numeric_limits<double>::digits10 + 2);
+  }
+  return buffer;
+#else
+  // TODO: b/526633099 - Once all supported standard libraries ship
+  // std::to_chars with floating-point support, remove this fallback.
   bool full_precision_needed = true;
   if (std::abs(d) <= kDoublePrecisionCheckMax) {
     int snprintf_result =
@@ -457,8 +515,6 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
   // SimpleAtod() only accepts '.', so rewrite the radix back to '.' to keep
   // absl::HighPrecision(double) locale-independent and round-trippable through
   // SimpleAtod().
-  // TODO: b/526633099 - Once all supported compilers ship std::to_chars with
-  // floating-point support, use it here for inherent locale independence.
   const char* radix = localeconv()->decimal_point;
   // Skip an empty decimal_point (some minimal environments leave it ""), which
   // would otherwise match the beginning of the buffer and corrupt it.
@@ -474,7 +530,10 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     }
   }
   return buffer;
+#endif
 }
+
+#undef ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT
 
 namespace {
 

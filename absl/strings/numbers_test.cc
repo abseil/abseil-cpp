@@ -1750,6 +1750,59 @@ TEST(SimpleDtoa, HighPrecisionIsLocaleIndependent) {
   EXPECT_EQ(parsed, 0.1);
 }
 
+TEST_F(SimpleDtoaTest, RoundTripDoubleToBufferEdgeCases) {
+  struct TestCase {
+    double value;
+    const char* expected;
+  };
+  const TestCase test_cases[] = {
+      {0.0, "0"},
+      {-0.0, "-0"},
+      {0.1, "0.1"},
+      {-0.1, "-0.1"},
+      {0.0001, "0.0001"},
+      {0.00001, "1e-05"},
+      {1e14, "100000000000000"},
+      {1e15, "1e+15"},
+      {1000000000000000.25, "1000000000000000.2"},
+      {1.2345678901234567, "1.2345678901234567"},
+      {1e20, "1e+20"},
+      {1e21, "1e+21"},
+      {std::numeric_limits<double>::denorm_min(), "4.94065645841247e-324"},
+      {std::numeric_limits<double>::min(), "2.2250738585072014e-308"},
+      {std::nextafter(std::numeric_limits<double>::max(), 0.0),
+       "1.7976931348623155e+308"},
+      {std::numeric_limits<double>::max(), "1.7976931348623157e+308"},
+      {-std::numeric_limits<double>::max(), "-1.7976931348623157e+308"},
+      {std::numeric_limits<double>::infinity(), "inf"},
+      {-std::numeric_limits<double>::infinity(), "-inf"},
+  };
+
+  for (const TestCase& test_case : test_cases) {
+    char buffer[absl::numbers_internal::kFastToBufferSize];
+    EXPECT_EQ(buffer, absl::numbers_internal::RoundTripDoubleToBuffer(
+                          test_case.value, buffer));
+    EXPECT_STREQ(test_case.expected, buffer);
+
+    double parsed = 0;
+    EXPECT_TRUE(absl::SimpleAtod(buffer, &parsed));
+    EXPECT_EQ(test_case.value, parsed);
+    EXPECT_EQ(std::signbit(test_case.value), std::signbit(parsed));
+  }
+
+  for (double nan_val : {std::numeric_limits<double>::quiet_NaN(),
+                         -std::numeric_limits<double>::quiet_NaN()}) {
+    char buffer[absl::numbers_internal::kFastToBufferSize];
+    EXPECT_EQ(buffer,
+              absl::numbers_internal::RoundTripDoubleToBuffer(nan_val, buffer));
+    EXPECT_STREQ("nan", buffer);
+
+    double parsed = 0;
+    EXPECT_TRUE(absl::SimpleAtod(buffer, &parsed));
+    EXPECT_TRUE(std::isnan(parsed));
+  }
+}
+
 // Run the given runnable functor for "cases" test cases, chosen over the
 // available range of float.  pi and e and 1/e are seeded, and then all
 // available integer powers of 2 and 10 are multiplied against them.  In
