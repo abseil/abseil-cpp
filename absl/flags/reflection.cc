@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -205,6 +206,36 @@ bool RegisterCommandLineFlag(CommandLineFlag& flag, const char* filename) {
   return true;
 }
 
+namespace {
+
+struct FirstFlagModifications {
+  struct Entry {
+    CommandLineFlag* flag;
+    void (*restore_initial_state)(CommandLineFlag&);
+  };
+
+  absl::Mutex mu;
+  // False until the first FlagSaver.  A flag modified before then has a state
+  // to save, so it does not need an entry.
+  bool enabled ABSL_GUARDED_BY(mu) = false;
+  std::vector<Entry> entries ABSL_GUARDED_BY(mu);
+};
+
+FirstFlagModifications& GetFirstFlagModifications() {
+  static absl::NoDestructor<FirstFlagModifications> modifications;
+  return *modifications;
+}
+
+}  // namespace
+
+void RegisterFirstFlagModification(
+    CommandLineFlag& flag, void (*restore_initial_state)(CommandLineFlag&)) {
+  FirstFlagModifications& modifications = GetFirstFlagModifications();
+  absl::MutexLock l(modifications.mu);
+  if (!modifications.enabled) return;
+  modifications.entries.push_back({&flag, restore_initial_state});
+}
+
 void FinalizeRegistry() {
   auto& registry = FlagRegistry::GlobalRegistry();
   FlagRegistryLock frl(registry);
@@ -319,24 +350,63 @@ class FlagSaverImpl {
   // It's an error to call this more than once.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
+    FirstFlagModifications& modifications = GetFirstFlagModifications();
+    {
+      // This has to precede the calls to SaveState(), so that the entry of a
+      // flag that returns nullptr from it is at or after `first_modification_`.
+      absl::MutexLock l(modifications.mu);
+      modifications.enabled = true;
+      first_modification_ = modifications.entries.size();
+    }
+    size_t num_flags = 0;
     flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
+      ++num_flags;
       if (auto flag_state =
               flags_internal::PrivateHandleAccessor::SaveState(flag)) {
-        backup_registry_.emplace_back(std::move(flag_state));
+        backup_registry_.push_back({&flag, std::move(flag_state)});
       }
     });
+    // Each flag has at most one entry.  Reserving them here keeps the first
+    // modification of a flag from allocating.
+    absl::MutexLock l(modifications.mu);
+    modifications.entries.reserve(num_flags);
   }
 
   // Restores the saved flag states into the flag registry.
   void RestoreToRegistry() && {
-    for (const auto& flag_state : backup_registry_) {
-      std::move(*flag_state).Restore();
+    // Flags that returned nullptr from SaveState() and were modified since.
+    std::vector<FirstFlagModifications::Entry> modified;
+    {
+      FirstFlagModifications& modifications = GetFirstFlagModifications();
+      absl::MutexLock l(modifications.mu);
+      modified.assign(modifications.entries.begin() +
+                          static_cast<ptrdiff_t>(first_modification_),
+                      modifications.entries.end());
+    }
+    for (const auto& entry : modified) {
+      if (std::any_of(backup_registry_.begin(), backup_registry_.end(),
+                      [&](const SavedFlag& saved) {
+                        return saved.flag == entry.flag;
+                      })) {
+        continue;
+      }
+      entry.restore_initial_state(*entry.flag);
+    }
+    for (auto& saved : backup_registry_) {
+      std::move(*saved.state).Restore();
     }
   }
 
  private:
-  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
-      backup_registry_;
+  struct SavedFlag {
+    CommandLineFlag* flag;
+    std::unique_ptr<flags_internal::FlagStateInterface> state;
+  };
+
+  std::vector<SavedFlag> backup_registry_;
+  // Index of the first entry of FirstFlagModifications added after
+  // SaveFromRegistry().
+  size_t first_modification_ = 0;
 };
 
 }  // namespace flags_internal
