@@ -265,23 +265,17 @@ class LogMessage {
   // Literal strings.  This allows us to record C string literals as literals in
   // the logging.proto.Value.
   //
-  // Allow this overload to be inlined to prevent generating instantiations of
-  // this template for every value of `SIZE` encountered in each source code
-  // file. That significantly increases linker input sizes. Inlining is cheap
-  // because the argument to this overload is almost always a string literal so
-  // the call to `strlen` can be replaced at compile time. The overloads for
-  // `char[]`/`wchar_t[]` below should not be inlined. The compiler typically
-  // does not have the string at compile time and cannot replace the call to
-  // `strlen` so inlining it increases the binary size. See the discussion on
-  // cl/107527369.
+  // Force-inlined to avoid per-`SIZE` template instantiations in cold blocks;
+  // passing `const char*` keeps callsites smaller at the cost of doing `strlen`
+  // at runtime.
   template <int SIZE>
-  LogMessage& operator<<(const char (&buf)[SIZE]);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(const char (&buf)[SIZE]);
   template <int SIZE>
   LogMessage& operator<<(const wchar_t (&buf)[SIZE]);
 
   // This prevents non-const `char[]` arrays from looking like literals.
   template <int SIZE>
-  ABSL_ATTRIBUTE_NOINLINE LogMessage& operator<<(char (&buf)[SIZE]);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE LogMessage& operator<<(char (&buf)[SIZE]);
   // `wchar_t[SIZE]` is handled by `operator<< <const wchar_t*>`.
 
   // Types that support `AbslStringify()` are serialized that way.
@@ -357,6 +351,8 @@ class LogMessage {
   };
   template <StringType str_type>
   void CopyToEncodedBuffer(absl::string_view str);
+  template <StringType str_type>
+  void CopyToEncodedBuffer(const char* absl_nonnull str);
   // Keeps std::string data and size access out of callsites.
   template <StringType str_type>
   void CopyToEncodedBuffer(const std::string& str);
@@ -456,8 +452,8 @@ void LogMessage::Stream(T v) {
 }
 
 template <int SIZE>
-LogMessage& LogMessage::operator<<(const char (&buf)[SIZE]) {
-  CopyToEncodedBuffer<StringType::kLiteral>(absl::string_view(buf));
+inline LogMessage& LogMessage::operator<<(const char (&buf)[SIZE]) {
+  CopyToEncodedBuffer<StringType::kLiteral>(buf);
   return *this;
 }
 
@@ -467,10 +463,9 @@ LogMessage& LogMessage::operator<<(const wchar_t (&buf)[SIZE]) {
   return *this;
 }
 
-// Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
 template <int SIZE>
-LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
-  CopyToEncodedBuffer<StringType::kNotLiteral>(absl::string_view(buf));
+inline LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
+  CopyToEncodedBuffer<StringType::kNotLiteral>(buf);
   return *this;
 }
 // We instantiate these specializations in the library's TU to save space in
@@ -501,6 +496,10 @@ extern template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kLiteral>(absl::string_view str);
 extern template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(absl::string_view str);
+extern template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kLiteral>(const char* absl_nonnull str);
+extern template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kNotLiteral>(const char* absl_nonnull str);
 extern template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kLiteral>(const std::string& str);
 extern template void LogMessage::CopyToEncodedBuffer<

@@ -612,6 +612,16 @@ template void LogMessage::CopyToEncodedBuffer<
 
 template <LogMessage::StringType str_type>
 ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
+    const char* absl_nonnull str) {
+  CopyToEncodedBuffer<str_type>(absl::string_view(str));
+}
+template void LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(
+    const char* absl_nonnull str);
+template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kNotLiteral>(const char* absl_nonnull str);
+
+template <LogMessage::StringType str_type>
+ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
     const std::string& str) {
   CopyToEncodedBuffer<str_type>(absl::string_view(str));
 }
