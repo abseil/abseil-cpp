@@ -215,8 +215,8 @@ uint64_t LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   return Mix4x16Vectors(na, nb, nc, nd);
 }
 
-[[maybe_unused]] ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashLenGt64(uint64_t seed, const unsigned char* data, size_t len) {
   assert(len > 64);
   const uint8_t* ptr = static_cast<const uint8_t*>(data);
   const uint8_t* last_32_ptr = ptr + len - 32;
@@ -257,6 +257,9 @@ LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
     }
   };
   MixerCD mix_cd = {state2, state3};
+#if defined(__clang__)
+#pragma clang loop unroll(disable)
+#endif
   do {
     PrefetchFutureDataToLocalCache(ptr);
     mix_ab(ptr);
@@ -294,8 +297,8 @@ uint64_t LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   return Mix32Bytes(last_32_ptr, Mix32Bytes(ptr, current_state));
 }
 
-[[maybe_unused]] ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashLenGt64(uint64_t seed, const unsigned char* data, size_t len) {
   assert(len > 64);
   const uint8_t* ptr = static_cast<const uint8_t*>(data);
   uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
@@ -344,13 +347,13 @@ LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
 }
 #endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
-[[maybe_unused]] uint64_t LowLevelHashLenGt32(uint64_t seed, const void* data,
-                                              size_t len) {
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST uint64_t
+LowLevelHashLenGt32(uint64_t seed, const unsigned char* data, size_t len) {
   assert(len > 32);
   if (ABSL_PREDICT_FALSE(len > 64)) {
-    return LowLevelHashLenGt64(seed, data, len);
+    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt64(seed, data, len);
   }
-  return LowLevelHash33To64(seed, static_cast<const uint8_t*>(data), len);
+  return LowLevelHash33To64(seed, data, len);
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(
@@ -379,17 +382,17 @@ SplitAndCombineOn32Bit(uint64_t state, const unsigned char* first, size_t len) {
                                std::integral_constant<int, 4>{});
 }
 
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn64Bit(
-    uint64_t state, const unsigned char* data, size_t len) {
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
+HashBlockOn64Bit(uint64_t state, const unsigned char* data, size_t len) {
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-  return LowLevelHashLenGt32(state, data, len);
+  ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt32(state, data, len);
 #else
   return hash_internal::CityHash64WithSeed(reinterpret_cast<const char*>(data),
                                            len, state);
 #endif
 }
 
-ABSL_ATTRIBUTE_NOINLINE uint64_t
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
 SplitAndCombineOn64Bit(uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
     state = HashBlockOn64Bit(state, first, PiecewiseChunkSize());
@@ -419,15 +422,20 @@ uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
   return SplitAndCombineOn32Bit(state, first, len);
 }
 
-uint64_t CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
-                                                     const unsigned char* first,
-                                                     size_t len) {
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
+                                            const unsigned char* first,
+                                            size_t len) {
   assert(len > 32);
   assert(sizeof(size_t) == 8);  // NOLINT(misc-static-assert)
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+    ABSL_INTERNAL_MUSTTAIL return HashBlockOn64Bit(state, first, len);
+#else
     return HashBlockOn64Bit(state, first, len);
+#endif
   }
-  return SplitAndCombineOn64Bit(state, first, len);
+  ABSL_INTERNAL_MUSTTAIL return SplitAndCombineOn64Bit(state, first, len);
 }
 
 ABSL_CONST_INIT const void* const MixingHashState::kSeed = &kSeed;
