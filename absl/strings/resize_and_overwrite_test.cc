@@ -20,6 +20,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/options.h"
 #include "absl/log/absl_check.h"
 
 namespace {
@@ -150,5 +151,20 @@ INSTANTIATE_TEST_SUITE_P(StringResizeAndOverwriteTestSuite,
                              {10, 15, 0},
                          }));
 // clang-format on
+
+TEST(StringResizeAndOverwrite, OpResultLargerThanCount) {
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  std::string s;
+  // A truncated snprintf() returns the untruncated length, which is larger
+  // than the buffer it was given.
+  EXPECT_DEATH_IF_SUPPORTED(
+      absl::StringResizeAndOverwrite(s, 16,
+                                     [](char* p, size_t n) {
+                                       std::fill(p, p + n, 'a');
+                                       return n + 300;
+                                     }),
+      "");
+#endif
+}
 
 }  // namespace
