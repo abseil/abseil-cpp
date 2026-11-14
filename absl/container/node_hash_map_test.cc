@@ -78,7 +78,6 @@ TEST(NodeHashMap, Emplace) {
   ASSERT_EQ(0, t.num_moves());
   ASSERT_EQ(1, t.num_copies());
 
-  const std::string ca("a");
   m.emplace(a, t);
   ASSERT_EQ(0, t.num_moves());
   ASSERT_EQ(1, t.num_copies());
