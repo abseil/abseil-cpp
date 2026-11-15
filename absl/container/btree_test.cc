@@ -436,6 +436,11 @@ class BtreeNodePeer {
     return Btree::params_type::template destroy_is_trivial<
         typename Btree::allocator_type>();
   }
+
+  template <typename Btree>
+  constexpr static const BtreeDtorPolicy* DtorPolicy() {
+    return &btree<typename Btree::params_type>::GetDtorPolicy();
+  }
 };
 
 namespace {
@@ -502,6 +507,23 @@ TEST_F(BtreeMapTest, LinearChoiceTree) {
   EXPECT_FALSE((IsLinear<int, Cmp>()));
   // non-arithmetic key: binary
   EXPECT_FALSE((IsLinear<std::string, std::less<std::string>>()));
+}
+
+TEST(Btree, DtorPolicySharing) {
+  // Matching slot layouts share a policy; trivial types omit the destructor.
+  EXPECT_TRUE(BtreeNodePeer::DtorPolicy<absl::btree_set<int64_t>>() ==
+              (BtreeNodePeer::DtorPolicy<
+                  absl::btree_multiset<int64_t, std::greater<int64_t>>>()));
+  EXPECT_TRUE(BtreeNodePeer::DtorPolicy<absl::btree_set<int64_t>>() ==
+              BtreeNodePeer::DtorPolicy<absl::btree_set<double>>());
+  EXPECT_TRUE((BtreeNodePeer::DtorPolicy<absl::btree_map<int32_t, int32_t>>() ==
+               BtreeNodePeer::DtorPolicy<absl::btree_map<uint32_t, float>>()));
+  EXPECT_TRUE(
+      BtreeNodePeer::DtorPolicy<absl::btree_set<int64_t>>()->destroy_n ==
+      nullptr);
+  EXPECT_TRUE(
+      BtreeNodePeer::DtorPolicy<absl::btree_set<std::string>>()->destroy_n !=
+      nullptr);
 }
 
 TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
