@@ -54,6 +54,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -1208,6 +1209,34 @@ bool AreNodesFromSameContainer(const Node* node_a, const Node* node_b) {
   return node_a == node_b;
 }
 
+struct BtreeIteratorBase {
+  btree_node_header* node;
+  int position;
+
+  friend bool operator==(BtreeIteratorBase a, BtreeIteratorBase b) {
+    return a.node == b.node && a.position == b.position;
+  }
+  friend bool operator!=(BtreeIteratorBase a, BtreeIteratorBase b) {
+    return !(a == b);
+  }
+};
+
+template <typename FieldType>
+BtreeIteratorBase BtreeIteratorIncrementSlow(BtreeIteratorBase it,
+                                             size_t children_offset);
+extern template BtreeIteratorBase BtreeIteratorIncrementSlow<uint8_t>(
+    BtreeIteratorBase, size_t);
+extern template BtreeIteratorBase BtreeIteratorIncrementSlow<uint16_t>(
+    BtreeIteratorBase, size_t);
+
+template <typename FieldType>
+BtreeIteratorBase BtreeIteratorDecrementSlow(BtreeIteratorBase it,
+                                             size_t children_offset);
+extern template BtreeIteratorBase BtreeIteratorDecrementSlow<uint8_t>(
+    BtreeIteratorBase, size_t);
+extern template BtreeIteratorBase BtreeIteratorDecrementSlow<uint16_t>(
+    BtreeIteratorBase, size_t);
+
 class btree_iterator_generation_info_enabled {
  public:
   explicit btree_iterator_generation_info_enabled(uint32_t g)
@@ -1432,6 +1461,10 @@ class btree_iterator : private btree_iterator_generation_info {
     return true;
   }
 
+  BtreeIteratorBase raw() const {
+    return {const_cast<normal_node*>(node_), position_};
+  }
+
   // Returns n such that n calls to ++other yields *this.
   // Precondition: n exists && (this->node_ != other.node_ ||
   // !this->node_->is_leaf() || this->position_ != other.position_).
@@ -1440,22 +1473,26 @@ class btree_iterator : private btree_iterator_generation_info {
   // Increment/decrement the iterator.
   void increment() {
     assert_valid_generation(node_);
-    if (node_->is_leaf() && ++position_ < node_->finish()) {
+    if (ABSL_PREDICT_TRUE(node_->is_leaf() && ++position_ < node_->finish())) {
       return;
     }
-    increment_slow();
+    const BtreeIteratorBase res = BtreeIteratorIncrementSlow<field_type>(
+        raw(), node_type::kChildrenOffset);
+    node_ = static_cast<Node*>(res.node);
+    position_ = res.position;
   }
-  void increment_slow();
   btree_iterator& increment_n_slow(difference_type n);
 
   void decrement() {
     assert_valid_generation(node_);
-    if (node_->is_leaf() && --position_ >= node_->start()) {
+    if (ABSL_PREDICT_TRUE(node_->is_leaf() && --position_ >= node_->start())) {
       return;
     }
-    decrement_slow();
+    const BtreeIteratorBase res = BtreeIteratorDecrementSlow<field_type>(
+        raw(), node_type::kChildrenOffset);
+    node_ = static_cast<Node*>(res.node);
+    position_ = res.position;
   }
-  void decrement_slow();
   btree_iterator& decrement_n_slow(difference_type n);
 
   const key_type& key() const {
@@ -1520,6 +1557,165 @@ struct BtreeCommonFields {
 
   bool empty() const { return size == 0; }
 };
+
+using BtreeDestroyNFn = void (*)(void* alloc, void* slots, size_t count);
+using BtreeDeallocFn = void (*)(void* alloc, void* node, size_t size);
+using BtreeTransferNFn = void (*)(void* alloc, void* dst, void* src,
+                                  size_t count, bool backward);
+
+// Compact 16-byte policy for destroying or clearing a B-tree, kept separate
+// from BtreePolicy so translation units that only destroy or clear a B-tree do
+// not instantiate transfer or allocation callbacks.
+struct BtreeDtorPolicy {
+  uint32_t slot_size;
+  uint16_t node_slots;
+  uint16_t slots_offset;
+  BtreeDestroyNFn destroy_n;
+
+  static constexpr size_t LeafSize(uint16_t slots_offset, size_t slot_count,
+                                   uint32_t slot_size) {
+    const size_t raw = slots_offset + slot_count * slot_size;
+    return (raw + alignof(void*) - 1) & ~(alignof(void*) - 1);
+  }
+
+  constexpr size_t LeafSize(size_t slot_count) const {
+    return LeafSize(slots_offset, slot_count, slot_size);
+  }
+
+  static constexpr uint32_t ComputeChildrenOffset(uint16_t slots_offset,
+                                                  uint16_t node_slots,
+                                                  uint32_t slot_size) {
+    return static_cast<uint32_t>(LeafSize(slots_offset, node_slots, slot_size));
+  }
+
+  constexpr uint32_t ComputeChildrenOffset() const {
+    return ComputeChildrenOffset(slots_offset, node_slots, slot_size);
+  }
+};
+
+// Shared layout and slot-lifecycle policy for mutating operations on
+// btree<Params>. When is_custom_alloc is true, the object is an instance of
+// BtreeCustomAllocPolicy.
+struct BtreePolicy : BtreeDtorPolicy {
+  // Null when slots are trivially relocatable, so transfers can use a direct
+  // memory move without instantiating or dispatching a per-type callback.
+  BtreeTransferNFn transfer_n_impl;
+  uint32_t children_offset;
+  bool is_custom_alloc;
+
+  void transfer_n(BtreeCommonFields& common, void* dst, void* src, size_t count,
+                  bool backward) const;
+};
+
+template <uint32_t kSlotSize, uint16_t kNodeSlots, uint16_t kSlotsOffset,
+          BtreeDestroyNFn kDestroyN, BtreeTransferNFn kTransferN>
+inline constexpr BtreePolicy kBtreeDefaultPolicy = {
+    {kSlotSize, kNodeSlots, kSlotsOffset, kDestroyN},
+    kTransferN,
+    BtreeDtorPolicy::ComputeChildrenOffset(kSlotsOffset, kNodeSlots, kSlotSize),
+    /*is_custom_alloc=*/false,
+};
+
+struct BtreeCustomAllocPolicy : BtreePolicy {
+  uint32_t alloc_offset;
+
+  void* get_alloc(BtreeCommonFields& common) const {
+    return reinterpret_cast<char*>(&common) + alloc_offset;
+  }
+};
+
+inline void BtreePolicy::transfer_n(BtreeCommonFields& common, void* dst,
+                                    void* src, size_t count,
+                                    bool backward) const {
+  if (ABSL_PREDICT_TRUE(transfer_n_impl == nullptr)) {
+    std::memmove(dst, src, count * slot_size);
+    return;
+  }
+  void* alloc =
+      ABSL_PREDICT_FALSE(is_custom_alloc)
+          ? static_cast<const BtreeCustomAllocPolicy*>(this)->get_alloc(common)
+          : nullptr;
+  transfer_n_impl(alloc, dst, src, count, backward);
+}
+
+template <uint32_t kSlotSize, uint16_t kNodeSlots, uint16_t kSlotsOffset,
+          BtreeDestroyNFn kDestroyN>
+inline constexpr BtreeDtorPolicy kBtreeDtor = {
+    kSlotSize,
+    kNodeSlots,
+    kSlotsOffset,
+    kDestroyN,
+};
+
+// Invokes fn with a typed allocator pointer or a temporary default allocator.
+template <typename Alloc, typename Fn>
+decltype(auto) WithBtreeAlloc(void* alloc, Fn&& fn) {
+  if constexpr (std::is_same_v<Alloc, std::allocator<char>>) {
+    (void)alloc;
+    std::allocator<char> a;
+    return fn(&a);
+  } else {
+    return fn(static_cast<Alloc*>(alloc));
+  }
+}
+
+template <size_t Alignment, typename Alloc>
+void BtreeDeallocate(void* alloc, void* node, size_t size) {
+  WithBtreeAlloc<Alloc>(alloc,
+                        [&](auto* a) { Deallocate<Alignment>(a, node, size); });
+}
+
+// Type-erased callback destroying a contiguous run of initialized slots.
+template <typename SlotPolicy, typename Alloc>
+void BtreeDestroyN(void* alloc, void* slots, size_t count) {
+  using Traits = common_policy_traits<SlotPolicy>;
+  auto* s = static_cast<typename SlotPolicy::slot_type*>(slots);
+  WithBtreeAlloc<Alloc>(alloc, [&](auto* a) {
+    for (size_t i = 0; i < count; ++i) {
+      Traits::destroy(a, std::launder(s + i));
+    }
+  });
+}
+
+// Type-erased callback transferring a contiguous run of slots.
+template <typename SlotPolicy, typename Alloc>
+void BtreeTransferN(void* alloc, void* dst, void* src, size_t count,
+                    bool backward) {
+  using Traits = common_policy_traits<SlotPolicy>;
+  using slot_type = typename SlotPolicy::slot_type;
+  auto* d = static_cast<slot_type*>(dst);
+  auto* s = static_cast<slot_type*>(src);
+  WithBtreeAlloc<Alloc>(alloc, [&](auto* a) {
+    if (backward) {
+      for (size_t i = count; i > 0; --i) {
+        Traits::transfer(a, d + i - 1, std::launder(s + i - 1));
+      }
+    } else {
+      for (size_t i = 0; i < count; ++i) {
+        Traits::transfer(a, d + i, std::launder(s + i));
+      }
+    }
+  });
+}
+
+// Destroys all elements and frees every node in the subtree.
+template <typename FieldType>
+void BtreeDestroy(btree_node_base<FieldType>* root,
+                  const BtreeDtorPolicy& policy);
+template <typename FieldType>
+void BtreeDestroy(btree_node_base<FieldType>* root,
+                  const BtreeDtorPolicy& policy, BtreeDeallocFn dealloc,
+                  void* alloc);
+extern template void BtreeDestroy<uint8_t>(btree_node_base<uint8_t>*,
+                                           const BtreeDtorPolicy&);
+extern template void BtreeDestroy<uint16_t>(btree_node_base<uint16_t>*,
+                                            const BtreeDtorPolicy&);
+extern template void BtreeDestroy<uint8_t>(btree_node_base<uint8_t>*,
+                                           const BtreeDtorPolicy&,
+                                           BtreeDeallocFn, void*);
+extern template void BtreeDestroy<uint16_t>(btree_node_base<uint16_t>*,
+                                            const BtreeDtorPolicy&,
+                                            BtreeDeallocFn, void*);
 
 template <typename Params>
 class btree {
@@ -1618,7 +1814,7 @@ class btree {
     // is complete.
     static_assert(static_assert_validation(), "This call must be elided.");
     if (!empty()) {
-      node_type::clear_and_delete(root(), mutable_allocator());
+      destroy_subtree(root());
     }
   }
 
@@ -1843,7 +2039,88 @@ class btree {
   allocator_type get_allocator() const { return allocator(); }
 
  private:
+  friend class btree_node<Params>;
   friend struct btree_access;
+  friend class BtreeNodePeer;
+
+  // Erase element type from default allocators to share policies and helpers.
+  static constexpr bool kIsDefaultAlloc =
+      std::is_same_v<allocator_type, std::allocator<value_type>>;
+  static constexpr bool kUsesDefaultNodeAlloc =
+      kIsDefaultAlloc && node_type::Alignment() <= alignof(void*);
+  using CanonicalAlloc =
+      std::conditional_t<kIsDefaultAlloc, std::allocator<char>, allocator_type>;
+  using SlotPolicy = typename Params::slot_policy;
+
+  static constexpr BtreeDestroyNFn get_destroy_n_fn() {
+    if constexpr (params_type::template destroy_is_trivial<CanonicalAlloc>()) {
+      return nullptr;
+    } else {
+      return &BtreeDestroyN<SlotPolicy, CanonicalAlloc>;
+    }
+  }
+
+  static constexpr BtreeTransferNFn get_transfer_n_fn() {
+    if constexpr (params_type::transfer_uses_memcpy()) {
+      return nullptr;
+    } else {
+      return &BtreeTransferN<SlotPolicy, CanonicalAlloc>;
+    }
+  }
+
+  static constexpr BtreeDeallocFn get_dealloc_fn() {
+    return &BtreeDeallocate<node_type::Alignment(), CanonicalAlloc>;
+  }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+  static constexpr size_t AllocOffset() {
+    static_assert(offsetof(btree, common_) == 0);
+    return offsetof(btree, alloc_);
+  }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
+  static constexpr const BtreeDtorPolicy& GetDtorPolicy() {
+    constexpr field_type kSlots = field_type{kNodeSlots};
+    if constexpr (kNodeSlots <= (std::numeric_limits<field_type>::max)()) {
+      static_assert(BtreeDtorPolicy::ComputeChildrenOffset(
+                        node_type::kSlotsOffset, kSlots, sizeof(slot_type)) ==
+                    node_type::kChildrenOffset);
+    }
+    return kBtreeDtor<sizeof(slot_type), kSlots,
+                      static_cast<uint16_t>(node_type::kSlotsOffset),
+                      get_destroy_n_fn()>;
+  }
+
+  static const BtreePolicy& GetPolicy() {
+    if constexpr (kUsesDefaultNodeAlloc) {
+      return kBtreeDefaultPolicy<sizeof(slot_type),
+                                 static_cast<uint16_t>(kNodeSlots),
+                                 static_cast<uint16_t>(node_type::kSlotsOffset),
+                                 get_destroy_n_fn(), get_transfer_n_fn()>;
+    } else {
+      static constexpr BtreeCustomAllocPolicy kCustom = {
+          {
+              {sizeof(slot_type), static_cast<uint16_t>(kNodeSlots),
+               static_cast<uint16_t>(node_type::kSlotsOffset),
+               get_destroy_n_fn()},
+              get_transfer_n_fn(),
+              static_cast<uint32_t>(node_type::kChildrenOffset),
+              /*is_custom_alloc=*/true,
+          },
+          static_cast<uint32_t>(AllocOffset()),
+      };
+      return kCustom;
+    }
+  }
+
+  void destroy_subtree(node_type* node) {
+    node_type::clear_and_delete(node, mutable_allocator());
+  }
 
   // Internal accessor routines.
   node_type* root() { return static_cast<node_type*>(common_.root); }
@@ -2022,7 +2299,7 @@ inline void btree_node<P>::remove_values(const field_type i,
                                          const field_type to_erase,
                                          allocator_type* alloc) {
   value_destroy_n(i, to_erase, alloc);
-  if (is_internal()) {
+  if (ABSL_PREDICT_FALSE(is_internal())) {
     // Delete all children between begin and end.
     for (field_type j = 0; j < to_erase; ++j) {
       clear_and_delete(child(i + j + 1), alloc);
@@ -2210,65 +2487,12 @@ void btree_node<P>::merge(btree_node* src, allocator_type* alloc) {
 
 template <typename P>
 void btree_node<P>::clear_and_delete(btree_node* node, allocator_type* alloc) {
-  assert(node->count() > 0);
-  if (node->is_leaf()) {
-    node->value_destroy_n(node->start(), node->count(), alloc);
-    deallocate(LeafSize(node->max_count()), node, alloc);
-    return;
-  }
-
-  // The parent of the root of the subtree we are deleting.
-  btree_node* delete_root_parent = node->parent();
-
-  // Navigate to the leftmost leaf under node, and then delete upwards.
-  while (node->is_internal()) node = node->start_child();
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-  // When generations are enabled, we delete the leftmost leaf last in case it's
-  // the parent of the root and we need to check whether it's a leaf before we
-  // can update the root's generation.
-  // TODO(ezb): if we change btree_node::is_root to check a bool inside the node
-  // instead of checking whether the parent is a leaf, we can remove this logic.
-  btree_node* leftmost_leaf = node;
-#endif
-  // Use `size_type` because `pos` needs to be able to hold `kNodeSlots+1`,
-  // which isn't guaranteed to be a valid `field_type`.
-  size_type pos = node->position();
-  btree_node* parent = node->parent();
-  for (;;) {
-    // In each iteration of the next loop, we delete one leaf node and go right.
-    assert(pos <= parent->finish());
-    do {
-      node = parent->child(static_cast<field_type>(pos));
-      if (node->is_internal()) {
-        // Navigate to the leftmost leaf under node.
-        while (node->is_internal()) node = node->start_child();
-        pos = node->position();
-        parent = node->parent();
-      }
-      node->value_destroy_n(node->start(), node->count(), alloc);
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-      if (leftmost_leaf != node)
-#endif
-        deallocate(LeafSize(node->max_count()), node, alloc);
-      ++pos;
-    } while (pos <= parent->finish());
-
-    // Once we've deleted all children of parent, delete parent and go up/right.
-    assert(pos > parent->finish());
-    do {
-      node = parent;
-      pos = node->position();
-      parent = node->parent();
-      node->value_destroy_n(node->start(), node->count(), alloc);
-      deallocate(InternalSize(), node, alloc);
-      if (parent == delete_root_parent) {
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-        deallocate(LeafSize(leftmost_leaf->max_count()), leftmost_leaf, alloc);
-#endif
-        return;
-      }
-      ++pos;
-    } while (pos > parent->finish());
+  if constexpr (btree<P>::kUsesDefaultNodeAlloc) {
+    (void)alloc;
+    BtreeDestroy<field_type>(node, btree<P>::GetDtorPolicy());
+  } else {
+    BtreeDestroy<field_type>(node, btree<P>::GetDtorPolicy(),
+                             btree<P>::get_dealloc_fn(), alloc);
   }
 }
 
@@ -2330,58 +2554,6 @@ auto btree_iterator<N, R, P>::distance_slow(const_iterator other) const
       ++pos;
     } while (pos > parent->finish());
   }
-}
-
-template <typename N, typename R, typename P>
-void btree_iterator<N, R, P>::increment_slow() {
-  N* node = node_;
-  int position = position_;
-  if (node->is_leaf()) {
-    assert(position >= node->finish());
-    while (position == node->finish() && !node->is_root()) {
-      assert(node->parent()->child(node->position()) == node);
-      position = node->position();
-      node = node->parent();
-    }
-    // TODO(ezb): assert we aren't incrementing end() instead of handling.
-    if (position == node->finish()) {
-      return;
-    }
-  } else {
-    assert(position < node->finish());
-    node = node->child(static_cast<field_type>(position + 1));
-    while (node->is_internal()) {
-      node = node->start_child();
-    }
-    position = node->start();
-  }
-  *this = {node, position};
-}
-
-template <typename N, typename R, typename P>
-void btree_iterator<N, R, P>::decrement_slow() {
-  N* node = node_;
-  int position = position_;
-  if (node->is_leaf()) {
-    assert(position <= -1);
-    while (position < node->start() && !node->is_root()) {
-      assert(node->parent()->child(node->position()) == node);
-      position = node->position() - 1;
-      node = node->parent();
-    }
-    // TODO(ezb): assert we aren't decrementing begin() instead of handling.
-    if (position < node->start()) {
-      return;
-    }
-  } else {
-    assert(position >= node->start());
-    node = node->child(static_cast<field_type>(position));
-    while (node->is_internal()) {
-      node = node->child(node->finish());
-    }
-    position = node->finish() - 1;
-  }
-  *this = {node, position};
 }
 
 template <typename N, typename R, typename P>
@@ -2817,7 +2989,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     return {0, begin};
   }
 
-  if (static_cast<size_type>(count) == size()) {
+  if (ABSL_PREDICT_FALSE(static_cast<size_type>(count) == size())) {
     clear();
     return {count, this->end()};
   }
@@ -2855,7 +3027,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
 template <typename P>
 void btree<P>::clear() {
   if (!empty()) {
-    node_type::clear_and_delete(root(), mutable_allocator());
+    destroy_subtree(root());
   }
   mutable_root() = mutable_rightmost() = EmptyNode();
   mutable_size() = 0;
