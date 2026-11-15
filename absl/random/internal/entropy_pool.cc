@@ -16,13 +16,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <memory>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
-#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/optimization.h"
@@ -32,6 +33,23 @@
 #include "absl/random/internal/seed_material.h"
 #include "absl/random/seed_gen_exception.h"
 #include "absl/types/span.h"
+
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) ||         \
+     defined(_AIX)) &&                                                         \
+    !defined(_WIN32) && !defined(__EMSCRIPTEN__) && !defined(__wasi__) &&      \
+    !defined(__Fuchsia__) && !defined(__VXWORKS__) && !defined(__hexagon__) && \
+    !defined(__XTENSA__) && !defined(__native_client__) && !defined(__rtems__)
+#define ABSL_RANDOM_HAVE_PTHREAD_ATFORK 1
+#endif
+
+#if defined(ABSL_RANDOM_HAVE_PTHREAD_ATFORK) || !defined(ABSL_HAVE_THREAD_LOCAL)
+#include <pthread.h>
+#endif
+
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 using absl::base_internal::SpinLock;
 using absl::base_internal::SpinLockHolder;
@@ -100,9 +118,124 @@ void RandenPoolEntry::Fill(uint8_t* out, size_t bytes) {
 // Number of pooled urbg entries.
 static constexpr size_t kPoolSize = 8;
 
-// Shared pool entries.
-static absl::once_flag pool_once;
-ABSL_CACHELINE_ALIGNED static RandenPoolEntry* shared_pools[kPoolSize];
+// A generation-tagged array of pool entries. Old generations remain linked via
+// `prev` so they stay reachable to leak checkers without ever destroying or
+// locking spinlocks inherited across fork().
+struct PoolArray {
+  PoolArray* prev = nullptr;
+  uint32_t generation = 0;
+  RandenPoolEntry entries[kPoolSize];
+};
+
+// Active pool entries for the current process generation.
+ABSL_CONST_INIT static std::atomic<PoolArray*> shared_pools_ptr{nullptr};
+
+// Monotonically incremented generation counter; bumped in forked children via
+// OnForkChild() (and by ResetRandenPoolForTesting()).
+ABSL_CONST_INIT static std::atomic<uint32_t> pool_generation{0};
+
+// Per-generation serialization gate for slow-path pool initialization.
+// On fork-capable platforms, gates are additionally tagged with the owning
+// process ID so a child forked before pthread_atfork() completes never
+// acquires a parent's SpinLock. Prior gates remain linked via `prev` so leak
+// checkers continue to see them as reachable without touching inherited locks.
+struct InitGate {
+  InitGate* prev = nullptr;
+  uint32_t generation = 0;
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+  pid_t pid = 0;
+#endif
+  SpinLock mu;
+};
+
+ABSL_CONST_INIT static std::atomic<InitGate*> init_gate_ptr{nullptr};
+
+// Test-only fault injection and observation counters (touched only on the
+// slow initialization path).
+ABSL_CONST_INIT static std::atomic<size_t> seed_failure_count_for_testing{0};
+ABSL_CONST_INIT static std::atomic<size_t> os_entropy_read_count_for_testing{0};
+
+bool ReadSeedMaterialForPool(absl::Span<uint32_t> values) {
+  os_entropy_read_count_for_testing.fetch_add(1, std::memory_order_acq_rel);
+  size_t failures =
+      seed_failure_count_for_testing.load(std::memory_order_acquire);
+  while (failures > 0) {
+    if (seed_failure_count_for_testing.compare_exchange_weak(
+            failures, failures - 1, std::memory_order_acq_rel,
+            std::memory_order_acquire)) {
+      return false;
+    }
+  }
+  return ReadSeedMaterialFromOSEntropy(values);
+}
+
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+static_assert(std::atomic<uint32_t>::is_always_lock_free,
+              "OnForkChild requires lock-free atomic uint32_t operations");
+
+ABSL_CONST_INIT static std::atomic<uint32_t> atfork_registered{0};
+
+// Async-signal-safe child fork handler: increments the generation counter so
+// the child process lazily allocates and OS-seeds a fresh PoolArray on next
+// use without touching parent spinlocks or buffered PRNG state.
+void OnForkChild() {
+  atfork_registered.store(1, std::memory_order_relaxed);
+  pool_generation.fetch_add(1, std::memory_order_relaxed);
+}
+
+// Registers OnForkChild once. Called while holding the current InitGate lock
+// so concurrent cold-start callers do not register duplicate permanent atfork
+// handlers. Leaves `atfork_registered` unset if pthread_atfork() fails (e.g.
+// ENOMEM) so fork detection is never silently disabled.
+bool EnsureAtForkRegistered() {
+  if (atfork_registered.load(std::memory_order_acquire) != 0) {
+    return true;
+  }
+  if (pthread_atfork(nullptr, nullptr, OnForkChild) != 0) {
+    return false;
+  }
+  atfork_registered.store(1, std::memory_order_release);
+  return true;
+}
+#endif  // ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+
+InitGate* GetOrCreateInitGate(uint32_t generation
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+                              ,
+                              pid_t pid
+#endif
+) {
+  auto matches = [=](const InitGate* g) {
+    if (g == nullptr || g->generation != generation) return false;
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+    if (g->pid != pid) return false;
+#endif
+    return true;
+  };
+
+  InitGate* expected = init_gate_ptr.load(std::memory_order_acquire);
+  if (matches(expected)) {
+    return expected;
+  }
+
+  auto new_gate = std::make_unique<InitGate>();
+  new_gate->generation = generation;
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+  new_gate->pid = pid;
+#endif
+
+  while (true) {
+    if (matches(expected)) {
+      return expected;
+    }
+    new_gate->prev = expected;
+    if (init_gate_ptr.compare_exchange_weak(expected, new_gate.get(),
+                                            std::memory_order_acq_rel,
+                                            std::memory_order_acquire)) {
+      return new_gate.release();
+    }
+  }
+}
 
 // Returns an id in the range [0 ... kPoolSize), which indexes into the
 // pool of random engines.
@@ -152,26 +285,88 @@ size_t GetPoolID() {
 #endif
 }
 
-// Allocate and initialize kPoolSize objects of type RandenPoolEntry.
-void InitPoolURBG() {
-  static constexpr size_t kSeedSize =
-      RandenTraits::kStateBytes / sizeof(uint32_t);
-  // Read OS entropy once, and use it to initialize each pool entry.
-  uint32_t seed_material[kPoolSize * kSeedSize];
-  if (!ReadSeedMaterialFromOSEntropy(absl::MakeSpan(seed_material))) {
+// Allocate and initialize a fresh PoolArray for `current_gen` using OS entropy.
+// Serialized per generation via a generation-tagged InitGate so concurrent
+// cold-start or post-fork callers perform a single OS entropy read and a single
+// pthread_atfork() registration without ever inheriting a parent's locked
+// SpinLock across fork() or wedging on SeedGenException.
+ABSL_ATTRIBUTE_NOINLINE PoolArray* InitPoolsForGeneration(
+    uint32_t current_gen) {
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+  InitGate* gate = GetOrCreateInitGate(current_gen, getpid());
+#else
+  InitGate* gate = GetOrCreateInitGate(current_gen);
+#endif
+
+  PoolArray* result = nullptr;
+  {
+    SpinLockHolder l(gate->mu);
+
+    PoolArray* existing = shared_pools_ptr.load(std::memory_order_acquire);
+    if (existing != nullptr && existing->generation == current_gen) {
+      return existing;
+    }
+
+#ifdef ABSL_RANDOM_HAVE_PTHREAD_ATFORK
+    const bool atfork_ok = EnsureAtForkRegistered();
+#else
+    constexpr bool atfork_ok = true;
+#endif
+
+    if (atfork_ok) {
+      static constexpr size_t kSeedSize =
+          RandenTraits::kStateBytes / sizeof(uint32_t);
+      uint32_t seed_material[kPoolSize * kSeedSize];
+      struct SeedScrubber {
+        absl::Span<uint32_t> values;
+        ~SeedScrubber() {
+          volatile uint32_t* p = values.data();
+          for (size_t i = 0; i < values.size(); ++i) {
+            p[i] = 0;
+          }
+        }
+      } scrubber{absl::MakeSpan(seed_material)};
+
+      if (ReadSeedMaterialForPool(absl::MakeSpan(seed_material))) {
+        auto new_pools = std::make_unique<PoolArray>();
+        new_pools->generation = current_gen;
+        for (size_t i = 0; i < kPoolSize; ++i) {
+          new_pools->entries[i].Init(
+              absl::MakeSpan(&seed_material[i * kSeedSize], kSeedSize));
+        }
+
+        while (true) {
+          if (existing != nullptr && existing->generation == current_gen) {
+            result = existing;
+            break;
+          }
+          new_pools->prev = existing;
+          if (shared_pools_ptr.compare_exchange_weak(
+                  existing, new_pools.get(), std::memory_order_acq_rel,
+                  std::memory_order_acquire)) {
+            result = new_pools.release();
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (result == nullptr) {
     ThrowSeedGenException();
   }
-  for (size_t i = 0; i < kPoolSize; i++) {
-    shared_pools[i] = new RandenPoolEntry();
-    shared_pools[i]->Init(
-        absl::MakeSpan(&seed_material[i * kSeedSize], kSeedSize));
-  }
+  return result;
 }
 
 // Returns the pool entry for the current thread.
 RandenPoolEntry* GetPoolForCurrentThread() {
-  absl::call_once(pool_once, InitPoolURBG);
-  return shared_pools[GetPoolID()];
+  const uint32_t current_gen = pool_generation.load(std::memory_order_relaxed);
+  PoolArray* pools = shared_pools_ptr.load(std::memory_order_acquire);
+  if (ABSL_PREDICT_FALSE(pools == nullptr ||
+                         pools->generation != current_gen)) {
+    pools = InitPoolsForGeneration(current_gen);
+  }
+  return &pools->entries[GetPoolID()];
 }
 
 }  // namespace
@@ -179,6 +374,18 @@ RandenPoolEntry* GetPoolForCurrentThread() {
 void GetEntropyFromRandenPool(void* dest, size_t bytes) {
   auto* pool = GetPoolForCurrentThread();
   pool->Fill(reinterpret_cast<uint8_t*>(dest), bytes);
+}
+
+void ResetRandenPoolForTesting() {
+  pool_generation.fetch_add(1, std::memory_order_acq_rel);
+}
+
+void SetRandenPoolOSEntropyFailureCountForTesting(size_t count) {
+  seed_failure_count_for_testing.store(count, std::memory_order_release);
+}
+
+size_t GetRandenPoolOSEntropyReadCountForTesting() {
+  return os_entropy_read_count_for_testing.load(std::memory_order_acquire);
 }
 
 }  // namespace random_internal

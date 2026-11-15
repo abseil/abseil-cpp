@@ -28,6 +28,12 @@ namespace random_internal {
 // implementation to fill the internal buffer.
 void GetEntropyFromRandenPool(void* dest, size_t bytes);
 
+// Internal test-only hooks for exercising RandenPool re-initialization,
+// cold-start serialization, and OS entropy failure recovery.
+void ResetRandenPoolForTesting();
+void SetRandenPoolOSEntropyFailureCountForTesting(size_t count);
+size_t GetRandenPoolOSEntropyReadCountForTesting();
+
 }  // namespace random_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
