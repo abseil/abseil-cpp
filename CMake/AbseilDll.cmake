@@ -232,6 +232,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "profiling/internal/profile_builder.h"
   "profiling/internal/sample_recorder.h"
   "random/bernoulli_distribution.h"
+  "random/beta_distribution.cc"
   "random/beta_distribution.h"
   "random/bit_gen_ref.h"
   "random/discrete_distribution.cc"
