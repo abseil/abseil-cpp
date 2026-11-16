@@ -45,6 +45,18 @@
 namespace {
 
 using absl::random_internal::kChiSquared;
+using ::testing::AllOf;
+using ::testing::DoubleEq;
+using ::testing::ElementsAre;
+using ::testing::Gt;
+using ::testing::Lt;
+
+template <typename RealType>
+RealType SampleWithBits(uint64_t bits, RealType lambda = RealType{1}) {
+  absl::random_internal::sequence_urbg urbg({bits});
+  absl::exponential_distribution<RealType> dist(lambda);
+  return dist(urbg);
+}
 
 template <typename RealType>
 class ExponentialDistributionTypedTest : public ::testing::Test {};
@@ -70,8 +82,14 @@ TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {
       std::nextafter(TypeParam(1), TypeParam(0)),  // 1 - epsilon
       std::nextafter(TypeParam(1), TypeParam(2)),  // 1 + epsilon
       // Typical cases.
-      TypeParam(1e-8), TypeParam(1e-4), TypeParam(1), TypeParam(2),
-      TypeParam(1e4), TypeParam(1e8), TypeParam(1e20), TypeParam(2.5),
+      TypeParam(1e-8),
+      TypeParam(1e-4),
+      TypeParam(1),
+      TypeParam(2),
+      TypeParam(1e4),
+      TypeParam(1e8),
+      TypeParam(1e20),
+      TypeParam(2.5),
       // Boundary cases.
       std::numeric_limits<TypeParam>::max(),
       std::numeric_limits<TypeParam>::epsilon(),
@@ -142,6 +160,51 @@ TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {
         << (ss.eof() ? "eof " : "")             //
         << (ss.fail() ? "fail " : "");
   }
+}
+
+TYPED_TEST(ExponentialDistributionTypedTest, UpperTailReaches53Ln2) {
+  // Sampling u in double extends float's upper tail from 24 * ln(2) ~= 16.64
+  // (with an empty (15.94, 16.64) gap) to 53 * ln(2) ~= 36.74.
+  EXPECT_NEAR(SampleWithBits<TypeParam>(~uint64_t{0}),
+              TypeParam{53} * std::log(TypeParam{2}), TypeParam{1e-4});
+  EXPECT_THAT(SampleWithBits<TypeParam>(~uint64_t{0} ^ (uint64_t{3} << 39)),
+              AllOf(Gt(TypeParam{15.95}), Lt(TypeParam{16.63})));
+}
+
+TYPED_TEST(ExponentialDistributionTypedTest,
+           SubnormalLambdaProducesFiniteSample) {
+  const TypeParam subnormal_lambda =
+      (std::numeric_limits<TypeParam>::min)() / TypeParam{4};
+  if (subnormal_lambda == TypeParam{0}) GTEST_SKIP();
+
+  const TypeParam sample = SampleWithBits<TypeParam>(0, subnormal_lambda);
+
+  EXPECT_TRUE(std::isfinite(sample));
+  EXPECT_THAT(sample, Gt(TypeParam{0}));
+}
+
+TYPED_TEST(ExponentialDistributionTypedTest, MaxLambdaPreservesPrecision) {
+  const TypeParam hi = (std::numeric_limits<TypeParam>::max)();
+  const TypeParam lo =
+      std::nextafter(std::nextafter(hi, TypeParam{0}), TypeParam{0});
+
+  const TypeParam sample_hi = SampleWithBits<TypeParam>(~uint64_t{0}, hi);
+  const TypeParam sample_lo = SampleWithBits<TypeParam>(~uint64_t{0}, lo);
+
+  EXPECT_THAT(sample_hi, Gt(TypeParam{0}));
+  EXPECT_THAT(sample_hi, Lt(sample_lo));
+}
+
+TYPED_TEST(ExponentialDistributionTypedTest, MaxLambdaLowerTailIsNonNegative) {
+  const TypeParam sample =
+      SampleWithBits<TypeParam>(0, (std::numeric_limits<TypeParam>::max)());
+
+  if constexpr (std::numeric_limits<TypeParam>::digits <= 64) {
+    EXPECT_EQ(sample, TypeParam{0});
+  } else {
+    EXPECT_GE(sample, TypeParam{0});
+  }
+  EXPECT_FALSE(std::signbit(sample));
 }
 
 // http://www.itl.nist.gov/div898/handbook/eda/section3/eda3667.htm
@@ -347,7 +410,7 @@ INSTANTIATE_TEST_SUITE_P(All, ExponentialDistributionTests,
 // NOTE: absl::exponential_distribution is not guaranteed to be stable.
 TEST(ExponentialDistributionTest, StabilityTest) {
   // absl::exponential_distribution stability relies on std::log1p and
-  // absl::uniform_real_distribution.
+  // random_internal::GenerateRealFromBits.
   absl::random_internal::sequence_urbg urbg(
       {0x0003eb76f6f7f755ull, 0xFFCEA50FDB2F953Bull, 0xC332DDEFBE6C5AA5ull,
        0x6558218568AB9702ull, 0x2AEF7DAD5B6E2F84ull, 0x1521B62829076170ull,
@@ -362,9 +425,8 @@ TEST(ExponentialDistributionTest, StabilityTest) {
                   [&] { return static_cast<int>(10000.0 * dist(urbg)); });
 
     EXPECT_EQ(14, urbg.invocations());
-    EXPECT_THAT(output,
-                testing::ElementsAre(0, 71913, 14375, 5039, 1835, 861, 25936,
-                                     804, 126, 12337, 17984, 27002, 0, 71913));
+    EXPECT_THAT(output, ElementsAre(0, 71913, 14375, 5039, 1835, 861, 25936,
+                                    804, 126, 12337, 17984, 27002, 0, 71913));
   }
 
   urbg.reset();
@@ -374,15 +436,14 @@ TEST(ExponentialDistributionTest, StabilityTest) {
                   [&] { return static_cast<int>(10000.0f * dist(urbg)); });
 
     EXPECT_EQ(14, urbg.invocations());
-    EXPECT_THAT(output,
-                testing::ElementsAre(0, 71913, 14375, 5039, 1835, 861, 25936,
-                                     804, 126, 12337, 17984, 27002, 0, 71913));
+    EXPECT_THAT(output, ElementsAre(0, 71913, 14375, 5039, 1835, 861, 25936,
+                                    804, 126, 12337, 17984, 27002, 0, 71913));
   }
 }
 
 TEST(ExponentialDistributionTest, AlgorithmBounds) {
-  // Relies on absl::uniform_real_distribution, so some of these comments
-  // reference that.
+  // Relies on GenerateRealFromBits<double, GenerateNegativeTag, false>, which
+  // maps 64-bit inputs to u in [-1 + 2^-53, -2^-65], then computes -log1p(u).
 
 #if (defined(__i386__) || defined(_M_IX86)) && FLT_EVAL_METHOD != 0
   // We're using an x87-compatible FPU, and intermediate operations can be
@@ -392,35 +453,24 @@ TEST(ExponentialDistributionTest, AlgorithmBounds) {
       << "Skipping the test because we detected x87 floating-point semantics";
 #endif
 
-  absl::exponential_distribution<double> dist;
+  // u = -2^-65 -> smallest positive output 2^-65.
+  EXPECT_THAT(SampleWithBits<double>(0x0000000000000000ull),
+              DoubleEq(2.71050543121376108502e-20));
 
-  {
-    // This returns the smallest value >0 from absl::uniform_real_distribution.
-    absl::random_internal::sequence_urbg urbg({0x0000000000000001ull});
-    double a = dist(urbg);
-    EXPECT_EQ(a, 5.42101086242752217004e-20);
-  }
+  // u = -2^-64 -> 2^-64.
+  EXPECT_THAT(SampleWithBits<double>(0x0000000000000001ull),
+              DoubleEq(5.42101086242752217004e-20));
 
-  {
-    // This returns a value very near 0.5 from absl::uniform_real_distribution.
-    absl::random_internal::sequence_urbg urbg({0x7fffffffffffffefull});
-    double a = dist(urbg);
-    EXPECT_EQ(a, 0.693147180559945175204);
-  }
+  // u = -(0.5 - 2^-54) -> -log1p(u) ~= ln(2).
+  EXPECT_THAT(SampleWithBits<double>(0x7fffffffffffffefull),
+              DoubleEq(0.693147180559945175204));
 
-  {
-    // This returns the largest value <1 from absl::uniform_real_distribution.
-    // WolframAlpha: ~39.1439465808987766283058547296341915292187253
-    absl::random_internal::sequence_urbg urbg({0xFFFFFFFFFFFFFFeFull});
-    double a = dist(urbg);
-    EXPECT_EQ(a, 36.7368005696771007251);
-  }
-  {
-    // This *ALSO* returns the largest value <1.
-    absl::random_internal::sequence_urbg urbg({0xFFFFFFFFFFFFFFFFull});
-    double a = dist(urbg);
-    EXPECT_EQ(a, 36.7368005696771007251);
-  }
+  // u = -1 + 2^-53 -> largest output 53 * ln(2).
+  EXPECT_THAT(SampleWithBits<double>(0xFFFFFFFFFFFFFFeFull),
+              DoubleEq(36.7368005696771007251));
+
+  EXPECT_THAT(SampleWithBits<double>(0xFFFFFFFFFFFFFFFFull),
+              DoubleEq(36.7368005696771007251));
 }
 
 }  // namespace

@@ -24,7 +24,6 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
-#include "absl/meta/type_traits.h"
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
@@ -46,7 +45,6 @@ class exponential_distribution {
 
     explicit param_type(result_type lambda = 1) : lambda_(lambda) {
       assert(lambda > 0);
-      neg_inv_lambda_ = -result_type(1) / lambda_;
     }
 
     result_type lambda() const { return lambda_; }
@@ -63,7 +61,6 @@ class exponential_distribution {
     friend class exponential_distribution;
 
     result_type lambda_;
-    result_type neg_inv_lambda_;
 
     static_assert(
         std::is_floating_point_v<RealType>,
@@ -125,15 +122,22 @@ exponential_distribution<RealType>::operator()(
     const param_type& p) {
   using random_internal::GenerateNegativeTag;
   using random_internal::GenerateRealFromBits;
-  using real_type =
-      std::conditional_t<std::is_same_v<RealType, float>, float, double>;
 
-  const result_type u = GenerateRealFromBits<real_type, GenerateNegativeTag,
-                                             false>(fast_u64_(g));  // U(-1, 0)
+  // Sample u in (-1, 0) as double so float also gets 2^-53 grid spacing near
+  // -1 (extending its upper tail from 24 * ln(2) to 53 * ln(2)) while log1p(u)
+  // retains 2^-65 clz resolution near 0.
+  const double u = GenerateRealFromBits<double, GenerateNegativeTag, false>(
+      fast_u64_(g));  // U(-1, 0)
 
-  // log1p(-x) is mathematically equivalent to log(1 - x) but has more
-  // accuracy for x near zero.
-  return p.neg_inv_lambda_ * std::log1p(u);
+  // Divide directly by lambda instead of multiplying by a precomputed
+  // -1 / lambda, which overflows to -inf for subnormal lambda and loses
+  // subnormal precision near max().
+  if constexpr (sizeof(result_type) <= sizeof(double)) {
+    return static_cast<result_type>(-std::log1p(u) /
+                                    static_cast<double>(p.lambda_));
+  } else {
+    return -std::log1p(static_cast<result_type>(u)) / p.lambda_;
+  }
 }
 
 template <typename CharT, typename Traits, typename RealType>
