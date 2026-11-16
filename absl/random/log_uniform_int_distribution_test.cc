@@ -20,15 +20,18 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/macros.h"
 #include "absl/log/log.h"
+#include "absl/numeric/int128.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/internal/pcg_engine.h"
@@ -40,6 +43,27 @@
 #include "absl/strings/strip.h"
 
 namespace {
+
+using ::testing::AllOf;
+using ::testing::Each;
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::Ge;
+using ::testing::Gt;
+using ::testing::IsTrue;
+using ::testing::Le;
+using ::testing::SizeIs;
+
+// Fixed nothing-up-my-sleeve seed for deterministic sampling tests (hex digits
+// of Euler's number e, used across Abseil random tests).
+constexpr uint64_t kTestSeed = 0x2B7E151628AED2A6ULL;
+// ~5 sigma for binomial(n, p) with expected bucket count 1000.
+constexpr int kExpectedBucketHits = 1000;
+constexpr int kBucketHitTolerance = 150;
+
+constexpr uint64_t PowU64(uint64_t base, int exp) {
+  return exp == 0 ? 1 : base * PowU64(base, exp - 1);
+}
 
 template <typename IntType>
 class LogUniformIntDistributionTypeTest : public ::testing::Test {};
@@ -148,7 +172,7 @@ class LogUniformIntChiSquaredTest
   // We use a fixed bit generator for distribution accuracy tests.  This allows
   // these tests to be deterministic, while still testing the qualify of the
   // implementation.
-  absl::random_internal::pcg64_2018_engine rng_{0x2B7E151628AED2A6};
+  absl::random_internal::pcg64_2018_engine rng_{kTestSeed};
 };
 
 double LogUniformIntChiSquaredTest::ChiSquaredTestImpl() {
@@ -272,9 +296,9 @@ INSTANTIATE_TEST_SUITE_P(All, LogUniformIntChiSquaredTest,
 
 // NOTE: absl::log_uniform_int_distribution is not guaranteed to be stable.
 TEST(LogUniformIntDistributionTest, StabilityTest) {
-  using testing::ElementsAre;
-  // absl::uniform_int_distribution stability relies on
-  // absl::random_internal::LeadingSetBit, std::log, std::pow.
+  // absl::log_uniform_int_distribution stability relies on
+  // absl::uniform_int_distribution, absl::random_internal::BitWidth, and
+  // integer exponentiation.
   absl::random_internal::sequence_urbg urbg(
       {0x0003eb76f6f7f755ull, 0xFFCEA50FDB2F953Bull, 0xC332DDEFBE6C5AA5ull,
        0x6558218568AB9702ull, 0x2AEF7DAD5B6E2F84ull, 0x1521B62829076170ull,
@@ -415,6 +439,198 @@ TYPED_TEST(LogUniformIntDistributionSignedTypeTest,
   EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
   EXPECT_THAT(ParseFromStream(kInitial, "0"), FailsLeavingUnchanged());
   EXPECT_THAT(ParseFromStream(kInitial, "0 10"), FailsLeavingUnchanged());
+}
+
+template <typename IntType>
+struct SampleSummary {
+  bool all_in_bounds = true;
+  IntType min_sample = (std::numeric_limits<IntType>::max)();
+  IntType max_sample = (std::numeric_limits<IntType>::min)();
+  int max_hits = 0;
+  std::vector<int> bucket_counts;
+};
+
+template <typename IntType>
+void PrintTo(const SampleSummary<IntType>& summary, std::ostream* os) {
+  // Unary '+' promotes int8_t/uint8_t so they print numerically, not as chars.
+  *os << "{all_in_bounds: " << (summary.all_in_bounds ? "true" : "false")
+      << ", min_sample: " << +summary.min_sample
+      << ", max_sample: " << +summary.max_sample
+      << ", max_hits: " << summary.max_hits
+      << ", bucket_counts: " << ::testing::PrintToString(summary.bucket_counts)
+      << "}";
+}
+
+MATCHER(AllInBounds, "") {
+  return ::testing::ExplainMatchResult(
+      Field("all_in_bounds", &std::decay_t<arg_type>::all_in_bounds, IsTrue()),
+      arg, result_listener);
+}
+
+MATCHER_P(MinSampleIs, matcher, "") {
+  return ::testing::ExplainMatchResult(
+      Field("min_sample", &std::decay_t<arg_type>::min_sample, matcher), arg,
+      result_listener);
+}
+
+MATCHER_P(MaxSampleIs, matcher, "") {
+  return ::testing::ExplainMatchResult(
+      Field("max_sample", &std::decay_t<arg_type>::max_sample, matcher), arg,
+      result_listener);
+}
+
+MATCHER_P(MaxHitsIs, matcher, "") {
+  return ::testing::ExplainMatchResult(
+      Field("max_hits", &std::decay_t<arg_type>::max_hits, matcher), arg,
+      result_listener);
+}
+
+MATCHER_P(BucketCountsAre, matcher, "") {
+  return ::testing::ExplainMatchResult(
+      Field("bucket_counts", &std::decay_t<arg_type>::bucket_counts, matcher),
+      arg, result_listener);
+}
+
+MATCHER_P(HasNonEmptyBuckets, count, "") {
+  return ::testing::ExplainMatchResult(
+      Field("bucket_counts", &std::decay_t<arg_type>::bucket_counts,
+            AllOf(SizeIs(count), Each(Gt(0)))),
+      arg, result_listener);
+}
+
+// Runs `trials` draws using fixed seed `kTestSeed`, so runtime flake rate is 0.
+// For an arbitrary seed, false-failure probability across the tests below is
+// < 2e-5 (dominated by the base-3 top-tail check at ~1.8e-5; bucket-count
+// bounds are ~1e-6 and HasNonEmptyBuckets union bounds are < 1e-65).
+template <typename IntType>
+SampleSummary<IntType> SampleLogUniform(IntType min, IntType max, IntType base,
+                                        int trials) {
+  using UIntType = std::make_unsigned_t<IntType>;
+  const UIntType umin = static_cast<UIntType>(min);
+  const UIntType umax = static_cast<UIntType>(max);
+  const UIntType ubase = static_cast<UIntType>(base);
+  // Oracle to determine bucket for each offset.
+  const auto exact_bucket = [ubase](UIntType offset) -> size_t {
+    if (offset == 0) return 0;
+    size_t bucket = 1;
+    // Use uint128 so `pow * ubase` cannot overflow for uint64_t offsets up to
+    // UINT64_MAX.
+    absl::uint128 pow = 1;
+    while (pow * ubase <= offset) {
+      pow *= ubase;
+      ++bucket;
+    }
+    return bucket;
+  };
+
+  SampleSummary<IntType> summary;
+  summary.bucket_counts.assign(exact_bucket(umax - umin) + 1, 0);
+  absl::random_internal::pcg64_2018_engine rng(kTestSeed);
+  absl::log_uniform_int_distribution<IntType> dist(min, max, base);
+  for (int i = 0; i < trials; ++i) {
+    const IntType v = dist(rng);
+    if (v < min || v > max) {
+      summary.all_in_bounds = false;
+    } else {
+      ++summary.bucket_counts[exact_bucket(static_cast<UIntType>(v) - umin)];
+    }
+    summary.min_sample = (std::min)(summary.min_sample, v);
+    summary.max_sample = (std::max)(summary.max_sample, v);
+    if (v == max) {
+      ++summary.max_hits;
+    }
+  }
+  return summary;
+}
+
+TEST(LogUniformIntDistributionTest, NegativeToMaxInt32RangeCoversAllBuckets) {
+  // Width (max - min) exceeds INT32_MAX, exercising unsigned offset arithmetic.
+  EXPECT_THAT(SampleLogUniform<int32_t>(-10, INT32_MAX, 10, /*trials=*/5000),
+              AllOf(AllInBounds(), MinSampleIs(-10),
+                    MaxSampleIs(Gt(INT32_MAX / 2)), HasNonEmptyBuckets(11)));
+}
+
+TEST(LogUniformIntDistributionTest, FullInt64RangeCoversAllBuckets) {
+  EXPECT_THAT(
+      SampleLogUniform<int64_t>(INT64_MIN, INT64_MAX, 10, /*trials=*/5000),
+      AllOf(AllInBounds(), MinSampleIs(INT64_MIN),
+            MaxSampleIs(Gt(INT64_MAX / 2)), HasNonEmptyBuckets(21)));
+}
+
+TEST(LogUniformIntDistributionTest, FullUint64RangeBase2Covers65FullBuckets) {
+  EXPECT_THAT(
+      SampleLogUniform<uint64_t>(0, UINT64_MAX, 2, /*trials=*/10000),
+      AllOf(AllInBounds(), MinSampleIs(0u), MaxSampleIs(Ge(uint64_t{1} << 63)),
+            MaxHitsIs(0), HasNonEmptyBuckets(65)));
+}
+
+TEST(LogUniformIntDistributionTest, FullUint64RangeBase4Covers33FullBuckets) {
+  // UINT64_MAX == 4^32 - 1, so the top bucket is full (no singleton at max).
+  EXPECT_THAT(
+      SampleLogUniform<uint64_t>(0, UINT64_MAX, 4, /*trials=*/5000),
+      AllOf(AllInBounds(), MinSampleIs(0u), MaxSampleIs(Ge(uint64_t{1} << 62)),
+            MaxHitsIs(0), HasNonEmptyBuckets(33)));
+}
+
+TEST(LogUniformIntDistributionTest, FullUint64RangeBase3ReachesTopOfRange) {
+  // 3^40 < UINT64_MAX < 3^41, so the 42nd bucket spans [3^40, UINT64_MAX].
+  EXPECT_THAT(SampleLogUniform<uint64_t>(0, UINT64_MAX, 3, /*trials=*/10000),
+              AllOf(AllInBounds(), MinSampleIs(0u),
+                    MaxSampleIs(Gt(UINT64_MAX - (UINT64_MAX >> 6))),
+                    HasNonEmptyBuckets(42)));
+}
+
+TEST(LogUniformIntDistributionTest, MaxBaseFormsThreeEqualBuckets) {
+  // Base == UINT64_MAX on [0, UINT64_MAX] forms 3 buckets ({0},
+  // [1, UINT64_MAX - 1], and {UINT64_MAX}), each drawn with probability 1/3.
+  const auto approx_expected_hits =
+      AllOf(Ge(kExpectedBucketHits - kBucketHitTolerance),
+            Le(kExpectedBucketHits + kBucketHitTolerance));
+  EXPECT_THAT(
+      SampleLogUniform<uint64_t>(0, UINT64_MAX, UINT64_MAX, /*trials=*/3000),
+      AllOf(AllInBounds(), MinSampleIs(0u), MaxSampleIs(UINT64_MAX),
+            MaxHitsIs(approx_expected_hits),
+            BucketCountsAre(ElementsAre(approx_expected_hits,
+                                        approx_expected_hits,
+                                        approx_expected_hits))));
+}
+
+TEST(LogUniformIntDistributionTest, SingleValueRangeReturnsMin) {
+  EXPECT_THAT(SampleLogUniform<uint64_t>(5, 5, 3, /*trials=*/100),
+              AllOf(AllInBounds(), MinSampleIs(5u), MaxSampleIs(5u),
+                    BucketCountsAre(ElementsAre(100))));
+}
+
+TEST(LogUniformIntDistributionTest, ExactPowerMaxFormsSingletonTopBucket) {
+  // 10^15 is the sole element of the 17th bucket (weight 1/17, ~1000 of 17000).
+  constexpr int64_t kPow10_15 = static_cast<int64_t>(PowU64(10, 15));
+  EXPECT_THAT(
+      SampleLogUniform<int64_t>(0, kPow10_15, 10, /*trials=*/17000),
+      AllOf(AllInBounds(),
+            MaxHitsIs(AllOf(Ge(kExpectedBucketHits - kBucketHitTolerance),
+                            Le(kExpectedBucketHits + kBucketHitTolerance))),
+            HasNonEmptyBuckets(17)));
+}
+
+TEST(LogUniformIntDistributionTest, PowerMinusOneMaxHasNoSingletonTopBucket) {
+  // 5^26 - 1 > 2^53 fills the top bucket [5^25, 5^26 - 1] without a singleton.
+  constexpr uint64_t kPow5_26Minus1 = PowU64(5, 26) - 1;
+  EXPECT_THAT(
+      SampleLogUniform<uint64_t>(0, kPow5_26Minus1, 5, /*trials=*/10000),
+      AllOf(AllInBounds(), MaxHitsIs(0), HasNonEmptyBuckets(27)));
+}
+
+TEST(LogUniformIntDistributionTest,
+     LargeUint16BaseAvoidsSignedPromotionOverflow) {
+  // Squaring uint16_t(50000) would promote to signed int and overflow INT_MAX.
+  const auto approx_expected_hits =
+      AllOf(Ge(kExpectedBucketHits - kBucketHitTolerance),
+            Le(kExpectedBucketHits + kBucketHitTolerance));
+  EXPECT_THAT(SampleLogUniform<uint16_t>(0, UINT16_MAX, 50000, /*trials=*/3000),
+              AllOf(AllInBounds(), MinSampleIs(0u), MaxSampleIs(Ge(50000u)),
+                    BucketCountsAre(ElementsAre(approx_expected_hits,
+                                                approx_expected_hits,
+                                                approx_expected_hits))));
 }
 
 }  // namespace
