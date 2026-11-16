@@ -2703,6 +2703,16 @@ class raw_hash_set_base {
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const { common().AssertNotDebugCapacity(); }
 
+  ABSL_ATTRIBUTE_ALWAYS_INLINE HashSetIteratorBase
+  iterator_at_ptr(ctrl_t* ctrl, void* slot) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return {ctrl, slot, common().generation_ptr()};
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE HashSetIteratorBase iterator_base_end()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    AssertNotDebugCapacity();
+    return HashSetIteratorBase(common().generation_ptr());
+  }
+
   template <bool kIsDefaultAlloc>
   ctrl_t* control() const {
     ctrl_t* ctrl = common().control();
@@ -2732,6 +2742,11 @@ class raw_hash_set_base {
     // the separate storage assumption in control().
     return common().slot_array(control<kIsDefaultAlloc>(), capacity);
   }
+  template <size_t kSlotSize, bool kIsDefaultAlloc>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE auto* sized_slot_array(size_t capacity) const {
+    using SlotBytes = char[kSlotSize];
+    return static_cast<SlotBytes*>(slot_array<kIsDefaultAlloc>(capacity));
+  }
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
@@ -2741,6 +2756,12 @@ class raw_hash_set_base {
     ABSL_SWISSTABLE_ASSERT(!is_small());
 #if ABSL_HAVE_BUILTIN(__builtin_prefetch) || defined(__GNUC__)
     __builtin_prefetch(control<kIsDefaultAlloc>(), 0, 1);
+#endif
+  }
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static void prefetch_slot(const void* slot) {
+#ifndef ABSL_HAVE_MEMORY_SANITIZER
+    absl::PrefetchToLocalCache(slot);
 #endif
   }
 
@@ -2802,13 +2823,11 @@ class raw_hash_set_base {
   }
   template <size_t kSlotSize, bool kIsDefaultAlloc>
   void erase_meta_only_large(const HashSetIteratorBase& it) {
-    using SlotBytes = char[kSlotSize];
     const size_t cap = common().capacity();
-    const auto* slot_ptr =
-        static_cast<const SlotBytes*>(slot_array<kIsDefaultAlloc>(cap));
+    const auto* slot_ptr = sized_slot_array<kSlotSize, kIsDefaultAlloc>(cap);
     // `it` can be non-iterable iterator, so we can't use it.control().
-    const size_t index =
-        static_cast<size_t>(static_cast<const SlotBytes*>(it.slot_) - slot_ptr);
+    const size_t index = static_cast<size_t>(
+        static_cast<decltype(slot_ptr)>(it.slot_) - slot_ptr);
     EraseMetaOnlyLarge(common(), index, kSlotSize);
   }
 
@@ -2853,6 +2872,46 @@ class raw_hash_set_base {
                                    absl::remove_cvref_t<SlotKey>>>;
   };
 
+  template <class SlotKey, class Hash, size_t kHasherOffset, class K>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
+    using Params = HashParams<Hash, SlotKey>;
+    const Hash& hash_ref = *reinterpret_cast<const Hash*>(
+        reinterpret_cast<const char*>(this) + kHasherOffset);
+    return HashElement<Hash, Params::kIsAbsl, Params::kSeedShift>{
+        hash_ref, common().seed().seed()}(key);
+  }
+
+  template <class Key, size_t kSlotSize, bool kIsDefaultAlloc, class Hash,
+            size_t kHasherOffset, class Eq, size_t kEqOffset, class SlotEq>
+  HashSetIteratorBase find_large(Key key) {
+    prefetch_heap_block<kIsDefaultAlloc>();
+    const Eq& eq_ref = *reinterpret_cast<const Eq*>(
+        reinterpret_cast<const char*>(this) + kEqOffset);
+    const size_t hash =
+        hash_of<typename SlotEq::SlotKeyType, Hash, kHasherOffset>(key);
+    const size_t cap = common().capacity();
+    ABSL_ASSUME(cap > kMaxSmallCapacity);
+    auto seq = probe(ProbeCapacity{cap}, hash);
+    const h2_t h2 = H2(hash);
+    ctrl_t* ctrl = control<kIsDefaultAlloc>();
+    auto* slot_array = sized_slot_array<kSlotSize, kIsDefaultAlloc>(cap);
+    while (true) {
+      // Loading the group before slot prefetch decreases critical path latency.
+      Group g{ctrl + seq.offset()};
+      prefetch_slot(slot_array + seq.offset());
+      // Predict one iteration (common case for find-hit).
+      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
+        do {
+          const size_t offset = seq.offset(*match);
+          if (ABSL_PREDICT_TRUE(SlotEq{}(eq_ref, slot_array + offset, key)))
+            return iterator_at_ptr(ctrl + offset, slot_array + offset);
+        } while (ABSL_PREDICT_FALSE(++match));
+      }
+      if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return iterator_base_end();
+      seq.next();
+    }
+  }
+
   // `policy` is a runtime argument so that tables that differ only in other
   // policy functions share one instantiation.
   template <class Key, size_t kSlotSize, bool kIsDefaultAlloc, bool kSooEnabled,
@@ -2861,28 +2920,20 @@ class raw_hash_set_base {
   std::pair<void*, bool> find_or_prepare_insert_large(
       const PolicyFunctions& policy, Key key) {
     using SlotKeyType = typename SlotEq::SlotKeyType;
-    using Params = HashParams<Hash, SlotKeyType>;
 
     prefetch_heap_block<kIsDefaultAlloc>();
-    const Hash& hash_ref = *reinterpret_cast<const Hash*>(
-        reinterpret_cast<const char*>(this) + kHasherOffset);
     const Eq& eq_ref = *reinterpret_cast<const Eq*>(
         reinterpret_cast<const char*>(this) + kEqOffset);
-    const size_t hash = HashElement<Hash, Params::kIsAbsl, Params::kSeedShift>{
-        hash_ref, common().seed().seed()}(key);
+    const size_t hash = hash_of<SlotKeyType, Hash, kHasherOffset>(key);
     const size_t cap = capacity<sizeof(SlotKeyType), kSlotSize, kSooEnabled>();
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control<kIsDefaultAlloc>();
-    using SlotBytes = char[kSlotSize];
-    auto* slot_array =
-        static_cast<SlotBytes*>(this->slot_array<kIsDefaultAlloc>(cap));
+    auto* slot_array = sized_slot_array<kSlotSize, kIsDefaultAlloc>(cap);
     while (true) {
       // Loading the group before slot prefetch decreases critical path latency.
       Group g{ctrl + seq.offset()};
-#ifndef ABSL_HAVE_MEMORY_SANITIZER
-      absl::PrefetchToLocalCache(slot_array + seq.offset());
-#endif
+      prefetch_slot(slot_array + seq.offset());
       // Predict one iteration (common case for insert-hit).
       if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
         do {
@@ -2896,7 +2947,10 @@ class raw_hash_set_base {
         size_t target_group_offset = seq.offset();
         void* slot;
         if constexpr (SwisstableGenerationsEnabled()) {
-          using Hasher = typename Params::template HashKeyFor<Key>;
+          using Hasher =
+              typename HashParams<Hash, SlotKeyType>::template HashKeyFor<Key>;
+          const Hash& hash_ref = *reinterpret_cast<const Hash*>(
+              reinterpret_cast<const char*>(this) + kHasherOffset);
           Hasher hash_key{hash_ref, key};
           slot = PrepareInsertLargeGenerationsEnabled(
               common(), policy, hash, mask_empty, target_group_offset,
@@ -3138,6 +3192,7 @@ class raw_hash_set : public raw_hash_set_base {
 
    private:
     using Base::Base;
+    ABSL_ATTRIBUTE_ALWAYS_INLINE explicit iterator(const Base& b) : Base(b) {}
 
     // Dereferences the iterator without ABSL Hardening iterator invalidation
     // checks.
@@ -3437,8 +3492,7 @@ class raw_hash_set : public raw_hash_set_base {
     return it;
   }
   iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    AssertNotDebugCapacity();
-    return iterator(common().generation_ptr());
+    return iterator(iterator_base_end());
   }
 
   const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -4060,31 +4114,11 @@ class raw_hash_set : public raw_hash_set_base {
   template <class K>
   iterator find_large(absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
-    prefetch_heap_block();
-    const size_t hash = hash_of(key);
-    const size_t cap = common().capacity();
-    ABSL_ASSUME(cap > kMaxSmallCapacity);
-    auto seq = probe(ProbeCapacity{cap}, hash);
-    const h2_t h2 = H2(hash);
-    ctrl_t* ctrl = control();
-    slot_type* slot_array = this->slot_array(cap);
-    while (true) {
-      // Loading the group before slot prefetch decreases critical path latency.
-      Group g{ctrl + seq.offset()};
-#ifndef ABSL_HAVE_MEMORY_SANITIZER
-      absl::PrefetchToLocalCache(slot_array + seq.offset());
-#endif
-      // Predict one iteration (common case for find-hit).
-      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
-        do {
-          const size_t offset = seq.offset(*match);
-          if (ABSL_PREDICT_TRUE(equal_to<K>(key, slot_array + offset)))
-            return iterator_at_ptr(ctrl + offset, slot_array + offset);
-        } while (ABSL_PREDICT_FALSE(++match));
-      }
-      if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
-      seq.next();
-    }
+    return iterator(
+        raw_hash_set_base::find_large<K, sizeof(slot_type), kIsDefaultAlloc,
+                                      hasher, HasherOffset(), key_equal,
+                                      EqOffset(),
+                                      typename PolicyTraits::SlotEq>(key));
   }
 
   // Returns true if the table needs to be sampled. This keeps track of whether
@@ -4159,8 +4193,7 @@ class raw_hash_set : public raw_hash_set_base {
   }
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
-    return HashElement<hasher, kIsAbslHash, kSeedShift>{
-        hash_ref(), common().seed().seed()}(key);
+    return raw_hash_set_base::hash_of<key_type, hasher, HasherOffset()>(key);
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(
@@ -4436,10 +4469,6 @@ class raw_hash_set : public raw_hash_set_base {
       ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(slot, this);
     }
     return {InsertIteratorControl(), slot, common().generation_ptr()};
-  }
-  iterator iterator_at_ptr(ctrl_t* ctrl, void* slot)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return {ctrl, slot, common().generation_ptr()};
   }
 
   // For use in raw_hash_map and friend functions.
