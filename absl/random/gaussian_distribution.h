@@ -53,15 +53,16 @@ class ABSL_DLL gaussian_distribution_base {
 
  private:
   friend class TableGenerator;
+  friend class GaussianDistributionTestPeer;
 
   template <typename URBG>
   inline double zignor_fallback(URBG& g,  // NOLINT(runtime/references)
                                 bool neg);
 
-  // Constants used for the gaussian distribution.
-  static constexpr double kR = 3.442619855899;          // Start of the tail.
-  static constexpr double kRInv = 0.29047645161474317;  // ~= (1.0 / kR) .
-  static constexpr double kV = 9.91256303526217e-3;
+  // Constants used for the gaussian distribution Ziggurat recurrence.
+  static constexpr double kR = 3.44261985589665212;     // Start of the tail.
+  static constexpr double kRInv = 0.29047645161494128;  // 1.0 / kR.
+  static constexpr double kV = 9.91256303533646108e-3;
   static constexpr uint64_t kMask = 0x07f;
 
   // The ziggurat tables store the pdf(f) and inverse-pdf(x) for equal-area
@@ -236,22 +237,27 @@ inline double gaussian_distribution_base::zignor(
     URBG& g) {  // NOLINT(runtime/references)
   using random_internal::GeneratePositiveTag;
   using random_internal::GenerateRealFromBits;
-  using random_internal::GenerateSignedTag;
 
   while (true) {
-    // We use a single uint64_t to generate both a double and a strip.
-    // These bits are unused when the generated double is > 1/2^5.
-    // This may introduce some bias from the duplicated low bits of small
-    // values (those smaller than 1/2^5, which all end up on the left tail).
-    uint64_t bits = fast_u64_(g);
-    int i = static_cast<int>(bits & kMask);  // pick a random strip
-    double j = GenerateRealFromBits<double, GenerateSignedTag, false>(
-        bits);  // U(-1, 1)
+    // Extract disjoint bitfields from a single uint64_t:
+    //   bits[0..6]   (7 bits):  strip index i in [0, 127].
+    //   bits[10..63] (54 bits): signed integer s in [-2^53, 2^53 - 1].
+    //   bits[7..9]   (3 bits):  unused.
+    // Scaling s by 2^-53 produces an exact double j in [-1.0, 1.0) that is
+    // independent of i, includes +0.0 with exact single-grid weight 2^-54 (no
+    // -0.0), and avoids truncation-toward-zero bias. At the sole asymmetric
+    // endpoint j = -1.0 (s = -2^53), strips i > 0 enter the wedge test at
+    // f(x) = f[i] (rejected up to ~1 ULP libm rounding), and i == 0 falls back
+    // to the negative tail.
+    const uint64_t bits = fast_u64_(g);
+    const int i = static_cast<int>(bits & kMask);  // pick a random strip
+    const int64_t s = static_cast<int64_t>(bits) >> 10;
+    const double j = static_cast<double>(s) * 0x1p-53;  // U[-1, 1)
     const double x = j * zg_.x[i];
 
     // Rectangular box. Handles >97% of all cases.
     // For any given box, this handles between 75% and 99% of values.
-    // Equivalent to U(01) < (x[i+1] / x[i]), and when i == 0, ~93.5%
+    // Equivalent to U(0, 1) < (x[i+1] / x[i]), and when i == 0, ~92.7%
     if (std::abs(x) < zg_.x[i + 1]) {
       return x;
     }

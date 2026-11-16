@@ -444,7 +444,6 @@ cc_binary(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/random:distributions",
     ],
 )
