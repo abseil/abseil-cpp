@@ -28,6 +28,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/container/internal/common.h"
 #include "absl/hash/hash.h"
 #include "absl/hash/internal/canonical_hash.h"
 #include "absl/memory/memory.h"
@@ -318,11 +319,19 @@ DecomposeValue(F&& f, Arg&& arg) {
   return std::forward<F>(f)(key, std::forward<Arg>(arg));
 }
 
-// SFINAE probe checking that `PassedKey` can be hashed and compared against
-// `ContainerKey`.
+// SFINAE probe checking that `PassedKey` is `ContainerKey` (or `Hash` and `Eq`
+// are transparent) and can be hashed and compared against `ContainerKey`.
 template <class ContainerKey, class Hash, class Eq>
 struct RequireUsableKey {
-  template <class PassedKey, class... Args>
+  template <class PassedKey, class... Args,
+            // Only allow heterogeneous keys when both `Hash` and `Eq` are
+            // transparent. Otherwise, non-transparent functors taking
+            // `const ContainerKey&` match implicitly convertible types,
+            // instantiating extra lookup functions and converting repeatedly.
+            std::enable_if_t<
+                std::is_same_v<absl::remove_cvref_t<PassedKey>, ContainerKey> ||
+                    (IsTransparent<Eq>::value && IsTransparent<Hash>::value),
+                int> = 0>
   std::pair<
       decltype(std::declval<const Hash&>()(std::declval<const PassedKey&>())),
       decltype(std::declval<const Eq&>()(std::declval<const ContainerKey&>(),

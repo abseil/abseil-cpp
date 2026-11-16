@@ -442,6 +442,7 @@ cc_library(
         "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
+        ":common",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/hash",
@@ -460,6 +461,7 @@ cc_test(
     tags = ["no_test_loonix"],
     deps = [
         ":container_memory",
+        ":hash_function_defaults",
         ":test_instance_tracker",
         "//absl/base:config",
         "//absl/base:no_destructor",

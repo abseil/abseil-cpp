@@ -2938,6 +2938,10 @@ struct DecomposeType {
     return *this;
   }
 
+  friend bool operator==(const DecomposeType& a, const DecomposeType& b) {
+    return a.i == b.i;
+  }
+
   template <typename H>
   friend H AbslHashValue(H h, const DecomposeType& d) {
     return H::combine(std::move(h), d.i);
@@ -2992,15 +2996,11 @@ struct DecomposePolicy {
 };
 
 template <typename Hash, typename Eq>
-void TestDecompose(bool construct_three) {
+void TestDecompose(bool construct_three, bool construct_one = false) {
   DecomposeType elem{0};
   const int one = 1;
   const char* three_p = "3";
   const auto& three = three_p;
-  const int elem_vector_count = 256;
-  std::vector<DecomposeType> elem_vector(elem_vector_count, DecomposeType{0});
-  std::iota(elem_vector.begin(), elem_vector.end(), 0);
-
   using DecomposeSet =
       raw_hash_set<DecomposePolicy, Hash, Eq, std::allocator<int>>;
   DecomposeSet set1;
@@ -3014,35 +3014,44 @@ void TestDecompose(bool construct_three) {
   EXPECT_EQ(++expected_constructed, decompose_constructed);
   set1.emplace("3");
   EXPECT_EQ(++expected_constructed, decompose_constructed);
-  EXPECT_EQ(expected_constructed, decompose_constructed);
 
-  {  // insert(T&&)
+  {  // insert(T&&) / insert(const T&) / insert(hint, ...)
     set1.insert(1);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
-  }
-
-  {  // insert(const T&)
     set1.insert(one);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
-  }
-
-  {  // insert(hint, T&&)
     set1.insert(set1.begin(), 1);
+    expected_constructed += construct_one;
+    EXPECT_EQ(expected_constructed, decompose_constructed);
+    set1.insert(set1.begin(), one);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
   }
 
-  {  // insert(hint, const T&)
-    set1.insert(set1.begin(), one);
+  {  // insert(const init_type&) via derived type and reference_wrapper
+    struct DerivedDecomposeType : DecomposeType {
+      using DecomposeType::DecomposeType;
+    };
+    const DerivedDecomposeType derived(0);
+    ++expected_constructed;
+    EXPECT_FALSE(set1.insert(derived).second);
+    EXPECT_EQ(set1.insert(set1.begin(), derived)->i, 0);
+    EXPECT_FALSE(set1.insert(std::cref(elem)).second);
+    EXPECT_NE(set1.find(derived), set1.end());
     EXPECT_EQ(expected_constructed, decompose_constructed);
   }
 
   {  // emplace(...)
     set1.emplace(1);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace("3");
     expected_constructed += construct_three;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace(one);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace(three);
     expected_constructed += construct_three;
@@ -3051,17 +3060,25 @@ void TestDecompose(bool construct_three) {
 
   {  // emplace_hint(...)
     set1.emplace_hint(set1.begin(), 1);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace_hint(set1.begin(), "3");
     expected_constructed += construct_three;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace_hint(set1.begin(), one);
+    expected_constructed += construct_one;
     EXPECT_EQ(expected_constructed, decompose_constructed);
     set1.emplace_hint(set1.begin(), three);
     expected_constructed += construct_three;
     EXPECT_EQ(expected_constructed, decompose_constructed);
   }
 
+  // Generations cause extra rehashes that change internal move counts.
+  if (SwisstableGenerationsEnabled()) return;
+
+  const int elem_vector_count = 256;
+  std::vector<DecomposeType> elem_vector(elem_vector_count, DecomposeType{0});
+  std::iota(elem_vector.begin(), elem_vector.end(), 0);
   decompose_copy_constructed = 0;
   decompose_copy_assigned = 0;
   decompose_move_constructed = 0;
@@ -3110,33 +3127,92 @@ void TestDecompose(bool construct_three) {
     EXPECT_GE(expected_move_constructed, decompose_move_constructed);
     EXPECT_EQ(0, decompose_move_assigned);
     EXPECT_EQ(0, decompose_copy_assigned);
-    expected_copy_constructed = decompose_copy_constructed;
-    expected_move_constructed = decompose_move_constructed;
   }
 }
 
-TEST(Table, Decompose) {
-  if (SwisstableGenerationsEnabled()) {
-    GTEST_SKIP() << "Generations being enabled causes extra rehashes.";
+TEST(Table, DerivedKeyType) {
+  struct DerivedDecomposeType : DecomposeType {
+    using DecomposeType::DecomposeType;
+  };
+  const DerivedDecomposeType d(2);
+  absl::flat_hash_map<DecomposeType, int> map;
+  std::pair<DerivedDecomposeType, int> p(DerivedDecomposeType(10), 100);
+  EXPECT_TRUE(map.insert(p).second);
+  EXPECT_TRUE(map.insert({d, 200}).second);
+  EXPECT_FALSE(map.try_emplace(d, 300).second);
+  EXPECT_EQ(map.find(d)->second, 200);
+  EXPECT_EQ(map[d], 200);
+
+  struct TrivialBase {
+    int v;
+  };
+  struct TrivialDerived : TrivialBase {};
+  struct TrivialHash {
+    size_t operator()(TrivialBase k) const { return static_cast<size_t>(k.v); }
+  };
+  struct TrivialEq {
+    bool operator()(TrivialBase a, TrivialBase b) const { return a.v == b.v; }
+  };
+  absl::flat_hash_set<TrivialBase, TrivialHash, TrivialEq> set;
+  const TrivialDerived td{{7}};
+  EXPECT_TRUE(set.insert(td).second);
+  EXPECT_EQ(set.insert(set.begin(), td)->v, 7);
+}
+
+struct TemplatedConversionProxy {
+  int v;
+  template <typename T>
+  operator T() const {  // NOLINT(google-explicit-constructor)
+    static_assert(std::is_same_v<T, int>);
+    return T(v);
   }
+};
 
+TEST(Table, InsertTemplatedConversionOperator) {
+  absl::flat_hash_set<int> set;
+  const TemplatedConversionProxy p{42};
+  EXPECT_TRUE(set.insert(p).second);
+  EXPECT_EQ(*set.insert(set.begin(), TemplatedConversionProxy{42}), 42);
+  EXPECT_THAT(set, ElementsAre(42));
+}
+
+struct TransparentHashIntOverload {
+  using is_transparent = void;
+  size_t operator()(const DecomposeType& a) const {
+    return static_cast<size_t>(a.i);
+  }
+  size_t operator()(int a) const { return static_cast<size_t>(a); }
+};
+
+struct TransparentEqIntOverload {
+  using is_transparent = void;
+  bool operator()(const DecomposeType& a, const DecomposeType& b) const {
+    return a.i == b.i;
+  }
+  bool operator()(const DecomposeType& a, int b) const { return a.i == b; }
+};
+
+TEST(Table, Decompose) {
   TestDecompose<DecomposeHash, DecomposeEq>(false);
-
-  struct TransparentHashIntOverload {
-    size_t operator()(const DecomposeType& a) const { return a.i; }
-    size_t operator()(int a) const { return a; }
-  };
-  struct TransparentEqIntOverload {
-    bool operator()(const DecomposeType& a, const DecomposeType& b) const {
-      return a.i == b.i;
-    }
-    bool operator()(const DecomposeType& a, int b) const { return a.i == b; }
-  };
   TestDecompose<TransparentHashIntOverload, DecomposeEq>(true);
   TestDecompose<TransparentHashIntOverload, TransparentEqIntOverload>(true);
   TestDecompose<DecomposeHash, TransparentEqIntOverload>(true);
   TestDecompose<absl::TransparentHash<DecomposeType, int>,
                 TransparentEqIntOverload>(true);
+
+  struct NonTransparentHash {
+    size_t operator()(const DecomposeType& a) const {
+      return static_cast<size_t>(a.i) % 2;
+    }
+  };
+  struct NonTransparentEq {
+    bool operator()(const DecomposeType& a, const DecomposeType& b) const {
+      return a.i == b.i;
+    }
+  };
+  TestDecompose<NonTransparentHash, DecomposeEq>(true, true);
+  TestDecompose<NonTransparentHash, NonTransparentEq>(true, true);
+  TestDecompose<DecomposeHash, NonTransparentEq>(true, true);
 }
 
 struct Modulo1000Hash {
