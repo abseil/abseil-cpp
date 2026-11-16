@@ -157,6 +157,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_distributions
+    absl::random_internal_mock_validators
     absl::random_mocking_bit_gen
     absl::random_random
     GTest::gmock
@@ -174,6 +175,8 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_bit_gen_ref
+    absl::random_internal_distribution_caller
+    absl::random_internal_mock_overload_set
     absl::random_mocking_bit_gen
     absl::random_random
     GTest::gmock
@@ -1231,6 +1234,7 @@ absl_cc_library(
     absl::random_internal_iostream_state_saver
     absl::random_internal_uniform_helper
     absl::raw_logging_internal
+    absl::str_format
     absl::string_view
     absl::strings
   TESTONLY

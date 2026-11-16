@@ -20,12 +20,16 @@
 #include <cstdint>
 #include <iterator>
 #include <numeric>
+#include <string>
+#include <thread>  // NOLINT
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest-spi.h"
 #include "gtest/gtest.h"
 #include "absl/random/bit_gen_ref.h"
+#include "absl/random/internal/distribution_caller.h"
+#include "absl/random/internal/mock_overload_set.h"
 #include "absl/random/mock_distributions.h"
 #include "absl/random/random.h"
 
@@ -398,6 +402,157 @@ TEST(MockingBitGen, StrictMock_TooMany) {
   EXPECT_NONFATAL_FAILURE(
       [&]() { EXPECT_EQ(absl::Uniform(gen, 0, 1000), 0); }(),
       "over-saturated and active");
+}
+
+TEST(MockingBitGen, MixedStrictAndBaseReferenceNoBadDowncast) {
+  ::testing::StrictMock<absl::MockingBitGen> strict_gen;
+  absl::MockingBitGen& base_ref = strict_gen;
+
+  ON_CALL(absl::MockUniform<int>(), Call(strict_gen, 1, 100))
+      .WillByDefault(Return(10));
+  EXPECT_CALL(absl::MockUniform<int>(), Call(base_ref, 1, 100))
+      .WillOnce(Return(42));
+  EXPECT_EQ(absl::Uniform(strict_gen, 1, 100), 42);
+}
+
+TEST(MockingBitGen, StrictMockRegisteredViaBaseReferenceStaysStrict) {
+  ::testing::StrictMock<absl::MockingBitGen> strict_gen;
+  absl::MockingBitGen& base_ref = strict_gen;
+
+  ON_CALL(absl::MockUniform<int>(), Call(base_ref, 1, 100))
+      .WillByDefault(Return(10));
+  EXPECT_NONFATAL_FAILURE(
+      [&]() { EXPECT_EQ(absl::Uniform(strict_gen, 1, 100), 10); }(),
+      "Uninteresting mock function call");
+
+  EXPECT_CALL(absl::MockUniform<int>(), Call(strict_gen, 1, 100))
+      .WillOnce(Return(42));
+  EXPECT_EQ(absl::Uniform(base_ref, 1, 100), 42);
+}
+
+TEST(MockingBitGen, NiceMockRegisteredViaBaseReference) {
+  ::testing::NiceMock<absl::MockingBitGen> nice_gen;
+  absl::MockingBitGen& base_ref = nice_gen;
+
+  ON_CALL(absl::MockUniform<int>(), Call(base_ref, 1, 100))
+      .WillByDefault(Return(10));
+  EXPECT_EQ(absl::Uniform(nice_gen, 1, 100), 10);
+}
+
+TEST(MockingBitGen, FailedExpectationSkipsValidation) {
+  absl::MockingBitGen gen;
+
+  EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 10, 100))
+      .WillOnce(Return(42));
+  EXPECT_EQ(absl::Uniform(gen, 10, 100), 42);
+
+  // Over-saturated expectation returns default value 0, which is outside
+  // [10, 100); validation must be skipped instead of aborting.
+  EXPECT_NONFATAL_FAILURE(
+      [&]() { EXPECT_EQ(absl::Uniform(gen, 10, 100), 0); }(),
+      "over-saturated and active");
+
+  // Unmatched call also falls back to default value 0 without aborting.
+  EXPECT_NONFATAL_FAILURE(
+      [&]() { EXPECT_EQ(absl::Uniform(gen, 200, 300), 0); }(),
+      "Unexpected mock function call");
+
+  // Non-fatal failure inside an action callback also skips validation.
+  EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 10, 100))
+      .WillOnce([](int, int) {
+        ADD_FAILURE() << "callback failure";
+        return 0;
+      });
+  EXPECT_NONFATAL_FAILURE(
+      [&]() { EXPECT_EQ(absl::Uniform(gen, 10, 100), 0); }(),
+      "callback failure");
+}
+
+TEST(MockingBitGen, ConcurrentMockCallsAreThreadSafe) {
+  absl::MockingBitGen gen;
+  ON_CALL(absl::MockUniform<int>(), Call(gen, 10, 100))
+      .WillByDefault(Return(42));
+
+  static constexpr int kIterations = 200;
+  std::vector<std::thread> threads;
+  threads.reserve(5);
+  for (int i = 0; i < 3; ++i) {
+    threads.emplace_back([&gen]() {
+      for (int j = 0; j < kIterations; ++j) {
+        EXPECT_EQ(absl::Uniform(gen, 10, 100), 42);
+      }
+    });
+  }
+  threads.emplace_back([]() {
+    for (int j = 0; j < kIterations; ++j) {
+      SUCCEED();
+    }
+  });
+  threads.emplace_back([]() {
+    ::testing::StrictMock<absl::MockingBitGen> local_gen;
+    EXPECT_CALL(absl::MockUniform<int>(), Call(local_gen, 1, 5)).Times(0);
+    for (int j = 0; j < 20; ++j) {
+      EXPECT_NONFATAL_FAILURE(
+          [&]() { EXPECT_EQ(absl::Uniform(local_gen, 10, 100), 0); }(),
+          "Unexpected mock function call");
+    }
+  });
+  for (auto& t : threads) {
+    t.join();
+  }
+}
+
+struct NonDecayedParamDistribution {
+  using result_type = int;
+
+  explicit NonDecayedParamDistribution(const std::string& s)
+      : value(static_cast<int>(s.size())) {}
+  NonDecayedParamDistribution(int x, int y) : value(x + y) {}
+  explicit NonDecayedParamDistribution(const int* arr)
+      : value(arr[0] + arr[1] + arr[2]) {}
+  NonDecayedParamDistribution(const std::string& tag, int x)
+      : value(static_cast<int>(tag.size()) + x) {}
+
+  template <typename URBG>
+  int operator()(URBG&) const {
+    return value;
+  }
+
+  int value = 0;
+};
+
+using MockNonDecayedParamDistribution = absl::random_internal::MockOverloadSet<
+    NonDecayedParamDistribution, int(absl::MockingBitGen&, const std::string&),
+    int(absl::MockingBitGen&, int&, const int),
+    int(absl::MockingBitGen&, const int (&)[3]),
+    int(const std::string&, absl::MockingBitGen&, const int&)>;
+
+TEST(MockOverloadSet, DecaysParameterTypesForMatchers) {
+  absl::MockingBitGen gen;
+  using Caller = absl::random_internal::DistributionCaller<absl::MockingBitGen>;
+
+  ON_CALL(MockNonDecayedParamDistribution(), Call(gen, std::string("hello")))
+      .WillByDefault(Return(101));
+  std::string s = "hello";
+  EXPECT_EQ(Caller::Call<NonDecayedParamDistribution>(&gen, s), 101);
+
+  int x = 7;
+  const int y = 8;
+  EXPECT_CALL(MockNonDecayedParamDistribution(), Call(gen, 7, 8))
+      .WillOnce(Return(202));
+  EXPECT_EQ(Caller::Call<NonDecayedParamDistribution>(&gen, x, y), 202);
+
+  const int arr[3] = {1, 2, 3};
+  EXPECT_CALL(MockNonDecayedParamDistribution(), Call(gen, &arr[0]))
+      .WillOnce(Return(303));
+  EXPECT_EQ(Caller::Call<NonDecayedParamDistribution>(&gen, arr), 303);
+
+  const std::string tag = "tag";
+  const int z = 9;
+  EXPECT_CALL(MockNonDecayedParamDistribution(),
+              Call(std::string("tag"), gen, 9))
+      .WillOnce(Return(404));
+  EXPECT_EQ(Caller::Call<NonDecayedParamDistribution>(&gen, tag, z), 404);
 }
 
 }  // namespace
