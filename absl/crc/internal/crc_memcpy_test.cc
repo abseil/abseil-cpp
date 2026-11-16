@@ -313,6 +313,32 @@ TEST(CrcMemcpyNonTemporalFenceTest, NonTemporalStoreFence) {
   EXPECT_EQ(g_num_unfenced_stores, 0);
 }
 
+// Checks that Crc32CAndCopy() writes every requested byte and no surrounding
+// bytes across all cache-line alignments and stream-tail remainders.
+TEST(CrcMemcpyTest, WritesExactDestinationRange) {
+  constexpr size_t kGuard = 64, kAlign = 64, kBase = 4096, kMaxExtra = 256;
+  std::vector<char> src(kBase + kMaxExtra);
+  for (size_t i = 0; i < src.size(); ++i) {
+    src[i] = static_cast<char>(i * 131);
+  }
+  const std::vector<char> guard(kGuard + kAlign, static_cast<char>(0xa5));
+  std::vector<char> buf(kGuard + kAlign + src.size() + kGuard);
+  for (bool non_temporal : {false, true}) {
+    for (size_t size = kBase; size <= kBase + kMaxExtra; ++size) {
+      for (size_t offset = 0; offset < kAlign; ++offset) {
+        char* dst = buf.data() + kGuard + offset;
+        std::memset(buf.data(), 0xa5, buf.size());
+        ASSERT_EQ(absl::crc_internal::Crc32CAndCopy(
+                      dst, src.data(), size, absl::crc32c_t{0}, non_temporal),
+                  absl::ComputeCrc32c({src.data(), size}));
+        ASSERT_EQ(std::memcmp(dst, src.data(), size), 0);
+        ASSERT_EQ(std::memcmp(buf.data(), guard.data(), dst - buf.data()), 0);
+        ASSERT_EQ(std::memcmp(dst + size, guard.data(), kGuard), 0);
+      }
+    }
+  }
+}
+
 // Non-temporal stores are weakly ordered, so Crc32CAndCopy() has to fence them
 // before it returns, or the copy is not guaranteed to be visible to the thread
 // that reads it next. This checks that it always does, across the sizes and
