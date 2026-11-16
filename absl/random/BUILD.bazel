@@ -58,6 +58,7 @@ cc_library(
     srcs = [
         "discrete_distribution.cc",
         "gaussian_distribution.cc",
+        "poisson_distribution.cc",
     ],
     hdrs = [
         "bernoulli_distribution.h",

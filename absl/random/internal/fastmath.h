@@ -51,6 +51,18 @@ inline double StirlingLogFactorial(double n) {
          (1.0 / 360.0) * ninv * ninv * ninv;
 }
 
+// Returns the Stirling asymptotic remainder:
+//   ln(n!) - ((n + 0.5) * ln(n) - n + 0.5 * ln(2*pi))
+// For n >= 20, the 4-term series is accurate to < 2e-15.
+inline double StirlingLogFactorialRemainder(double n) {
+  assert(n >= 1);
+  const double inv = 1.0 / n;
+  const double inv2 = inv * inv;
+  return inv * ((1.0 / 12.0) -
+                inv2 * ((1.0 / 360.0) -
+                        inv2 * ((1.0 / 1260.0) - inv2 * (1.0 / 1680.0))));
+}
+
 }  // namespace random_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

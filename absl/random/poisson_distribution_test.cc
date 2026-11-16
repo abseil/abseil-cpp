@@ -18,11 +18,13 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <random>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -80,7 +82,7 @@ TYPED_TEST_SUITE(PoissonDistributionInterfaceTest, IntTypes);
 TYPED_TEST(PoissonDistributionInterfaceTest, SerializeTest) {
   using param_type = typename absl::poisson_distribution<TypeParam>::param_type;
   const double kMax =
-      std::min(1e10 /* assertion limit */,
+      std::min(1e15 /* assertion limit */,
                static_cast<double>(std::numeric_limits<TypeParam>::max()));
 
   const double kParams[] = {
@@ -566,6 +568,265 @@ TEST(PoissonDistributionTest, AlgorithmExpectedValue_3) {
 
   absl::poisson_distribution<int> dist(121);
   EXPECT_EQ(121, dist(urbg));
+}
+
+TEST(PoissonDistributionTest, NarrowIntKnuthClampsWithoutOverflow) {
+  // sequence_urbg returning all-ones produces U ~ 1.0 - 2^-53 > exp(-mean/6),
+  // forcing Knuth accumulation past int8_t::max() (127) and uint8_t::max()
+  // (255). Previously ++n overflowed int8_t (UB) and wrapped modulo 256.
+  absl::random_internal::sequence_urbg max_urbg({~uint64_t{0}});
+  absl::poisson_distribution<int8_t> dist_i8(50.0);
+  EXPECT_EQ(dist_i8(max_urbg), (std::numeric_limits<int8_t>::max)());
+
+  absl::poisson_distribution<uint8_t> dist_u8(50.0);
+  EXPECT_EQ(dist_u8(max_urbg), (std::numeric_limits<uint8_t>::max)());
+
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+  for (int i = 0; i < 5000; ++i) {
+    const int8_t v = dist_i8(rng);
+    EXPECT_GE(v, 0);
+    EXPECT_LE(v, (std::numeric_limits<int8_t>::max)());
+  }
+}
+
+TEST(PoissonDistributionTest, Uint64KnuthSamplesAccurately) {
+  using testing::DoubleNear;
+  using testing::Eq;
+  using testing::Gt;
+
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+  const auto sample_mean = [&rng](double mean, size_t samples) {
+    absl::poisson_distribution<uint64_t> dist(mean);
+    double sum = 0.0;
+    for (size_t i = 0; i < samples; ++i) {
+      sum += static_cast<double>(dist(rng));
+    }
+    return sum / static_cast<double>(samples);
+  };
+
+  EXPECT_THAT(sample_mean(0.0, 1000), Eq(0.0));
+  // Regression for uint64_t wraparound of `max_n + 1` in Knuth/split-Knuth.
+  EXPECT_THAT(sample_mean(1.0, 20000), DoubleNear(1.0, 0.05));
+  EXPECT_THAT(sample_mean(5.0, 20000), DoubleNear(5.0, 0.1));
+  EXPECT_THAT(sample_mean(20.0, 20000), DoubleNear(20.0, 0.2));
+  EXPECT_THAT(sample_mean(50.0, 20000), DoubleNear(50.0, 0.3));
+
+  absl::poisson_distribution<uint64_t> dist_one(1.0);
+  uint64_t max_seen = 0;
+  for (int i = 0; i < 100; ++i) {
+    max_seen = std::max(max_seen, dist_one(rng));
+  }
+  EXPECT_THAT(max_seen, Gt(0u));
+}
+
+TEST(PoissonDistributionTest, TinyMeanGeneratesNonZeroSamples) {
+  using testing::DoubleNear;
+  using testing::Eq;
+  using testing::Gt;
+
+  const auto sample_with_seq = [](auto tag, double mean,
+                                  std::initializer_list<uint64_t> seq) {
+    using IntType = decltype(tag);
+    absl::random_internal::sequence_urbg urbg(seq);
+    absl::poisson_distribution<IntType> dist(mean);
+    return dist(urbg);
+  };
+
+  // mean == 0.0 always produces 0.
+  EXPECT_THAT(sample_with_seq(int{}, 0.0, {0ULL}), Eq(0));
+
+  // Previously all 0 < mean < 1.665e-16 produced 0 identically because
+  // exp(-mean) rounded to >= 1 - 2^-53.
+  EXPECT_THAT(sample_with_seq(int{}, 1e-18, {0ULL}), Eq(1));
+  EXPECT_THAT(sample_with_seq(uint64_t{}, 1e-20, {0ULL}), Eq(1));
+  EXPECT_THAT(sample_with_seq(
+                  int64_t{}, std::numeric_limits<double>::denorm_min(), {0ULL}),
+              Eq(1));
+  EXPECT_THAT(sample_with_seq(uint64_t{}, 1e-20, {~uint64_t{0}}), Eq(0));
+
+  // Verify X >= 2 is reachable with exact thinning (not truncated to {0, 1}):
+  // three 0s accept bernoulli(1e-20); 0x8000... sets v=0.5 -> rem=0.5e-20;
+  // three 0s accept bernoulli(0.5e-20); final 0 sets v=0 -> rem=0 and stops.
+  EXPECT_THAT(sample_with_seq(uint64_t{}, 1e-20,
+                              {0ULL, 0ULL, 0ULL, 0x8000000000000000ULL, 0ULL,
+                               0ULL, 0ULL, 0ULL}),
+              Eq(2u));
+
+  // Statistical rate check inside the tiny-mean path (< 1e-4).
+  constexpr double kTinyMean = 5e-5;
+  constexpr size_t kSamples = 1000000;
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+  absl::poisson_distribution<int> dist(kTinyMean);
+  size_t sum = 0;
+  size_t nonzero = 0;
+  for (size_t i = 0; i < kSamples; ++i) {
+    const int x = dist(rng);
+    EXPECT_GE(x, 0);
+    sum += static_cast<size_t>(x);
+    if (x > 0) ++nonzero;
+  }
+  EXPECT_THAT(nonzero, Gt(0u));
+  EXPECT_THAT(static_cast<double>(sum) / static_cast<double>(kSamples),
+              DoubleNear(kTinyMean, 2.5e-5));
+}
+
+TEST(PoissonDistributionTest, LargeMeanModeAcceptanceNotClipped) {
+  using testing::Pair;
+
+  // u = 1 - 2^-53 (~0ULL) and v = +2^-64 (0ULL) proposes x = mean (a mode for
+  // integer mean). Without cancellation-free log-ratio evaluation, u near 1.0
+  // was clipped/rejected at mean = 1e10.
+  constexpr uint64_t kUMax = ~uint64_t{0};
+  const auto draw_seq = [](double mean, std::initializer_list<uint64_t> seq) {
+    absl::random_internal::sequence_urbg urbg(seq);
+    absl::poisson_distribution<int64_t> dist(mean);
+    const int64_t sample = dist(urbg);
+    return std::make_pair(sample, urbg.invocations());
+  };
+
+  EXPECT_THAT(draw_seq(1e10, {kUMax, 0ULL}),
+              Pair(int64_t{10000000000LL}, size_t{2}));
+  // v = -2^-17 shifts dx to -1, proposing the other integer mode (mean - 1).
+  constexpr uint64_t kNegPow2Minus17 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 17));
+  EXPECT_THAT(draw_seq(1e10, {kUMax, kNegPow2Minus17}),
+              Pair(int64_t{9999999999LL}, size_t{2}));
+  EXPECT_THAT(draw_seq(1e12, {kUMax, 0ULL}),
+              Pair(int64_t{1000000000000LL}, size_t{2}));
+  EXPECT_THAT(draw_seq(1e15, {kUMax, 0ULL}),
+              Pair(int64_t{1000000000000000LL}, size_t{2}));
+
+  // Fractional means (mean_frac != 0) have unique mode floor(mean) = ceil(mean)
+  // - 1. Verify a_int, mean_frac, a_frac = mean_frac + 0.5, d = dx - mean_frac,
+  // and non-integer mode acceptance near both ends of the ratio-of-uniforms
+  // range.
+  constexpr uint64_t kNegPow2Minus25 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 25));
+  constexpr uint64_t kNegPow2Minus2 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 2));
+  const double kMaxFracMean = std::nextafter(1e15, 0.0);
+
+  // For mean = 51.5 (a_frac = 1.0, mode = 51), v = -2^-25 proposes dx = 0
+  // (x = 51, accepted), whereas v = +2^-64 proposes dx = +1 (x = 52) and
+  // v = -0.25 proposes dx = -1 (x = 50), both rejected at u = 1 - 2^-53.
+  EXPECT_THAT(draw_seq(51.5, {kUMax, kNegPow2Minus25}),
+              Pair(int64_t{51}, size_t{2}));
+  EXPECT_THAT(draw_seq(51.5, {kUMax, 0ULL, kUMax, kNegPow2Minus25}),
+              Pair(int64_t{51}, size_t{4}));
+  EXPECT_THAT(draw_seq(51.5, {kUMax, kNegPow2Minus2, kUMax, kNegPow2Minus25}),
+              Pair(int64_t{51}, size_t{4}));
+
+  // For mean = 1e10 + 0.375 (a_frac = 0.875, mode = 1e10), v = +2^-64 proposes
+  // dx = 0 (x = 1e10, accepted).
+  EXPECT_THAT(draw_seq(1e10 + 0.375, {kUMax, 0ULL}),
+              Pair(int64_t{10000000000LL}, size_t{2}));
+
+  // For mean = nextafter(1e15, 0) = 999999999999999.875 (a_frac = 1.375,
+  // mode = 999999999999999), v = -2^-25 proposes dx = 0 (mode, accepted).
+  EXPECT_THAT(draw_seq(kMaxFracMean, {kUMax, kNegPow2Minus25}),
+              Pair(int64_t{999999999999999LL}, size_t{2}));
+}
+
+TEST(PoissonDistributionTest, LargeMeanUnbiasedMoments) {
+  using testing::DoubleNear;
+  using testing::Lt;
+  using testing::Pair;
+
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+  const auto check_large_mean = [&rng](double mean) {
+    constexpr size_t kSamples = 100000;
+    absl::poisson_distribution<int64_t> dist(mean);
+    std::vector<double> offsets;
+    offsets.reserve(kSamples);
+    for (size_t i = 0; i < kSamples; ++i) {
+      offsets.push_back(static_cast<double>(dist(rng)) - mean);
+    }
+    const auto m = absl::random_internal::ComputeDistributionMoments(offsets);
+    const double z = std::abs(absl::random_internal::ZScore(0.0, m));
+    return std::make_pair(z, m.variance);
+  };
+
+  const double kMaxFracMean = std::nextafter(1e15, 0.0);
+  EXPECT_THAT(check_large_mean(51.5),
+              Pair(Lt(4.0), DoubleNear(51.5, 51.5 * 0.02)));
+  EXPECT_THAT(check_large_mean(1e10),
+              Pair(Lt(4.0), DoubleNear(1e10, 1e10 * 0.02)));
+  EXPECT_THAT(check_large_mean(1e10 + 0.375),
+              Pair(Lt(4.0), DoubleNear(1e10 + 0.375, (1e10 + 0.375) * 0.02)));
+  EXPECT_THAT(check_large_mean(1e12),
+              Pair(Lt(4.0), DoubleNear(1e12, 1e12 * 0.02)));
+  EXPECT_THAT(check_large_mean(1e15),
+              Pair(Lt(4.0), DoubleNear(1e15, 1e15 * 0.02)));
+  EXPECT_THAT(check_large_mean(kMaxFracMean),
+              Pair(Lt(4.0), DoubleNear(kMaxFracMean, kMaxFracMean * 0.02)));
+}
+
+TEST(PoissonDistributionTest, LogRatioAccuracyAtBoundaryAndLargeMean) {
+  using testing::DoubleNear;
+
+  const auto eval_log_ratio = [](double x, double mean) {
+    const double mode = std::ceil(mean) - 1.0;
+    const double g_mode =
+        absl::random_internal::PoissonLogRatioTerm(mode, mode - mean, mean);
+    return absl::random_internal::PoissonLogRatio(x, x - mean, mean,
+                                                  std::log(mean), g_mode);
+  };
+
+  // Exact check at x = 0, 1, 19, 20 for mean = 51.0 (mode = 50).
+  const auto exact_ratio = [](double x, double mean) {
+    const double mode = std::ceil(mean) - 1.0;
+    return (x - mode) * std::log(mean) -
+           (std::lgamma(x + 1.0) - std::lgamma(mode + 1.0));
+  };
+  EXPECT_THAT(eval_log_ratio(0.0, 51.0),
+              DoubleNear(exact_ratio(0.0, 51.0), 1e-12));
+  EXPECT_THAT(eval_log_ratio(1.0, 51.0),
+              DoubleNear(exact_ratio(1.0, 51.0), 1e-12));
+  EXPECT_THAT(eval_log_ratio(19.0, 51.0),
+              DoubleNear(exact_ratio(19.0, 51.0), 1e-12));
+  EXPECT_THAT(eval_log_ratio(20.0, 51.0),
+              DoubleNear(exact_ratio(20.0, 51.0), 1e-12));
+
+  // Both modes (mean - 1 and mean) have log-ratio 0 at large integer mean.
+  EXPECT_THAT(eval_log_ratio(1e10 - 1.0, 1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(eval_log_ratio(1e10, 1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(eval_log_ratio(1e12, 1e12), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(eval_log_ratio(1e15, 1e15), DoubleNear(0.0, 1e-14));
+
+  // Fractional mean = 51.5 (mode = 51): check small-x table boundary and
+  // cancellation-free log-ratios around the unique mode.
+  EXPECT_THAT(eval_log_ratio(0.0, 51.5),
+              DoubleNear(exact_ratio(0.0, 51.5), 1e-12));
+  EXPECT_THAT(eval_log_ratio(19.0, 51.5),
+              DoubleNear(exact_ratio(19.0, 51.5), 1e-12));
+  EXPECT_THAT(eval_log_ratio(20.0, 51.5),
+              DoubleNear(exact_ratio(20.0, 51.5), 1e-12));
+  EXPECT_THAT(eval_log_ratio(50.0, 51.5),
+              DoubleNear(std::log(51.0 / 51.5), 1e-14));
+  EXPECT_THAT(eval_log_ratio(51.0, 51.5), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(eval_log_ratio(52.0, 51.5),
+              DoubleNear(std::log(51.5 / 52.0), 1e-14));
+
+  // Large fractional means: check exact mode and +/-1 adjacent ratios via
+  // cancellation-free log1p.
+  constexpr double kFracMean1e10 = 1e10 + 0.375;
+  EXPECT_THAT(eval_log_ratio(1e10 - 1.0, kFracMean1e10),
+              DoubleNear(std::log1p(-0.375 / kFracMean1e10), 1e-14));
+  EXPECT_THAT(eval_log_ratio(1e10, kFracMean1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(eval_log_ratio(1e10 + 1.0, kFracMean1e10),
+              DoubleNear(std::log1p(-0.625 / (1e10 + 1.0)), 1e-14));
+
+  const double kMaxFracMean = std::nextafter(1e15, 0.0);
+  const double kMaxFracMode = std::ceil(kMaxFracMean) - 1.0;
+  const double kMaxFracPart = kMaxFracMean - kMaxFracMode;
+  EXPECT_THAT(eval_log_ratio(kMaxFracMode - 1.0, kMaxFracMean),
+              DoubleNear(std::log1p(-kMaxFracPart / kMaxFracMean), 1e-17));
+  EXPECT_THAT(eval_log_ratio(kMaxFracMode, kMaxFracMean),
+              DoubleNear(0.0, 1e-17));
+  EXPECT_THAT(
+      eval_log_ratio(kMaxFracMode + 1.0, kMaxFracMean),
+      DoubleNear(std::log1p((kMaxFracPart - 1.0) / (kMaxFracMode + 1.0)),
+                 1e-17));
 }
 
 }  // namespace

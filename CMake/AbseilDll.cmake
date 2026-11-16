@@ -268,6 +268,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/internal/uniform_helper.h"
   "random/internal/wide_multiply.h"
   "random/log_uniform_int_distribution.h"
+  "random/poisson_distribution.cc"
   "random/poisson_distribution.h"
   "random/random.h"
   "random/seed_gen_exception.cc"
