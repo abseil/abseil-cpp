@@ -3962,6 +3962,91 @@ TEST(Table, StringViewConversionCount) {
   test_table();
 }
 
+TEST(KeyArg, CharArrayAndStringViewCanonicalization) {
+  using StrKeyArg = KeyArg</*kIsTransparent=*/true,
+                           /*kHasStringViewLookup=*/true>;
+  using PlainKeyArg = KeyArg</*kIsTransparent=*/true,
+                             /*kHasStringViewLookup=*/false>;
+  using NonTransparentKeyArg = KeyArg</*kIsTransparent=*/false,
+                                      /*kHasStringViewLookup=*/true>;
+  EXPECT_TRUE(
+      (std::is_same_v<StrKeyArg::Param<const char (&)[4]>, absl::string_view>));
+  EXPECT_TRUE((std::is_same_v<PlainKeyArg::Param<const char (&)[4]>,
+                              const char (&)[4]>));
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(StrKeyArg::Canonicalize<std::string>("abc")),
+                      absl::string_view>));
+  EXPECT_TRUE(
+      (std::is_same_v<decltype(StrKeyArg::Canonicalize<const char*>("abc")),
+                      const char (&)[4]>));
+  EXPECT_TRUE((std::is_same_v<
+               decltype(NonTransparentKeyArg::Canonicalize<std::string>("abc")),
+               const char (&)[4]>));
+}
+
+TEST(Table, CharArrayAndStringViewSetOperations) {
+  char embedded_nul[8] = "ab\0xy";
+  absl::string_view sv = "abcdef";
+
+  absl::flat_hash_set<std::string> set;
+  EXPECT_TRUE(set.insert(embedded_nul).second);
+  EXPECT_FALSE(set.insert("ab").second);
+  EXPECT_TRUE(set.emplace(sv).second);
+  set.prefetch("abcdef");
+  EXPECT_TRUE(set.contains("ab"));
+  EXPECT_EQ(set.count(embedded_nul), 1);
+  EXPECT_NE(set.find("abcdef"), set.end());
+  EXPECT_NE(set.equal_range(embedded_nul).first,
+            set.equal_range(embedded_nul).second);
+  auto node = set.extract(embedded_nul);
+  ASSERT_FALSE(node.empty());
+  EXPECT_EQ(node.value(), "ab");
+  EXPECT_EQ(set.erase("abcdef"), 1);
+
+  absl::flat_hash_set<absl::string_view> sv_set;
+  EXPECT_TRUE(sv_set.insert("abc").second);
+  EXPECT_FALSE(sv_set.insert("abc").second);
+  EXPECT_TRUE(sv_set.contains(absl::string_view("abc")));  // NOLINT
+}
+
+TEST(Table, CharArrayAndStringViewMapOperations) {
+  char embedded_nul[8] = "ab\0xy";
+  absl::string_view sv = "abcdef";
+
+  absl::flat_hash_map<std::string, const char*> map;
+  map[embedded_nul] = "first";
+  EXPECT_STREQ(map.at("ab"), "first");
+  EXPECT_FALSE(map.try_emplace("ab", "ignored").second);
+  EXPECT_TRUE(map.try_emplace(sv, "second").second);
+  EXPECT_FALSE(map.insert_or_assign(embedded_nul, "updated").second);
+  EXPECT_TRUE(map.emplace("xyz", "third").second);
+  EXPECT_STREQ(map.at(embedded_nul), "updated");
+  EXPECT_STREQ(std::as_const(map).at("xyz"), "third");
+}
+
+TEST(Table, CharArrayWithCStrOnlyKey) {
+  struct CStrOnlyKey {
+    std::string s;
+    CStrOnlyKey(const char* p) : s(p) {}  // NOLINT
+    CStrOnlyKey(absl::string_view) = delete;
+    operator absl::string_view() const {  // NOLINT
+      return s;
+    }
+  };
+  absl::flat_hash_set<CStrOnlyKey, absl::container_internal::StringHash,
+                      absl::container_internal::StringEq>
+      cstr_set;
+  EXPECT_TRUE(cstr_set.insert("abc").second);
+  EXPECT_TRUE(cstr_set.contains("abc"));
+  EXPECT_EQ(cstr_set.erase("abc"), 1);
+
+  absl::flat_hash_map<CStrOnlyKey, int, absl::container_internal::StringHash,
+                      absl::container_internal::StringEq>
+      cstr_map;
+  cstr_map["abc"] = 1;
+  EXPECT_EQ(cstr_map.at("abc"), 1);
+}
+
 TEST(Iterator, IsDefaultConstructible) {
   StringTable::iterator i;
   EXPECT_TRUE(i == StringTable::iterator());

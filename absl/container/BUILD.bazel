@@ -741,6 +741,7 @@ cc_library(
         "//absl/base:throw_delegate",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -756,6 +757,7 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/meta:type_traits",
+        "//absl/strings:string_view",
         "//absl/types:optional",
     ],
 )

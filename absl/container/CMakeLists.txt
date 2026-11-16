@@ -763,6 +763,7 @@ absl_cc_library(
     absl::container_memory
     absl::core_headers
     absl::raw_hash_set
+    absl::string_view
     absl::throw_delegate
     absl::type_traits
   PUBLIC
@@ -777,6 +778,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::string_view
     absl::type_traits
 )
 

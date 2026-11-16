@@ -2862,14 +2862,18 @@ class raw_hash_set_base {
     static constexpr size_t kSeedShift =
         kIsAbsl ? 0 : HashtableInlineData::kSeedShift;
     // When `kIsAbsl` is true, `Hash` hashes `SlotKey` identically to
-    // `absl::Hash<SlotKey>` (see `GetTypeErasedApplyToSlotFn`), but may convert
-    // other lookup keys first (e.g. `const char*` for `StringHash`).
+    // `absl::Hash<SlotKey>` (see `GetTypeErasedApplyToSlotFn`), and
+    // `StringHash` also hashes `absl::string_view` identically to
+    // `absl::Hash<absl::string_view>`, but may convert other lookup keys first
+    // (e.g. `const char*` for `StringHash`).
     template <class K>
-    using HashKeyFor =
-        HashKey<Hash, absl::remove_cvref_t<K>, kIsAbsl, kSeedShift,
-                /*kUseCanonical=*/kIsAbsl &&
-                    std::is_same_v<absl::remove_cvref_t<K>,
-                                   absl::remove_cvref_t<SlotKey>>>;
+    using HashKeyFor = HashKey<
+        Hash, absl::remove_cvref_t<K>, kIsAbsl, kSeedShift,
+        /*kUseCanonical=*/kIsAbsl &&
+            (std::is_same_v<absl::remove_cvref_t<K>,
+                            absl::remove_cvref_t<SlotKey>> ||
+             (std::is_same_v<Hash, absl::container_internal::StringHash> &&
+              std::is_same_v<absl::remove_cvref_t<K>, absl::string_view>))>;
   };
 
   template <class SlotKey, class Hash, size_t kHasherOffset, class K>
@@ -3003,9 +3007,19 @@ class raw_hash_set : public raw_hash_set_base {
   using Hash = GetFromListOr<typename Policy::DefaultHash, 0, Params...>;
   using Eq = GetFromListOr<typename Policy::DefaultEq, 1, Params...>;
   using Alloc = GetFromListOr<typename Policy::DefaultAlloc, 2, Params...>;
-  using KeyArgImpl =
-      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
+  static constexpr bool kIsStringHashEq =
+      std::is_same_v<Hash, absl::container_internal::StringHash> &&
+      std::is_same_v<Eq, absl::container_internal::StringEq>;
 
+ protected:
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value,
+             kIsStringHashEq>;
+  template <class K>
+  using KeyParam = typename KeyArgImpl::template Param<K>;
+  using slot_type = typename PolicyTraits::slot_type;
+
+ private:
   static_assert(
       std::is_same_v<
           typename InstantiateRawHashSet<Policy, Hash, Eq, Alloc>::type,
@@ -3036,8 +3050,6 @@ class raw_hash_set : public raw_hash_set_base {
   template <class K>
   using const_key_arg =
       typename KeyArgImpl::template SelectReadOnly<K, key_type>;
-
-  using slot_type = typename PolicyTraits::slot_type;
 
   using HashParams = raw_hash_set_base::HashParams<hasher, key_type>;
   constexpr static bool kIsAbslHash = HashParams::kIsAbsl;
@@ -3121,9 +3133,9 @@ class raw_hash_set : public raw_hash_set_base {
   using IsDecomposableAndInsertableImpl = std::bool_constant<
       // Make sure that T isn't convertible to the preferred-qualified version
       // of init_type itself, or otherwise we'll have ambiguous overloads.
-      !std::conjunction_v<
-          std::is_same<remove_cvref_t<T>, remove_cvref_t<ParamTypeToExclude>>,
-          std::is_convertible<T, ParamTypeToExclude>> &&
+      !std::conjunction_v<std::is_same<remove_cvref_t<KeyParam<T>>,
+                                       remove_cvref_t<ParamTypeToExclude>>,
+                          std::is_convertible<T, ParamTypeToExclude>> &&
       IsDecomposable<std::enable_if_t<Insertable<T>::value, T>>::value>;
 
   template <class T>
@@ -3686,8 +3698,9 @@ class raw_hash_set : public raw_hash_set_base {
             std::enable_if_t<IsDecomposable<Args...>::value, int> = 0>
   std::pair<iterator, bool> emplace(Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return PolicyTraits::apply(EmplaceDecomposable{*this},
-                               std::forward<Args>(args)...);
+    auto res = KeyArgImpl::template Apply<PolicyTraits>(
+        EmplaceDecomposable{*this}, std::forward<Args>(args)...);
+    return {non_iterable_iterator_at_slot(res.first), res.second};
   }
 
   // This overload kicks in if we cannot deduce the key from args. It constructs
@@ -3781,10 +3794,7 @@ class raw_hash_set : public raw_hash_set_base {
   //   s.erase("abc");
   template <class K = key_type>
   size_type erase(const_key_arg<K> key) {
-    auto it = find(key);
-    if (it.unchecked_equals(end())) return 0;
-    erase(it);
-    return 1;
+    return erase_impl<KeyParam<const_key_arg<K>>>(key);
   }
 
   // Erases the element pointed to by `it`. Unlike `std::unordered_set::erase`,
@@ -4054,14 +4064,42 @@ class raw_hash_set : public raw_hash_set_base {
     const raw_hash_set& s;
   };
 
+  template <class K>
+  size_type erase_impl(K key) {
+    static_assert(std::is_same_v<K, KeyParam<K>>);
+    auto it = find(key);
+    if (it.unchecked_equals(end())) return 0;
+    erase(it);
+    return 1;
+  }
+
+  // Splits out the first slot constructor argument so canonicalized string-view
+  // keys can drop that redundant argument when forwarding to the shared helper,
+  // while keeping a key-only overload for custom policies that probe or invoke
+  // the callback with no constructor arguments.
   struct EmplaceDecomposable {
-    template <class K, class... Args>
-    std::pair<iterator, bool> operator()(const K& key, Args&&... args) const {
+    template <class K>
+    std::pair<slot_type*, bool> operator()(const K& key) const {
       auto res = s.find_or_prepare_insert<KeyParam<K>>(key);
-      if (res.second) {
-        s.emplace_at(res.first, std::forward<Args>(args)...);
+      if (res.second) s.emplace_at(res.first);
+      return res;
+    }
+
+    template <class K, class First, class... Rest>
+    std::pair<slot_type*, bool> operator()(const K& key, First&& first,
+                                           Rest&&... rest) const {
+      if constexpr (std::is_same_v<K, absl::string_view> &&
+                    std::is_same_v<absl::remove_cvref_t<First>,
+                                   absl::string_view>) {
+        return s.emplace_decomposable_sv(key, std::forward<Rest>(rest)...);
+      } else {
+        auto res = s.find_or_prepare_insert<KeyParam<K>>(key);
+        if (res.second) {
+          s.emplace_at(res.first, std::forward<First>(first),
+                       std::forward<Rest>(rest)...);
+        }
+        return res;
       }
-      return {s.non_iterable_iterator_at_slot(res.first), res.second};
     }
     raw_hash_set& s;
   };
@@ -4374,9 +4412,18 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
  protected:
-  template <class K>
-  using KeyParam = type_traits_internal::AddConstRefIfExpensiveToCopy<
-      absl::remove_cvref_t<K>>;
+  // Inserts a canonicalized string-view key and remaining constructor
+  // arguments, shared between decomposable emplace and single-argument map
+  // try-emplace.
+  template <class... Rest>
+  std::pair<slot_type*, bool> emplace_decomposable_sv(absl::string_view key,
+                                                      Rest&&... rest) {
+    auto res = find_or_prepare_insert<absl::string_view>(key);
+    if (res.second) {
+      emplace_at(res.first, key, std::forward<Rest>(rest)...);
+    }
+    return res;
+  }
 
   // Asserts for correctness that we run on find/find_or_prepare_insert.
   template <class K>
@@ -4402,14 +4449,11 @@ class raw_hash_set : public raw_hash_set_base {
     // validation. This improves debug performance, but also is important for
     // correctness of the *ConversionCount tests, which fail if we call hash/eq
     // on the lookup keys extra times (which triggers additional conversions).
-    constexpr bool kIsStringAbslHashEq =
-        std::is_same_v<hasher, absl::container_internal::StringHash> &&
-        std::is_same_v<key_equal, absl::container_internal::StringEq>;
     constexpr bool kIsScalarAbslHashEq =
         std::is_scalar_v<key_type> &&
         std::is_same_v<hasher, typename HashEq<key_type>::Hash> &&
         std::is_same_v<key_equal, typename HashEq<key_type>::Eq>;
-    if constexpr (kIsDebug && !kIsStringAbslHashEq && !kIsScalarAbslHashEq) {
+    if constexpr (kIsDebug && !kIsStringHashEq && !kIsScalarAbslHashEq) {
       if (empty()) return;
       AssertHashEqConsistentImpl(common(), &hash_ref(), get_hash_slot_fn(),
                                  sizeof(slot_type), SooEnabled(), hash_of(key),
@@ -4500,8 +4544,7 @@ class raw_hash_set : public raw_hash_set_base {
   // explicitly.)
   template <class K, class RemoveCvrefK = absl::remove_cvref_t<K>,
             bool IsStringHashEqAndConvertibleToStringView =
-                std::is_same_v<hasher, absl::container_internal::StringHash> &&
-                std::is_same_v<key_equal, absl::container_internal::StringEq> &&
+                kIsStringHashEq &&
                 std::is_convertible_v<const RemoveCvrefK&, absl::string_view>,
             class Ptr = std::remove_pointer_t<key_type>*,
             class ConstPtr = const std::remove_pointer_t<key_type>*,
