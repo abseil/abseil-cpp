@@ -328,6 +328,7 @@ void BM_Thread(benchmark::State& state) {
   BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>);      \
   BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>, 2,    \
                      3);                                                       \
+  BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>, 3);   \
   BENCHMARK_TEMPLATE(BM_Bernoulli, Engine, std::bernoulli_distribution,        \
                      257305);                                                  \
   BENCHMARK_TEMPLATE(BM_Bernoulli, Engine, absl::bernoulli_distribution,       \

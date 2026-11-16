@@ -276,6 +276,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/seed_sequences.h"
   "random/uniform_int_distribution.h"
   "random/uniform_real_distribution.h"
+  "random/zipf_distribution.cc"
   "random/zipf_distribution.h"
   "status/internal/status_internal.cc"
   "status/internal/status_internal.h"
