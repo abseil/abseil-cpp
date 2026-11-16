@@ -238,6 +238,25 @@ TYPED_TEST(PCGEngineTest, RandomNumberEngineInterface) {
                 "return type of operator== must be bool");
 }
 
+// Arbitrary non-default test seeds.
+constexpr uint64_t kTestSeed = 123u;
+constexpr uint64_t kConvertibleSeed = 7u;
+constexpr uint32_t kTestSeedStart = 0xdeadbeefu;
+
+TYPED_TEST(PCGEngineTest, NonConstCopyConstruction) {
+  using E = TypeParam;
+  E v(kTestSeed);
+  v();
+
+  E copy_paren(v);
+  E copy_brace{v};
+  EXPECT_EQ(copy_paren, v);
+  EXPECT_EQ(copy_brace, v);
+  const auto expected = v();
+  EXPECT_EQ(copy_paren(), expected);
+  EXPECT_EQ(copy_brace(), expected);
+}
+
 TYPED_TEST(PCGEngineTest, RandenEngineSFINAETest) {
   using engine_type = TypeParam;
   using result_type = typename engine_type::result_type;
@@ -405,6 +424,184 @@ TYPED_TEST(PCGEngineTest, StreamDeserializationValidation) {
               FailsLeavingUnchanged());
   EXPECT_THAT(ParseEngine(initial, TruncateTokens(tokens, n - 1)),
               FailsLeavingUnchanged());
+}
+
+template <typename Engine, typename Arg, typename = void>
+struct HasSeedMethod : std::false_type {};
+
+template <typename Engine, typename Arg>
+struct HasSeedMethod<
+    Engine, Arg,
+    std::void_t<decltype(std::declval<Engine&>().seed(std::declval<Arg>()))>>
+    : std::true_type {};
+
+template <typename ResultT, bool kConstGenerate = true, uint32_t kStart = 1>
+struct TestSeedSeq {
+  using result_type = ResultT;
+  size_t size() const { return 4; }
+  template <typename OutIt, bool C = kConstGenerate,
+            std::enable_if_t<C, int> = 0>
+  void generate(OutIt begin, OutIt end) const {
+    uint32_t v = kStart;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+  template <typename OutIt, bool C = kConstGenerate,
+            std::enable_if_t<!C, int> = 0>
+  void generate(OutIt begin, OutIt end) {
+    uint32_t v = kStart;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+};
+
+struct NoResultTypeSeedSeq {
+  size_t size() const { return 4; }
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    for (OutIt it = begin; it != end; ++it) *it = 1u;
+  }
+};
+
+struct ConvertibleSeedSeq {
+  using result_type = uint32_t;
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    for (OutIt it = begin; it != end; ++it) *it = 1u;
+  }
+  operator uint64_t() const {
+    return kConvertibleSeed;
+  }  // NOLINT(google-explicit-constructor)
+};
+
+template <typename Engine>
+struct DerivedPCG : Engine {
+  using Engine::Engine;
+  void generate(uint32_t*, uint32_t*) const {}
+};
+
+using NonConstGenerateSeedSeq = TestSeedSeq<uint32_t, /*kConstGenerate=*/false>;
+using ConstGenerateSeedSeq = TestSeedSeq<uint32_t>;
+using SeedSeq64 =
+    TestSeedSeq<uint64_t, /*kConstGenerate=*/false, kTestSeedStart>;
+using SeedSeq32 =
+    TestSeedSeq<uint32_t, /*kConstGenerate=*/false, kTestSeedStart>;
+using SignedResultSeedSeq = TestSeedSeq<int32_t>;
+using NarrowResultSeedSeq = TestSeedSeq<uint16_t>;
+using BoolResultSeedSeq = TestSeedSeq<bool>;
+using ConstResultSeedSeq = TestSeedSeq<const uint32_t>;
+using RefResultSeedSeq = TestSeedSeq<uint32_t&>;
+using VoidResultSeedSeq = TestSeedSeq<void>;
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+constexpr int kExpectedException = 9;
+
+struct ThrowingPCGSeedSeq {
+  using result_type = uint32_t;
+  void generate(uint32_t* begin, uint32_t*) {
+    *begin = kTestSeedStart;
+    throw kExpectedException;
+  }
+};
+#endif
+
+TYPED_TEST(PCGEngineTest, ConstSeedSequenceMatchesSeedMethod) {
+  using engine_type = TypeParam;
+  const ConstGenerateSeedSeq const_seq;
+  engine_type engine(const_seq);
+  engine_type reseeded;
+  reseeded.seed(const_seq);
+  EXPECT_EQ(engine, reseeded);
+}
+
+TYPED_TEST(PCGEngineTest, CopyConstructsFromDerivedEngineWithGenerate) {
+  using engine_type = TypeParam;
+  DerivedPCG<engine_type> derived(kTestSeed);
+  derived();
+  engine_type from_derived(derived);
+  EXPECT_EQ(from_derived, static_cast<const engine_type&>(derived));
+}
+
+TYPED_TEST(PCGEngineTest, ConvertibleSeedSequencePrefersIntegerSeedOverload) {
+  using engine_type = TypeParam;
+  ConvertibleSeedSeq conv_seq;
+  EXPECT_EQ(engine_type(conv_seq), engine_type(kConvertibleSeed));
+}
+
+template <typename engine_type>
+constexpr bool CheckPCGSeedSequenceConstraints() {
+  static_assert(!std::is_constructible_v<engine_type, int*>);
+  static_assert(!std::is_constructible_v<engine_type, void*>);
+  static_assert(!HasSeedMethod<engine_type, int*>::value);
+  static_assert(!HasSeedMethod<engine_type, void*>::value);
+
+  static_assert(std::is_constructible_v<engine_type, std::seed_seq&>);
+  static_assert(std::is_constructible_v<engine_type, std::seed_seq&&>);
+  static_assert(HasSeedMethod<engine_type, std::seed_seq&>::value);
+  static_assert(HasSeedMethod<engine_type, std::seed_seq&&>::value);
+
+  // Test non-const generate() rejection with a dedicated type because MSVC STL
+  // marks std::seed_seq::generate() const while libc++/libstdc++ do not.
+  static_assert(std::is_constructible_v<engine_type, NonConstGenerateSeedSeq&>);
+  static_assert(
+      std::is_constructible_v<engine_type, NonConstGenerateSeedSeq&&>);
+  static_assert(
+      !std::is_constructible_v<engine_type, const NonConstGenerateSeedSeq&>);
+  static_assert(
+      !std::is_constructible_v<engine_type, const NonConstGenerateSeedSeq&&>);
+  static_assert(HasSeedMethod<engine_type, NonConstGenerateSeedSeq&>::value);
+  static_assert(
+      !HasSeedMethod<engine_type, const NonConstGenerateSeedSeq&>::value);
+
+  static_assert(
+      std::is_constructible_v<engine_type, const ConstGenerateSeedSeq&>);
+  static_assert(HasSeedMethod<engine_type, const ConstGenerateSeedSeq&>::value);
+
+  // Reject missing or invalid [rand.req.seedseq] result_type across ctor and
+  // seed().
+  static_assert(!std::is_constructible_v<engine_type, NoResultTypeSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, NoResultTypeSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, SignedResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, SignedResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, NarrowResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, NarrowResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, BoolResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, BoolResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, ConstResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, ConstResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, RefResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, RefResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<engine_type, VoidResultSeedSeq&>);
+  static_assert(!HasSeedMethod<engine_type, VoidResultSeedSeq&>::value);
+  return true;
+}
+
+static_assert(CheckPCGSeedSequenceConstraints<pcg64_2018_engine>());
+static_assert(CheckPCGSeedSequenceConstraints<pcg32_2018_engine>());
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+TYPED_TEST(PCGEngineTest, ThrowingSeedSequencePreservesState) {
+  using engine_type = TypeParam;
+  const ConstGenerateSeedSeq const_seq;
+  engine_type engine(const_seq);
+  const engine_type snapshot = engine;
+  ThrowingPCGSeedSeq throwing_seq;
+  EXPECT_THROW(engine.seed(throwing_seq), int);
+  EXPECT_EQ(engine, snapshot);
+}
+#endif
+
+TYPED_TEST(PCGEngineTest, SeedSequenceWith64BitResultTypeMatches32Bit) {
+  using engine_type = TypeParam;
+  SeedSeq64 seq64;
+  SeedSeq32 seq32;
+  engine_type e64(seq64);
+  engine_type e32(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
+
+  e64.seed(seq64);
+  e32.seed(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
 }
 
 // ------------------------------------------------------------------

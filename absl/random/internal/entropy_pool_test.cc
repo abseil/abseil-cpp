@@ -116,4 +116,37 @@ TEST(EntropyPoolTest, ValidateDistribution) {
   // Zeros values must be rare; 32 / 2^32 is certainly less than 1.
   EXPECT_LE(zero_count, 1);
 }
+
+TEST(EntropyPoolTest, PartialWordDrawsAndMultiRefillsProduceDistinctBlocks) {
+  // Zero-byte draw must not modify the buffer.
+  uint8_t zero_canary[4] = {0xaa, 0xbb, 0xcc, 0xdd};
+  GetEntropyFromRandenPool(zero_canary, 0);
+  EXPECT_EQ(zero_canary[0], 0xaa);
+  EXPECT_EQ(zero_canary[3], 0xdd);
+
+  // Unaligned and cross-refill byte counts must fill exactly `bytes` without
+  // overwriting trailing sentinel bytes.
+  constexpr uint8_t kSentinel = 0xa5;
+  for (size_t bytes : {size_t{1}, size_t{2}, size_t{3}, size_t{5}, size_t{7},
+                       size_t{239}, size_t{241}}) {
+    std::vector<uint8_t> buf(bytes + 8, kSentinel);
+    GetEntropyFromRandenPool(buf.data(), bytes);
+    for (size_t i = bytes; i < buf.size(); ++i) {
+      EXPECT_EQ(buf[i], kSentinel) << "bytes=" << bytes << " i=" << i;
+    }
+  }
+
+  // Draw across multiple 240-byte Randen refills on a single thread to exercise
+  // rate-word erasure across refill boundaries.
+  constexpr size_t kBlockBytes = 240;
+  constexpr size_t kNumBlocks = 8;
+  absl::flat_hash_set<std::vector<uint8_t>> blocks;
+  const std::vector<uint8_t> all_zero(kBlockBytes, 0);
+  for (size_t i = 0; i < kNumBlocks; ++i) {
+    std::vector<uint8_t> block(kBlockBytes, 0);
+    GetEntropyFromRandenPool(block.data(), block.size());
+    EXPECT_NE(block, all_zero);
+    EXPECT_TRUE(blocks.insert(std::move(block)).second);
+  }
+}
 }  // namespace

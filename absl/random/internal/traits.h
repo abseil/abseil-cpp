@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
@@ -161,6 +162,60 @@ int BitWidth(T v) {
     return bit_width(static_cast<uint64_t>(v));
   }
 }
+
+// Returns whether `T` is a valid `[rand.req.seedseq]` `result_type`
+// (an unqualified unsigned integer type of at least 32 bits).
+template <typename T>
+constexpr bool IsValidSeedSeqResultType() {
+  if constexpr (std::is_same_v<T, absl::remove_cvref_t<T>> &&
+                std::is_integral_v<T> && std::is_unsigned_v<T>) {
+    return std::numeric_limits<T>::digits >= 32;
+  } else {
+    return false;
+  }
+}
+
+template <typename SSeq, typename = void>
+struct HasValidSeedSeqResultType : std::false_type {};
+
+template <typename SSeq>
+struct HasValidSeedSeqResultType<
+    SSeq, std::void_t<typename std::remove_reference_t<SSeq>::result_type>>
+    : std::bool_constant<IsValidSeedSeqResultType<
+          typename std::remove_reference_t<SSeq>::result_type>()> {};
+
+// Detects whether `std::remove_reference_t<SSeq>` has a valid `result_type`
+// and supports `seq.generate(uint32_t*, uint32_t*)` on an lvalue (preserving
+// `const`). Short-circuits `generate()` detection when `result_type` is missing
+// or invalid.
+template <typename SSeq,
+          bool ValidResult = HasValidSeedSeqResultType<SSeq>::value,
+          typename = void>
+struct HasSeedSeqGenerate : std::false_type {};
+
+template <typename SSeq>
+struct HasSeedSeqGenerate<
+    SSeq, true,
+    std::void_t<
+        decltype(std::declval<std::remove_reference_t<SSeq>&>().generate(
+            std::declval<uint32_t*>(), std::declval<uint32_t*>()))>>
+    : std::true_type {};
+
+// Detects whether `std::remove_reference_t<SSeq>` supports `seq.size()`
+// convertible to `size_t` on an lvalue (preserving `const`).
+template <typename SSeq, typename = void>
+struct HasSeedSeqSize : std::false_type {};
+
+template <typename SSeq>
+struct HasSeedSeqSize<
+    SSeq, std::enable_if_t<std::is_convertible_v<
+              decltype(std::declval<std::remove_reference_t<SSeq>&>().size()),
+              size_t>>> : std::true_type {};
+
+// Marks `SaltedSeedSeq` wrappers so engines such as `randen_engine` can draw
+// full-rate seed material rather than truncating to `seq.size()`.
+template <typename SSeq>
+struct IsSaltedSeedSeq : std::false_type {};
 
 }  // namespace random_internal
 ABSL_NAMESPACE_END

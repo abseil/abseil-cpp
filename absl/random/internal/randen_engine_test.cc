@@ -15,10 +15,12 @@
 #include "absl/random/internal/randen_engine.h"
 
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <ios>
 #include <ostream>
 #include <random>
@@ -30,8 +32,11 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/explicit_seed_seq.h"
+#include "absl/random/internal/randen.h"
+#include "absl/random/internal/traits.h"
 #include "absl/time/clock.h"
 
 #define UPDATE_GOLDEN 0
@@ -283,6 +288,27 @@ TYPED_TEST(RandenEngineTypedTest, MoveResetsSourceState) {
   EXPECT_NE(move_constructed(), source());  // NOLINT(bugprone-use-after-move)
 }
 
+// Arbitrary nothing-up-my-sleeve test seeds.
+constexpr std::array<uint32_t, 3> kTestSeed3 = {12, 34, 56};
+constexpr std::array<uint32_t, 4> kTestSeed4 = {12, 34, 56, 78};
+constexpr uint32_t kTestSeedStart = 0xdeadbeefu;
+constexpr uint64_t kConvertibleSeed = 7u;
+
+TYPED_TEST(RandenEngineTypedTest, NonConstCopyConstruction) {
+  using E = absl::random_internal::randen_engine<TypeParam>;
+  ExplicitSeedSeq seed_sequence(kTestSeed3.begin(), kTestSeed3.end());
+  E v(seed_sequence);
+  v.discard(5);
+
+  E copy_paren(v);
+  E copy_brace{v};
+  EXPECT_EQ(copy_paren, v);
+  EXPECT_EQ(copy_brace, v);
+  const auto expected = v();
+  EXPECT_EQ(copy_paren(), expected);
+  EXPECT_EQ(copy_brace(), expected);
+}
+
 TYPED_TEST(RandenEngineTypedTest, RandenEngineSFINAETest) {
   using randen = typename absl::random_internal::randen_engine<TypeParam>;
   using result_type = typename randen::result_type;
@@ -478,6 +504,447 @@ TEST(RandenTest, StreamRejectsInvalidParameters) {
               FailsLeavingUnchanged());
   EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 255, "256")),
               FailsLeavingUnchanged());
+}
+
+template <typename Engine, typename Arg, typename = void>
+struct HasSeedMethod : std::false_type {};
+
+template <typename Engine, typename Arg>
+struct HasSeedMethod<
+    Engine, Arg,
+    std::void_t<decltype(std::declval<Engine&>().seed(std::declval<Arg>()))>>
+    : std::true_type {};
+
+template <typename Engine, typename Arg, typename = void>
+struct HasReseedMethod : std::false_type {};
+
+template <typename Engine, typename Arg>
+struct HasReseedMethod<
+    Engine, Arg,
+    std::void_t<decltype(std::declval<Engine&>().reseed(std::declval<Arg>()))>>
+    : std::true_type {};
+
+struct NoResultTypeSeedSeq {
+  size_t size() const { return 4; }
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    for (OutIt it = begin; it != end; ++it) *it = 1u;
+  }
+};
+
+struct ConvertibleSeedSeq {
+  using result_type = uint32_t;
+  size_t size() const { return 4; }
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    for (OutIt it = begin; it != end; ++it) *it = 1u;
+  }
+  operator uint64_t() const {
+    return kConvertibleSeed;
+  }  // NOLINT(google-explicit-constructor)
+};
+
+template <typename Engine>
+struct DerivedRanden : Engine {
+  using Engine::Engine;
+  size_t size() const { return 4; }
+  void generate(uint32_t*, uint32_t*) const {}
+};
+
+template <typename ResultT, bool kConstGenerate = true, uint32_t kStart = 1,
+          bool kConstSize = true, bool kHasSize = true>
+struct TestSeedSeq {
+  using result_type = ResultT;
+  size_t count = 4;
+
+  explicit TestSeedSeq(size_t n = 4) : count(n) {}
+
+  template <bool H = kHasSize, bool C = kConstSize,
+            std::enable_if_t<H && C, int> = 0>
+  size_t size() const {
+    return count;
+  }
+  template <bool H = kHasSize, bool C = kConstSize,
+            std::enable_if_t<H && !C, int> = 0>
+  size_t size() {
+    return count;
+  }
+
+  template <typename OutIt, bool C = kConstGenerate,
+            std::enable_if_t<C, int> = 0>
+  void generate(OutIt begin, OutIt end) const {
+    uint32_t v = kStart;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+  template <typename OutIt, bool C = kConstGenerate,
+            std::enable_if_t<!C, int> = 0>
+  void generate(OutIt begin, OutIt end) {
+    uint32_t v = kStart;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+};
+
+using NonConstGenerateSeedSeq = TestSeedSeq<uint32_t, /*kConstGenerate=*/false>;
+using ConstGenerateSeedSeq = TestSeedSeq<uint32_t>;
+using ConstGenerateNonConstSizeSeedSeq =
+    TestSeedSeq<uint32_t, /*kConstGenerate=*/true, 1, /*kConstSize=*/false>;
+using NoSizeSeedSeq =
+    TestSeedSeq<uint32_t, /*kConstGenerate=*/true, 1, /*kConstSize=*/true,
+                /*kHasSize=*/false>;
+using SeedSeq64 =
+    TestSeedSeq<uint64_t, /*kConstGenerate=*/false, kTestSeedStart>;
+using SeedSeq32 =
+    TestSeedSeq<uint32_t, /*kConstGenerate=*/false, kTestSeedStart>;
+using SignedResultSeedSeq = TestSeedSeq<int32_t>;
+using NarrowResultSeedSeq = TestSeedSeq<uint16_t>;
+using BoolResultSeedSeq = TestSeedSeq<bool>;
+using ConstResultSeedSeq = TestSeedSeq<const uint32_t>;
+using RefResultSeedSeq = TestSeedSeq<uint32_t&>;
+using VoidResultSeedSeq = TestSeedSeq<void>;
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+constexpr uint32_t kThrowingWriteSentinel = 0x12345678u;
+constexpr int kThrowingSeedException = 42;
+
+struct ThrowingRandenSeedSeq {
+  using result_type = uint32_t;
+  size_t size() const { return 8; }
+  void generate(uint32_t* begin, uint32_t*) {
+    *begin = kThrowingWriteSentinel;
+    throw kThrowingSeedException;
+  }
+};
+#endif
+
+struct SaltedTagRecordingSeedSeq {
+  using result_type = uint32_t;
+  mutable size_t calls = 0;
+  mutable size_t last_words_requested = 0;
+  size_t size() const { return 2u; }
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    ++calls;
+    last_words_requested = static_cast<size_t>(std::distance(begin, end));
+    uint32_t v = 1u;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+};
+
+struct UnsaltedRecordingSeedSeq {
+  using result_type = uint32_t;
+  mutable size_t calls = 0;
+  mutable size_t last_words_requested = 0;
+  size_t size() const { return 2u; }
+  template <typename OutIt>
+  void generate(OutIt begin, OutIt end) const {
+    ++calls;
+    last_words_requested = static_cast<size_t>(std::distance(begin, end));
+    uint32_t v = 1u;
+    for (OutIt it = begin; it != end; ++it) *it = v++;
+  }
+};
+
+}  // namespace
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+template <>
+struct IsSaltedSeedSeq<SaltedTagRecordingSeedSeq> : std::true_type {};
+}  // namespace random_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+namespace {
+
+TYPED_TEST(RandenEngineTypedTest, ConstSeedSequenceMatchesSeedAndReseed) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  const ConstGenerateSeedSeq const_seq;
+  ConstGenerateSeedSeq mutable_seq;
+  randen engine(const_seq);
+  randen seeded;
+  seeded.seed(const_seq);
+  EXPECT_EQ(engine, seeded);
+
+  engine.reseed(const_seq);
+  seeded.reseed(mutable_seq);
+  EXPECT_EQ(engine, seeded);
+}
+
+TYPED_TEST(RandenEngineTypedTest,
+           NonConstSizeSeedSequenceWorksForSeedAndReseed) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  ConstGenerateNonConstSizeSeedSeq seq;
+  randen engine(seq);
+  randen seeded;
+  seeded.seed(seq);
+  EXPECT_EQ(engine, seeded);
+
+  ConstGenerateNonConstSizeSeedSeq seq2;
+  engine.reseed(seq);
+  seeded.reseed(seq2);
+  EXPECT_EQ(engine, seeded);
+}
+
+template <typename T>
+constexpr bool CheckRandenSeedSequenceConstraints() {
+  using randen = absl::random_internal::randen_engine<T>;
+
+  static_assert(!std::is_constructible_v<randen, int*>);
+  static_assert(!std::is_constructible_v<randen, void*>);
+  static_assert(!HasSeedMethod<randen, int*>::value);
+  static_assert(!HasSeedMethod<randen, void*>::value);
+  static_assert(!HasReseedMethod<randen, int&>::value);
+  static_assert(!HasReseedMethod<randen, T&>::value);
+  static_assert(!HasReseedMethod<randen, int*&>::value);
+  static_assert(!HasReseedMethod<randen, void*&>::value);
+  static_assert(!HasReseedMethod<randen, randen&>::value);
+  static_assert(!HasReseedMethod<randen, DerivedRanden<randen>&>::value);
+  static_assert(!HasReseedMethod<randen, ConvertibleSeedSeq&>::value);
+
+  static_assert(std::is_constructible_v<randen, DerivedRanden<randen>&>);
+  static_assert(std::is_constructible_v<randen, std::seed_seq&>);
+  static_assert(std::is_constructible_v<randen, std::seed_seq&&>);
+  static_assert(HasSeedMethod<randen, std::seed_seq&>::value);
+  static_assert(HasSeedMethod<randen, std::seed_seq&&>::value);
+  static_assert(HasReseedMethod<randen, std::seed_seq&>::value);
+  static_assert(HasReseedMethod<randen, SeedSeq64&>::value);
+
+  // Test non-const generate() rejection with a dedicated type because MSVC STL
+  // marks std::seed_seq::generate() const while libc++/libstdc++ do not.
+  static_assert(std::is_constructible_v<randen, NonConstGenerateSeedSeq&>);
+  static_assert(std::is_constructible_v<randen, NonConstGenerateSeedSeq&&>);
+  static_assert(
+      !std::is_constructible_v<randen, const NonConstGenerateSeedSeq&>);
+  static_assert(
+      !std::is_constructible_v<randen, const NonConstGenerateSeedSeq&&>);
+  static_assert(HasSeedMethod<randen, NonConstGenerateSeedSeq&>::value);
+  static_assert(!HasSeedMethod<randen, const NonConstGenerateSeedSeq&>::value);
+  static_assert(HasReseedMethod<randen, NonConstGenerateSeedSeq&>::value);
+  static_assert(
+      !HasReseedMethod<randen, const NonConstGenerateSeedSeq&>::value);
+
+  static_assert(std::is_constructible_v<randen, const ConstGenerateSeedSeq&>);
+  static_assert(HasSeedMethod<randen, const ConstGenerateSeedSeq&>::value);
+  static_assert(HasReseedMethod<randen, const ConstGenerateSeedSeq&>::value);
+
+  static_assert(
+      std::is_constructible_v<randen, ConstGenerateNonConstSizeSeedSeq&>);
+  static_assert(
+      std::is_constructible_v<randen, ConstGenerateNonConstSizeSeedSeq&&>);
+  static_assert(
+      !std::is_constructible_v<randen,
+                               const ConstGenerateNonConstSizeSeedSeq&>);
+  static_assert(
+      !std::is_constructible_v<randen,
+                               const ConstGenerateNonConstSizeSeedSeq&&>);
+  static_assert(
+      HasSeedMethod<randen, ConstGenerateNonConstSizeSeedSeq&>::value);
+  static_assert(
+      !HasSeedMethod<randen, const ConstGenerateNonConstSizeSeedSeq&>::value);
+  static_assert(
+      HasReseedMethod<randen, ConstGenerateNonConstSizeSeedSeq&>::value);
+  static_assert(
+      !HasReseedMethod<randen, const ConstGenerateNonConstSizeSeedSeq&>::value);
+
+  static_assert(!std::is_constructible_v<randen, NoSizeSeedSeq&>);
+  static_assert(!std::is_constructible_v<randen, const NoSizeSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, NoSizeSeedSeq&>::value);
+  static_assert(!HasSeedMethod<randen, const NoSizeSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, NoSizeSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, const NoSizeSeedSeq&>::value);
+
+  // Reject missing or invalid [rand.req.seedseq] result_type across ctor,
+  // seed(), and reseed().
+  static_assert(!std::is_constructible_v<randen, NoResultTypeSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, NoResultTypeSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, NoResultTypeSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, SignedResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, SignedResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, SignedResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, NarrowResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, NarrowResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, NarrowResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, BoolResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, BoolResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, BoolResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, ConstResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, ConstResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, ConstResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, RefResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, RefResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, RefResultSeedSeq&>::value);
+  static_assert(!std::is_constructible_v<randen, VoidResultSeedSeq&>);
+  static_assert(!HasSeedMethod<randen, VoidResultSeedSeq&>::value);
+  static_assert(!HasReseedMethod<randen, VoidResultSeedSeq&>::value);
+  return true;
+}
+
+static_assert(CheckRandenSeedSequenceConstraints<uint8_t>());
+static_assert(CheckRandenSeedSequenceConstraints<uint16_t>());
+static_assert(CheckRandenSeedSequenceConstraints<uint32_t>());
+static_assert(CheckRandenSeedSequenceConstraints<uint64_t>());
+
+TYPED_TEST(RandenEngineTypedTest,
+           SeedFollowedByReseedWithSameSequenceDoesNotCancel) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  ExplicitSeedSeq seq(kTestSeed4.begin(), kTestSeed4.end());
+
+  randen default_engine;
+  randen seeded_only(seq);
+  randen seed_then_reseed(seq);
+  seed_then_reseed.reseed(seq);
+  EXPECT_NE(seed_then_reseed, default_engine);
+  EXPECT_NE(seed_then_reseed, seeded_only);
+}
+
+TYPED_TEST(RandenEngineTypedTest,
+           BackToBackReseedWithSameSequenceDoesNotCancel) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  constexpr size_t kRateT = (absl::random_internal::Randen::kStateBytes -
+                             absl::random_internal::Randen::kCapacityBytes) /
+                            sizeof(TypeParam);
+  ExplicitSeedSeq seq(kTestSeed4.begin(), kTestSeed4.end());
+
+  // Trigger an initial Generate() and align base to the block boundary so
+  // operator!= checks sponge state rather than differing only in buffer offset.
+  randen base(seq);
+  base();
+  base.discard(kRateT - 1);
+  randen once = base;
+  once.reseed(seq);
+  randen twice = base;
+  twice.reseed(seq);
+  twice.reseed(seq);
+  EXPECT_NE(twice, base);
+  EXPECT_NE(twice, once);
+}
+
+TYPED_TEST(RandenEngineTypedTest, FullRateReseedWithSameSequenceDoesNotCancel) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  randen default_engine;
+  SeedSeq32 large_seq(64);
+  randen large_once(large_seq);
+  large_once.reseed(large_seq);
+  EXPECT_NE(large_once, default_engine);
+  EXPECT_NE(large_once, randen(large_seq));
+}
+
+TYPED_TEST(RandenEngineTypedTest, ZeroReseedDivergesFromBlockAdvance) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  constexpr size_t kRateT = (absl::random_internal::Randen::kStateBytes -
+                             absl::random_internal::Randen::kCapacityBytes) /
+                            sizeof(TypeParam);
+  ExplicitSeedSeq seq(kTestSeed4.begin(), kTestSeed4.end());
+  ExplicitSeedSeq zero_seq;
+
+  // Force the initial Generate() before forking so `advanced` reaches the block
+  // boundary without a second permutation (catching unpermuted zero reseed),
+  // while `next_block` advances one more permutation (catching missing capacity
+  // domain separation).
+  randen advanced(seq);
+  advanced();
+  randen zero_reseeded = advanced;
+  advanced.discard(kRateT - 1);
+  randen next_block = advanced;
+  next_block.discard(kRateT);
+  zero_reseeded.reseed(zero_seq);
+  EXPECT_NE(zero_reseeded, advanced);
+  EXPECT_NE(zero_reseeded, next_block);
+}
+
+TYPED_TEST(RandenEngineTypedTest, ReseedAtDistinctMidBufferPositionsDiverges) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  ExplicitSeedSeq seq(kTestSeed4.begin(), kTestSeed4.end());
+
+  randen mid_a(seq);
+  randen mid_b(seq);
+  mid_a.discard(1);
+  mid_b.discard(5);
+  ASSERT_NE(mid_a, mid_b);
+  mid_a.reseed(seq);
+  mid_b.reseed(seq);
+  EXPECT_NE(mid_a, mid_b);
+}
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+TYPED_TEST(RandenEngineTypedTest, ThrowingSeedAndReseedPreserveState) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  ExplicitSeedSeq seq(kTestSeed4.begin(), kTestSeed4.end());
+  ThrowingRandenSeedSeq throwing_seq;
+
+  randen survivor(seq);
+  survivor.discard(2);
+  const randen snapshot = survivor;
+  EXPECT_THROW(survivor.seed(throwing_seq), int);
+  EXPECT_EQ(survivor, snapshot);
+  EXPECT_THROW(survivor.reseed(throwing_seq), int);
+  EXPECT_EQ(survivor, snapshot);
+}
+#endif
+
+TYPED_TEST(RandenEngineTypedTest,
+           SaltedSeedSeqDrawsFullRateWhileUnsaltedPreservesSizeDraw) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  SaltedTagRecordingSeedSeq salted_seq;
+  UnsaltedRecordingSeedSeq unsalted_seq;
+
+  randen from_salted(salted_seq);
+  EXPECT_EQ(salted_seq.calls, 1u);
+  EXPECT_EQ(salted_seq.last_words_requested, 60u);
+
+  randen from_unsalted(unsalted_seq);
+  EXPECT_EQ(unsalted_seq.calls, 1u);
+  EXPECT_EQ(unsalted_seq.last_words_requested, 2u);
+
+  from_salted.reseed(salted_seq);
+  EXPECT_EQ(salted_seq.calls, 2u);
+  EXPECT_EQ(salted_seq.last_words_requested, 60u);
+
+  from_unsalted.reseed(unsalted_seq);
+  EXPECT_EQ(unsalted_seq.calls, 2u);
+  EXPECT_EQ(unsalted_seq.last_words_requested, 2u);
+}
+
+TYPED_TEST(RandenEngineTypedTest,
+           SeedSequenceWith64BitResultTypeSubRateMatches32Bit) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+  static_assert(std::is_constructible_v<randen, SeedSeq64&>,
+                "randen_engine must be constructible from SeedSeq64&");
+  static_assert(HasSeedMethod<randen, SeedSeq64&>::value,
+                "randen_engine::seed must accept SeedSeq64&");
+
+  SeedSeq64 seq64(4);
+  SeedSeq32 seq32(4);
+  randen e64(seq64);
+  randen e32(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
+
+  e64.seed(seq64);
+  e32.seed(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
+}
+
+TYPED_TEST(RandenEngineTypedTest,
+           SeedSequenceWith64BitResultTypeFullRateMatches32Bit) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  SeedSeq64 seq64(64);
+  SeedSeq32 seq32(64);
+  randen e64(seq64);
+  randen e32(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
+
+  e64.seed(seq64);
+  e32.seed(seq32);
+  EXPECT_EQ(e64, e32);
+  EXPECT_EQ(e64(), e32());
 }
 
 TEST(RandenTest, VerifyGoldenRanden64Default) {
