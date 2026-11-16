@@ -315,6 +315,7 @@ absl_cc_test(
     absl::int128
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_sequence_urbg
     absl::random_random
     absl::type_traits
     GTest::gmock
@@ -1245,7 +1246,9 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::int128
+    absl::numeric_representation
     absl::random_internal_uniform_helper
+    GTest::gmock
     GTest::gtest_main
 )
 

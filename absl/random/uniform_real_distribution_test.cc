@@ -230,20 +230,51 @@ TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
 
 #endif  // GTEST_HAS_DEATH_TEST
 #if defined(NDEBUG)
-  // opt-mode, for invalid parameters, will generate a garbage value,
-  // but should not enter an infinite loop.
+  // In opt mode (NDEBUG), invalid or overflowing parameters must not enter an
+  // infinite loop or return non-finite values for finite sign-straddling
+  // endpoints.
   absl::InsecureBitGen gen;
   {
     DistributionType dist(10.0, 1.0);
     auto x = dist(gen);
-    EXPECT_FALSE(std::isnan(x)) << x;
+    EXPECT_THAT(x, ::testing::Eq(real_type{10.0}));
   }
   {
-    DistributionType dist(std::numeric_limits<real_type>::lowest(),
-                          std::numeric_limits<real_type>::max());
-    auto x = dist(gen);
-    // Infinite result.
-    EXPECT_FALSE(std::isfinite(x)) << x;
+    constexpr real_type kLowest = std::numeric_limits<real_type>::lowest();
+    constexpr real_type kMax = (std::numeric_limits<real_type>::max)();
+    DistributionType dist(kLowest, kMax);
+    bool saw_neg = false;
+    bool saw_pos = false;
+    for (int i = 0; i < 1000; ++i) {
+      auto x = dist(gen);
+      ASSERT_TRUE(std::isfinite(x)) << x;
+      ASSERT_GE(x, kLowest);
+      ASSERT_LT(x, kMax);
+      if (x < 0) saw_neg = true;
+      if (x >= 0) saw_pos = true;
+    }
+    EXPECT_TRUE(saw_neg);
+    EXPECT_TRUE(saw_pos);
+  }
+  {
+    constexpr real_type kMax = (std::numeric_limits<real_type>::max)();
+    DistributionType dist(-kEpsilon, kMax);
+    for (int i = 0; i < 100; ++i) {
+      auto x = dist(gen);
+      ASSERT_TRUE(std::isfinite(x)) << x;
+      ASSERT_GE(x, -kEpsilon);
+      ASSERT_LT(x, kMax);
+    }
+  }
+  {
+    constexpr real_type kLowest = std::numeric_limits<real_type>::lowest();
+    DistributionType dist(kLowest, kEpsilon);
+    for (int i = 0; i < 100; ++i) {
+      auto x = dist(gen);
+      ASSERT_TRUE(std::isfinite(x)) << x;
+      ASSERT_GE(x, kLowest);
+      ASSERT_LT(x, kEpsilon);
+    }
   }
 #endif  // NDEBUG
 }
@@ -390,6 +421,94 @@ TEST(UniformRealDistributionTest, AlgorithmBounds) {
     absl::random_internal::sequence_urbg urbg({0xFFFFFFFFFFFFFFFFull});
     double a = dist(urbg);
     EXPECT_EQ(a, 0.999999999999999888978);
+  }
+}
+
+TEST(UniformRealDistributionTest, AsymmetricSignStraddlingPreservesNearZero) {
+  using ::testing::AllOf;
+  using ::testing::Eq;
+  using ::testing::Ge;
+  using ::testing::Gt;
+  using ::testing::Le;
+  using ::testing::Lt;
+
+  // Previously, uniform_real_distribution<float>(-1.0f, 2^-25f) rounded
+  // hi - lo to 1.0f and erased all values in [0.0f, 2^-25f).
+  {
+    absl::uniform_real_distribution<float> dist(-1.0f, 0x1p-25f);
+    // First word drives bernoulli_distribution(p_pos) to true (v = 0 < c = 128)
+    // so the positive branch [0.0f, 2^-25f) is selected; second word samples.
+    absl::random_internal::sequence_urbg urbg_zero({0ull, 0ull});
+    EXPECT_THAT(dist(urbg_zero), Eq(0.0f));
+
+    absl::random_internal::sequence_urbg urbg_mid(
+        {0ull, 0x8000000000000000ull});
+    EXPECT_THAT(dist(urbg_mid), Eq(0x1p-26f));
+
+    absl::random_internal::sequence_urbg urbg_hi({0ull, 0xFFFFFFFFFFFFFFFFull});
+    EXPECT_THAT(dist(urbg_hi), AllOf(Gt(0.0f), Lt(0x1p-25f)));
+  }
+
+  // Same for double on [-1.0, 2^-54): slow-path bernoulli selects [0, 2^-54).
+  {
+    absl::uniform_real_distribution<double> dist(-1.0, 0x1p-54);
+    // For p = 2^-54, bernoulli fast path hits v = 0 == c = 0, then rescales to
+    // p = 2^-22 where v = 0 < c = 1024 returns true; third word samples.
+    absl::random_internal::sequence_urbg urbg_mid(
+        {0ull, 0ull, 0x8000000000000000ull});
+    EXPECT_THAT(dist(urbg_mid), Eq(0x1p-55));
+  }
+
+  // Statistical verification on [-1.0f, 2^-10f): positive hits occur at rate
+  // 2^-10 / (1 + 2^-10) and retain sub-2^-24 resolution near 0.
+  {
+    absl::random_internal::pcg64_2018_engine rng{0x2B7E151628AED2A6};
+    absl::uniform_real_distribution<float> dist(-1.0f, 0x1p-10f);
+    constexpr int kTrials = 200000;
+    int pos_hits = 0;
+    int fine_resolution_hits = 0;
+    for (int i = 0; i < kTrials; ++i) {
+      const float x = dist(rng);
+      ASSERT_THAT(x, AllOf(Ge(-1.0f), Lt(0x1p-10f)));
+      if (x >= 0.0f) {
+        ++pos_hits;
+        if (std::fmod(x, 0x1p-24f) != 0.0f) {
+          ++fine_resolution_hits;
+        }
+      }
+    }
+    EXPECT_THAT(pos_hits, AllOf(Ge(120), Le(280)));
+    EXPECT_THAT(fine_resolution_hits, Gt(pos_hits / 2));
+  }
+}
+
+TEST(UniformRealDistributionTest, NegativeIntervalPreservesTopUlps) {
+  using ::testing::AllOf;
+  using ::testing::Eq;
+  using ::testing::Gt;
+  using ::testing::Lt;
+
+  const double d_top_8_lo = -1.0 - 8.0 * (1.0 - std::nextafter(1.0, 0.0));
+  const float f_top_8_lo = -1.0f - 8.0f * (1.0f - std::nextafter(1.0f, 0.0f));
+
+  {
+    absl::uniform_real_distribution<double> dist(-10.0, -1.0);
+    absl::random_internal::sequence_urbg urbg({~uint64_t{1u << 7}});
+    EXPECT_THAT(dist(urbg), AllOf(Gt(d_top_8_lo), Lt(-1.0)));
+  }
+  {
+    absl::uniform_real_distribution<float> dist(-10.0f, -1.0f);
+    absl::random_internal::sequence_urbg urbg({~(uint64_t{1} << 36)});
+    EXPECT_THAT(dist(urbg), AllOf(Gt(f_top_8_lo), Lt(-1.0f)));
+  }
+  {
+    // 1-ULP negative interval [-denorm_min, 0.0) always returns -denorm_min.
+    constexpr double kNegDenorm = -std::numeric_limits<double>::denorm_min();
+    absl::uniform_real_distribution<double> dist(kNegDenorm, 0.0);
+    absl::InsecureBitGen gen;
+    for (int i = 0; i < 100; ++i) {
+      EXPECT_THAT(dist(gen), Eq(kNegDenorm));
+    }
   }
 }
 
