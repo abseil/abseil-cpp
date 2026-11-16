@@ -16,7 +16,6 @@
 #define ABSL_RANDOM_LOG_UNIFORM_INT_DISTRIBUTION_H_
 
 #include <algorithm>
-#include <cmath>
 #include <ios>
 #include <istream>
 #include <limits>
@@ -33,10 +32,16 @@ ABSL_NAMESPACE_BEGIN
 
 // log_uniform_int_distribution:
 //
-// Returns a random variate R in range [min, max] such that
-// floor(log(R-min, base)) is uniformly distributed.
-// We ensure uniformity by discretization using the
-// boundary sets [0, 1, base, base * base, ... min(base*n, max)]
+// Returns a random variate R in range [a, b] (where a = min(), b = max()) such
+// that floor(log(R - a, base)) is uniformly distributed.
+// Uniformity is ensured by discretizing R - a into buckets:
+//
+//   e = 0: {a}
+//   e = k: [a + base^(k-1), std::min(a + base^k - 1, b)]  (1 <= k <= L)
+//
+// where L = 0 if a == b, and L = floor(log_base(b - a)) + 1 otherwise.
+// A bucket e is chosen uniformly from {0, ..., L}, and then a value is chosen
+// uniformly from that bucket.
 //
 template <typename IntType = int>
 class log_uniform_int_distribution {
@@ -69,22 +74,18 @@ class log_uniform_int_distribution {
         // value which can be used to construct bounds.
         log_range_ = (std::min)(random_internal::BitWidth(range()),
                                 std::numeric_limits<unsigned_type>::digits);
-      } else if (base_ > 2) {
+      } else if (base_ > 2 && range() > 0) {
         // An out-of-contract base_ (<= 1) skips this branch entirely so that
-        // no floating-point undefined behavior is reached.
-        //
-        // NOTE: Computing the logN(x) introduces error from 2 sources:
-        // 1. Conversion of int to double loses precision for values >=
-        // 2^53, which may cause some log() computations to operate on
-        // different values.
-        // 2. The error introduced by the division will cause the result
-        // to differ from the expected value.
-        //
-        // Thus a result which should equal K may equal K +/- epsilon,
-        // which can eliminate some values depending on where the bounds fall.
-        const double inv_log_base = 1.0 / std::log(static_cast<double>(base_));
-        const double log_range = std::log(static_cast<double>(range()) + 0.5);
-        log_range_ = static_cast<int>(std::ceil(inv_log_base * log_range));
+        // division by 0 or non-termination is never reached.
+        const unsigned_type ubase = static_cast<unsigned_type>(base_);
+        const unsigned_type limit = range() / ubase;
+        unsigned_type pow = 1;
+        int log_range = 1;
+        while (pow <= limit) {
+          pow *= ubase;
+          ++log_range;
+        }
+        log_range_ = log_range;
       }
     }
 
@@ -110,7 +111,7 @@ class log_uniform_int_distribution {
     result_type max_;
     result_type base_;
     unsigned_type range_;  // max - min
-    int log_range_;        // ceil(logN(range_))
+    int log_range_;        // floor(log_base(range_)) + 1 (0 if range_ == 0)
 
     static_assert(random_internal::IsIntegral<IntType>::value,
                   "Class-template absl::log_uniform_int_distribution<> must be "
@@ -138,7 +139,8 @@ class log_uniform_int_distribution {
   template <typename URBG>
   result_type operator()(URBG& g,  // NOLINT(runtime/references)
                          const param_type& p) {
-    return static_cast<result_type>((p.min)() + Generate(g, p));
+    return static_cast<result_type>(static_cast<unsigned_type>((p.min)()) +
+                                    Generate(g, p));
   }
 
   result_type(min)() const { return (param_.min)(); }
@@ -184,34 +186,31 @@ log_uniform_int_distribution<IntType>::Generate(
   }
   const int d = e - 1;
 
-  unsigned_type base_e, top_e;
-  if (p.base() == 2) {
-    base_e = static_cast<unsigned_type>(1) << d;
-
-    top_e = (e >= std::numeric_limits<unsigned_type>::digits)
-                ? (std::numeric_limits<unsigned_type>::max)()
-                : (static_cast<unsigned_type>(1) << e) - 1;
+  // param_type establishes b^(log_range - 1) <= range < b^log_range whenever
+  // log_range > 0. Thus b^d <= range for every e in [1, log_range], and
+  // b^e <= range (so b^e fits in unsigned_type) iff e < log_range.
+  const unsigned_type ubase = static_cast<unsigned_type>(p.base());
+  unsigned_type lo;
+  if (ubase == 2) {
+    lo = static_cast<unsigned_type>(unsigned_type{1} << d);
   } else {
-    const double r = std::pow(static_cast<double>(p.base()), d);
-    const double s = (r * static_cast<double>(p.base())) - 1.0;
-
-    base_e =
-        (r > static_cast<double>((std::numeric_limits<unsigned_type>::max)()))
-            ? (std::numeric_limits<unsigned_type>::max)()
-            : static_cast<unsigned_type>(r);
-
-    top_e =
-        (s > static_cast<double>((std::numeric_limits<unsigned_type>::max)()))
-            ? (std::numeric_limits<unsigned_type>::max)()
-            : static_cast<unsigned_type>(s);
+    lo = 1;
+    unsigned_type factor = ubase;
+    for (int exp = d; exp > 0; exp >>= 1) {
+      if ((exp & 1) != 0) {
+        lo *= factor;
+      }
+      if (exp > 1) {
+        factor *= factor;
+      }
+    }
   }
-
-  const unsigned_type lo = (base_e >= p.range()) ? p.range() : base_e;
-  const unsigned_type hi = (top_e >= p.range()) ? p.range() : top_e;
+  const unsigned_type hi = (e == p.log_range())
+                               ? p.range()
+                               : static_cast<unsigned_type>((lo * ubase) - 1);
 
   // choose uniformly over [lo, hi]
-  return absl::uniform_int_distribution<result_type>(
-      static_cast<result_type>(lo), static_cast<result_type>(hi))(g);
+  return absl::uniform_int_distribution<unsigned_type>(lo, hi)(g);
 }
 
 template <typename CharT, typename Traits, typename IntType>
