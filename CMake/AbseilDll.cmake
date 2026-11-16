@@ -514,6 +514,7 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "random/internal/distribution_test_util.h"
   "random/internal/mock_helpers.h"
   "random/internal/mock_overload_set.h"
+  "random/internal/mock_validators.h"
   "random/mocking_bit_gen.h"
   "random/mock_distributions.h"
   "status/status_matchers.h"
