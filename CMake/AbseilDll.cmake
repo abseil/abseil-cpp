@@ -633,6 +633,18 @@ function(absl_make_dll)
     SHARED
       ${_dll_files}
   )
+  if (NOT ABSL_INTERNAL_MAKE_DLL_TEST AND ABSL_RANDOM_RANDEN_COPTS)
+    set(_randen_hwaes_copts "")
+    foreach(_flag IN LISTS ABSL_RANDOM_RANDEN_COPTS)
+      string(REGEX REPLACE "^SHELL:" "" _flag "${_flag}")
+      string(APPEND _randen_hwaes_copts " ${_flag}")
+    endforeach()
+    string(STRIP "${_randen_hwaes_copts}" _randen_hwaes_copts)
+    set_source_files_properties(
+      "random/internal/randen_hwaes.cc"
+      PROPERTIES COMPILE_FLAGS "${_randen_hwaes_copts}"
+    )
+  endif()
   target_link_libraries(
     ${_dll}
     PRIVATE

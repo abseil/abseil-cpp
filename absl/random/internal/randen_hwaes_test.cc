@@ -28,7 +28,22 @@ namespace {
 using absl::random_internal::RandenHwAes;
 using absl::random_internal::RandenTraits;
 
+// Whether the build is expected to compile the accelerated implementation
+// into randen_hwaes.cc. On these configurations a missing implementation means
+// that the hardware AES compiler flags were lost, so the test must fail rather
+// than be skipped. ILP32 ABIs (such as x32) are excluded because the CMake
+// build does not pass the flags for them.
+#if ABSL_RANDOM_INTERNAL_AES_DISPATCH && !defined(__ILP32__) && \
+    (defined(ABSL_ARCH_X86_64) ||                               \
+     (defined(ABSL_ARCH_AARCH64) && !defined(__ANDROID__))) &&  \
+    (defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER))
+constexpr bool kExpectHwAesImplementation = true;
+#else
+constexpr bool kExpectHwAesImplementation = false;
+#endif
+
 TEST(RandenHwAesTest, Default) {
+  ASSERT_TRUE(absl::random_internal::HasRandenHwAesImplementation());
   EXPECT_TRUE(absl::random_internal::CPUSupportsRandenHwAes());
 
   constexpr uint8_t kGolden[] = {
@@ -92,7 +107,9 @@ int main(int argc, char* argv[]) {
   int y = absl::random_internal::CPUSupportsRandenHwAes();
   LOG(INFO) << "CPUSupportsRandenHwAes = " << y;
 
-  if (!x || !y) {
+  // When the implementation is expected, run the tests even if it is missing
+  // so that RandenHwAesTest.Default reports the failure.
+  if (!y || (!x && !kExpectHwAesImplementation)) {
     LOG(INFO) << "Skipping Randen HWAES tests.";
     return 0;
   }

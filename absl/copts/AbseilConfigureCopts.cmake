@@ -10,6 +10,17 @@ else()
   set(ABSL_BUILD_DLL FALSE)
 endif()
 
+set(ABSL_RANDOM_HWAES_ARM64_FLAGS "-march=armv8-a+crypto")
+set(ABSL_RANDOM_HWAES_X64_FLAGS "-maes")
+# Big-endian ppc64 does not enable VSX by default, and -mcrypto alone does not
+# define __VSX__.
+set(ABSL_RANDOM_HWAES_PPC_FLAGS "-mcrypto" "-mvsx")
+
+set(_absl_randen_arch "${CMAKE_SYSTEM_PROCESSOR}")
+if(MSVC AND CMAKE_CXX_COMPILER_ARCHITECTURE_ID)
+  set(_absl_randen_arch "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}")
+endif()
+
 if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES [[Clang]])
   # Some CMake targets (not known at the moment of processing) could be set to
   # compile for multiple architectures as specified by the OSX_ARCHITECTURES
@@ -52,23 +63,34 @@ if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES [[Clang]])
   if(ABSL_RANDOM_RANDEN_COPTS AND NOT ABSL_RANDOM_RANDEN_COPTS_WARNING)
     list(APPEND ABSL_RANDOM_RANDEN_COPTS "-Wno-unused-command-line-argument")
   endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
-  if (MSVC)
-    set(ABSL_RANDOM_RANDEN_COPTS "${ABSL_RANDOM_HWAES_MSVC_X64_FLAGS}")
+elseif(_absl_randen_arch MATCHES "^(x86_64|x64|amd64|AMD64)$")
+  if(NOT CMAKE_SIZEOF_VOID_P STREQUAL "8" OR
+     CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # MSVC has no -maes equivalent; its AES intrinsics are always available.
+    set(ABSL_RANDOM_RANDEN_COPTS "")
   else()
     set(ABSL_RANDOM_RANDEN_COPTS "${ABSL_RANDOM_HWAES_X64_FLAGS}")
   endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm.*|aarch64")
-  if (CMAKE_SIZEOF_VOID_P STREQUAL "8")
+elseif(_absl_randen_arch MATCHES "^(arm.*|ARM.*|aarch64|AARCH64)$")
+  if(WIN32)
+    # Windows ARM/ARM64/ARM64EC does not use runtime dispatch in platform.h.
+    set(ABSL_RANDOM_RANDEN_COPTS "")
+  elseif(CMAKE_SIZEOF_VOID_P STREQUAL "8")
     set(ABSL_RANDOM_RANDEN_COPTS "${ABSL_RANDOM_HWAES_ARM64_FLAGS}")
   elseif(CMAKE_SIZEOF_VOID_P STREQUAL "4")
-    set(ABSL_RANDOM_RANDEN_COPTS "${ABSL_RANDOM_HWAES_ARM32_FLAGS}")
+    # No flag is passed for 32-bit ARM. "-mfpu=neon" does not enable the AES
+    # extension and would override an ARMv8 toolchain's default FPU, which
+    # does; "-mfpu=crypto-neon-fp-armv8" is rejected for ARMv7 targets.
+    set(ABSL_RANDOM_RANDEN_COPTS "")
   else()
     message(WARNING "Value of CMAKE_SIZEOF_VOID_P (${CMAKE_SIZEOF_VOID_P}) is not supported.")
   endif()
+elseif(_absl_randen_arch MATCHES "^(ppc64|powerpc64)(le)?$")
+  set(ABSL_RANDOM_RANDEN_COPTS "${ABSL_RANDOM_HWAES_PPC_FLAGS}")
 else()
   set(ABSL_RANDOM_RANDEN_COPTS "")
 endif()
+unset(_absl_randen_arch)
 
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "QCC")

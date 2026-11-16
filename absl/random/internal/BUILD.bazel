@@ -43,22 +43,33 @@ package(
 
 licenses(["notice"])
 
-# Used to select on compilers that support GCC-compatible options
-# (e.g. "-maes").
+# Matches compilers that reject GCC-style target feature flags
+# (e.g. "-march=armv8-a+crypto", "-mfpu=neon", "-mcrypto").
 selects.config_setting_group(
-    name = "gcc_compatible",
+    name = "non_gcc_compatible",
     match_any = [
-        "@rules_cc//cc/compiler:clang",
-        "@rules_cc//cc/compiler:gcc",
+        "@rules_cc//cc/compiler:msvc-cl",
+        "@rules_cc//cc/compiler:clang-cl",
+        "@rules_cc//cc/compiler:emscripten",
     ],
 )
 
 selects.config_setting_group(
-    name = "gcc_compatible-aarch32",
-    match_all = [
-        ":gcc_compatible",
-        "@platforms//cpu:aarch32",
-    ],
+    name = "always",
+    match_any = ["//conditions:default"],
+)
+
+# Matches every compiler that is not :non_gcc_compatible. This is an exclusion
+# list rather than an allowlist of compilers so that toolchains reporting other
+# compiler names (e.g. MinGW variants) still receive the hardware AES flags.
+# select() has no negation, so when :non_gcc_compatible matches this resolves to
+# compiler:gcc, which cannot also match because the compiler is single-valued.
+alias(
+    name = "gcc_compatible",
+    actual = select({
+        ":non_gcc_compatible": "@rules_cc//cc/compiler:gcc",
+        "//conditions:default": ":always",
+    }),
 )
 
 selects.config_setting_group(
@@ -73,7 +84,6 @@ selects.config_setting_group(
     name = "ppc_crypto",
     match_any = [
         "@platforms//cpu:ppc",
-        "@platforms//cpu:ppc32",
         "@platforms//cpu:ppc64le",
     ],
 )
@@ -94,18 +104,31 @@ selects.config_setting_group(
     ],
 )
 
+# clang-cl rejects the other GCC-style flags above but accepts "-maes".
+selects.config_setting_group(
+    name = "clang-cl-x86_64",
+    match_all = [
+        "@rules_cc//cc/compiler:clang-cl",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
 # Some libraries are compiled with options to generate AES-NI
 # instructions, and runtime dispatch is used to determine if the host
 # microarchitecture supports AES-NI or if a portable fallback library
 # should be called.
+#
+# No flag is passed for 32-bit ARM: "-mfpu=neon" does not enable the AES
+# extension and would override an ARMv8 toolchain's default FPU, which does.
 ABSL_RANDOM_RANDEN_COPTS = select({
-    ":gcc_compatible-aarch32": ["-mfpu=neon"],
     ":gcc_compatible-aarch64": ["-march=armv8-a+crypto"],
-    ":gcc_compatible-ppc_crypto": ["-mcrypto"],
-    ":gcc_compatible-x86_64": [
-        "-maes",
-        "-msse4.1",
+    # Big-endian ppc64 does not enable VSX by default.
+    ":gcc_compatible-ppc_crypto": [
+        "-mcrypto",
+        "-mvsx",
     ],
+    ":gcc_compatible-x86_64": ["-maes"],
+    ":clang-cl-x86_64": ["-maes"],
     "//conditions:default": [],
 })
 
@@ -743,7 +766,7 @@ cc_test(
     name = "randen_hwaes_test",
     size = "small",
     srcs = ["randen_hwaes_test.cc"],
-    copts = ABSL_TEST_COPTS + ABSL_RANDOM_RANDEN_COPTS,
+    copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ABSL_RANDOM_NONPORTABLE_TAGS,
     deps = [
@@ -838,7 +861,7 @@ cc_test(
     size = "medium",
     timeout = "long",
     srcs = ["randen_benchmarks.cc"],
-    copts = ABSL_TEST_COPTS + ABSL_RANDOM_RANDEN_COPTS,
+    copts = ABSL_TEST_COPTS,
     flaky = 1,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ABSL_RANDOM_NONPORTABLE_TAGS + ["benchmark"],
