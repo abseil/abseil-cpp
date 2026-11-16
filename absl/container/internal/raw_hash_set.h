@@ -1384,7 +1384,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(capacity() > 0);
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap_or_soo_.control().get());
+    ctrl_t* ctrl = heap_or_soo_.control().get();
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(ABSL_ASSUME(ctrl != nullptr));
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(ctrl);
   }
 
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
@@ -4390,8 +4392,10 @@ class raw_hash_set : public raw_hash_set_base {
       absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, KeyParam<K>>);
     AssertOnFind<K>(key);
-    return is_small() ? find_or_prepare_insert_small<K>(key)
-                      : find_or_prepare_insert_large<FindLargeKey<K>>(key);
+    if (is_small()) return find_or_prepare_insert_small<K>(key);
+    auto res = find_or_prepare_insert_large<FindLargeKey<K>>(key);
+    ABSL_ASSUME(res.first != nullptr);
+    return res;
   }
 
   // Constructs the value in the space pointed by the iterator. This only works
