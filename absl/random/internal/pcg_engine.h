@@ -19,9 +19,11 @@
 #include <cstdint>
 #include <ios>
 #include <istream>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
@@ -29,6 +31,7 @@
 #include "absl/numeric/int128.h"
 #include "absl/random/internal/fastmath.h"
 #include "absl/random/internal/iostream_state_saver.h"
+#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -58,6 +61,13 @@ class pcg_engine {
   using mix_type = Mix;
   using state_type = typename Mix::state_type;
 
+  template <class SeedSequence>
+  using EnableIfSeedSeq = std::conjunction<
+      std::negation<
+          std::is_base_of<pcg_engine, absl::remove_cvref_t<SeedSequence>>>,
+      std::negation<std::is_convertible<SeedSequence, uint64_t>>,
+      HasSeedSeqGenerate<SeedSequence>>;
+
  public:
   // C++11 URBG interface:
   using result_type = typename Mix::result_type;
@@ -72,8 +82,8 @@ class pcg_engine {
 
   explicit pcg_engine(uint64_t seed_value = 0) { seed(seed_value); }
 
-  template <class SeedSequence, typename = typename std::enable_if_t<
-                                    !std::is_same_v<SeedSequence, pcg_engine>>>
+  template <class SeedSequence,
+            typename = std::enable_if_t<EnableIfSeedSeq<SeedSequence>::value>>
   explicit pcg_engine(SeedSequence&& seq) {
     seed(seq);
   }
@@ -94,10 +104,9 @@ class pcg_engine {
     state_ = lcg(tmp + Params::increment());
   }
 
-  template <class SeedSequence>
-  typename std::enable_if_t<!std::is_convertible_v<SeedSequence, uint64_t>,
-                            void>
-  seed(SeedSequence&& seq) {
+  template <class SeedSequence,
+            typename = std::enable_if_t<EnableIfSeedSeq<SeedSequence>::value>>
+  void seed(SeedSequence&& seq) {
     reseed(seq);
   }
 
@@ -213,15 +222,13 @@ class pcg_engine {
 
   template <class SeedSequence>
   void reseed(SeedSequence& seq) {
-    using sequence_result_type = typename SeedSequence::result_type;
-    constexpr size_t kBufferSize =
-        sizeof(state_type) / sizeof(sequence_result_type);
-    sequence_result_type buffer[kBufferSize];
+    constexpr size_t kBufferSize = sizeof(state_type) / sizeof(uint32_t);
+    uint32_t buffer[kBufferSize];
     seq.generate(std::begin(buffer), std::end(buffer));
     // Convert the seed output to a single state value.
     state_type tmp = buffer[0];
     for (size_t i = 1; i < kBufferSize; i++) {
-      tmp <<= (sizeof(sequence_result_type) * 8);
+      tmp <<= (sizeof(uint32_t) * 8);
       tmp |= buffer[i];
     }
     state_ = lcg(tmp + params_type::increment());

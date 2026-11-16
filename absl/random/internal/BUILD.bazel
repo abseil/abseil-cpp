@@ -239,6 +239,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":seed_material",
+        ":traits",
         "//absl/base:config",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
@@ -310,6 +311,7 @@ cc_library(
         ":entropy_pool",
         ":salted_seed_seq",
         ":seed_material",
+        ":traits",
         "//absl/base:config",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
@@ -324,6 +326,7 @@ cc_library(
     deps = [
         ":fastmath",
         ":iostream_state_saver",
+        ":traits",
         "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
@@ -341,6 +344,7 @@ cc_library(
     deps = [
         ":iostream_state_saver",
         ":randen",
+        ":traits",
         "//absl/base:config",
         "//absl/base:endian",
         "//absl/meta:type_traits",
@@ -689,6 +693,7 @@ cc_test(
     deps = [
         ":explicit_seed_seq",
         ":pcg_engine",
+        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -705,6 +710,7 @@ cc_test(
     deps = [
         ":explicit_seed_seq",
         ":randen_engine",
+        "//absl/base:config",
         "//absl/log",
         "//absl/time",
         "@googletest//:gtest",
