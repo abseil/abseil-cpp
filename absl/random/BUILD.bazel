@@ -58,6 +58,7 @@ cc_library(
     srcs = [
         "discrete_distribution.cc",
         "gaussian_distribution.cc",
+        "poisson_distribution.cc",
     ],
     hdrs = [
         "bernoulli_distribution.h",
@@ -340,6 +341,7 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/container:flat_hash_map",
         "//absl/log",
+        "//absl/numeric:int128",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
