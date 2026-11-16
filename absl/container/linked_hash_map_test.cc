@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -526,11 +527,14 @@ TEST(LinkedHashMapTest, Swap) {
   m1.insert(std::make_pair(1, 1));
   m1.insert(std::make_pair(2, 2));
   m2.insert(std::make_pair(3, 3));
+  auto it1 = std::prev(m1.end());
   ASSERT_EQ(2, m1.size());
   ASSERT_EQ(1, m2.size());
   m1.swap(m2);
   ASSERT_EQ(1, m1.size());
   ASSERT_EQ(2, m2.size());
+  EXPECT_EQ(std::next(it1), m2.end());
+  EXPECT_EQ(std::prev(m2.end()), it1);
 }
 
 TEST(LinkedHashMapTest, SelfSwap) {
@@ -954,7 +958,7 @@ TEST(LinkedHashMap, MoveAssignWithPropagatingAllocatorPropagates) {
 
 TEST(LinkedHashMap, Merge) {
   linked_hash_map<int, int> m = {{1, 7}, {3, 6}};
-  linked_hash_map<int, int> src = {{1, 10}, {2, 9}, {4, 16}};
+  linked_hash_map<int, int, std::hash<int>> src = {{1, 10}, {2, 9}, {4, 16}};
 
   m.merge(src);
 
@@ -967,7 +971,7 @@ TEST(LinkedHashMap, Merge) {
 
 TEST(LinkedHashMap, Splice) {
   linked_hash_map<int, int> m = {{1, 7}, {3, 6}};
-  linked_hash_map<int, int> src = {{1, 10}, {2, 9}, {4, 16}};
+  linked_hash_map<int, int, std::hash<int>> src = {{1, 10}, {2, 9}, {4, 16}};
   m.splice(m.end(), m, m.begin());
 
   EXPECT_THAT(m, ElementsAre(Pair(3, 6), Pair(1, 7)));
@@ -1139,6 +1143,14 @@ TEST(LinkedHashMapTest, HashCountInOptBuilds) {
     EXPECT_LE(src_count, 200);
     EXPECT_LE(dst_count, 200);
   }
+}
+
+TEST(LinkedHashMap, RecursiveTypeCompiles) {
+  struct RecursiveType {
+    linked_hash_map<int, RecursiveType> m;
+  };
+  RecursiveType t;
+  t.m[0] = RecursiveType{};
 }
 
 }  // namespace

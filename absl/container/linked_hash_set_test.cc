@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -541,11 +542,14 @@ TEST(LinkedHashSetTest, Swap) {
   m1.insert(1);
   m1.insert(2);
   m2.insert(3);
+  auto it1 = std::prev(m1.end());
   ASSERT_EQ(2, m1.size());
   ASSERT_EQ(1, m2.size());
   m1.swap(m2);
   ASSERT_EQ(1, m1.size());
   ASSERT_EQ(2, m2.size());
+  EXPECT_EQ(std::next(it1), m2.end());
+  EXPECT_EQ(std::prev(m2.end()), it1);
 }
 
 TEST(LinkedHashSetTest, SelfSwap) {
@@ -827,6 +831,10 @@ TEST(LinkedHashSet, ExtractInsert) {
   EXPECT_EQ(node.value(), 9);
   EXPECT_THAT(s, ElementsAre(7, 2, 17));
   EXPECT_FALSE(s.contains(9));
+
+  node.value() = 19;
+  EXPECT_EQ(s.insert(s.begin(), std::move(node)), s.find(19));
+  EXPECT_THAT(s, ElementsAre(7, 2, 17, 19));
 }
 
 // Verify that emplacing and extracting nodes results in the same stateful
@@ -982,7 +990,7 @@ TEST(LinkedHashSet, MoveAssignWithPropagatingAllocatorPropagates) {
 
 TEST(LinkedHashSet, Merge) {
   linked_hash_set<int> m = {1, 7, 3, 6, 10};
-  linked_hash_set<int> src = {1, 2, 9, 10, 4, 16};
+  linked_hash_set<int, std::hash<int>> src = {1, 2, 9, 10, 4, 16};
 
   m.merge(src);
 

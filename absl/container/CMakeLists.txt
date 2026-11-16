@@ -1156,6 +1156,41 @@ absl_cc_library(
   TESTONLY
 )
 
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    raw_linked_hash_set
+  HDRS
+    "internal/raw_linked_hash_set.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::container_common
+    absl::container_memory
+    absl::core_headers
+    absl::hash_container_defaults
+    absl::raw_hash_set
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    raw_linked_hash_set_test
+  SRCS
+    "internal/raw_linked_hash_set_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::raw_linked_hash_set
+    GTest::gmock_main
+)
+
 absl_cc_library(
   NAME
     linked_hash_set
@@ -1167,9 +1202,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
      absl::config
-     absl::container_common
-     absl::core_headers
-     absl::flat_hash_set
+     absl::raw_linked_hash_set
 )
 
 absl_cc_test(
@@ -1208,9 +1241,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
      absl::config
-     absl::container_common
      absl::core_headers
-     absl::flat_hash_set
+     absl::raw_linked_hash_set
      absl::throw_delegate
 )
 
