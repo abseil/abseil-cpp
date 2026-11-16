@@ -132,6 +132,10 @@ TEST_F(FlagTest, Traits) {
             flags::FlagValueStorageKind::kHeapAllocated);
   EXPECT_EQ(flags::StorageKind<std::vector<std::string>>(),
             flags::FlagValueStorageKind::kHeapAllocated);
+  EXPECT_EQ(flags::StorageKind<std::vector<int>>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
+  EXPECT_EQ(flags::StorageKind<std::vector<double>>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
 
   EXPECT_EQ(flags::StorageKind<absl::int128>(),
             flags::FlagValueStorageKind::kSequenceLocked);
@@ -1462,6 +1466,71 @@ TEST_F(FlagTest, FilenameInterning) {
   EXPECT_EQ(f_a1.Filename(), "dir/intern_test_a.cc");
   EXPECT_EQ(f_a2.Filename(), "dir/intern_test_a.cc");
   EXPECT_EQ(f_b.Filename(), "dir/intern_test_b.cc");
+}
+
+}  // namespace
+
+ABSL_FLAG(std::vector<int32_t>, numeric_vec_empty, {}, "empty int32 vector");
+ABSL_FLAG(std::vector<int64_t>, numeric_vec_int64,
+          std::vector<int64_t>({1, 2, 3}), "int64 vector");
+ABSL_FLAG(std::vector<size_t>, numeric_vec_size_t,
+          std::vector<size_t>({10, 20}), "size_t vector");
+ABSL_FLAG(std::vector<absl::int128>, numeric_vec_int128,
+          std::vector<absl::int128>({-1, 2}), "int128 vector");
+ABSL_FLAG(std::vector<double>, numeric_vec_double,
+          std::vector<double>({0.5, -1.5}), "double vector");
+
+namespace {
+
+TEST_F(FlagTest, TestNumericVectorFlags) {
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_empty), std::vector<int32_t>{});
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_numeric_vec_empty)
+                .DefaultValue(),
+            "");
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int64),
+            (std::vector<int64_t>{1, 2, 3}));
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_numeric_vec_int64)
+                .DefaultValue(),
+            "1,2,3");
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_numeric_vec_int64)
+                .CurrentValue(),
+            "1,2,3");
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_size_t),
+            (std::vector<size_t>{10, 20}));
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int128),
+            (std::vector<absl::int128>{-1, 2}));
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_double),
+            (std::vector<double>{0.5, -1.5}));
+
+  {
+    absl::FlagSaver saver;
+    absl::SetFlag(&FLAGS_numeric_vec_int64, std::vector<int64_t>{4, 5});
+    EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int64),
+              (std::vector<int64_t>{4, 5}));
+    EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_numeric_vec_int64)
+                  .CurrentValue(),
+              "4,5");
+  }
+  EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int64),
+            (std::vector<int64_t>{1, 2, 3}));
+
+  if constexpr (!kStrippedFlagNames) {
+    absl::CommandLineFlag* handle =
+        absl::FindCommandLineFlag("numeric_vec_int64");
+    ASSERT_NE(handle, nullptr);
+    EXPECT_EQ(*handle->TryGet<std::vector<int64_t>>(),
+              (std::vector<int64_t>{1, 2, 3}));
+
+    std::string err;
+    EXPECT_TRUE(handle->ParseFrom("10, 20", &err));
+    EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int64),
+              (std::vector<int64_t>{10, 20}));
+
+    EXPECT_TRUE(handle->ParseFrom("", &err));
+    EXPECT_EQ(absl::GetFlag(FLAGS_numeric_vec_int64), std::vector<int64_t>{});
+  }
 }
 
 }  // namespace

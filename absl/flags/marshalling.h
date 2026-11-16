@@ -29,17 +29,30 @@
 // * `uint32_t`
 // * `int64_t`
 // * `uint64_t`
+// * `absl::int128`
+// * `absl::uint128`
 // * `float`
 // * `double`
 // * `std::string`
+// * `std::vector<int16_t>`
+// * `std::vector<uint16_t>`
+// * `std::vector<int32_t>`
+// * `std::vector<uint32_t>`
+// * `std::vector<int64_t>`
+// * `std::vector<uint64_t>`
+// * `std::vector<absl::int128>`
+// * `std::vector<absl::uint128>`
+// * `std::vector<float>`
+// * `std::vector<double>`
 // * `std::vector<std::string>`
 // * `std::optional<T>`
 // * `absl::LogSeverity` (provided natively for layering reasons)
 //
-// Note that support for integral types is implemented using overloads for
-// variable-width fundamental types (`short`, `int`, `long`, etc.). However,
-// you should prefer the fixed-width integral types (`int32_t`, `uint64_t`,
-// etc.) we've noted above within flag definitions.
+// Note that support for integral types (and vectors of integral types) is
+// implemented using overloads for variable-width fundamental types (`short`,
+// `int`, `long`, etc.). However, you should prefer the fixed-width integral
+// types (`int32_t`, `uint64_t`, etc.) we've noted above within flag
+// definitions.
 //
 // In addition, several Abseil libraries provide their own custom support for
 // Abseil flags. Documentation for these formats is provided in the type's
@@ -64,6 +77,16 @@
 // You can also provide your own custom flags by adding overloads for
 // `AbslParseFlag()` and `AbslUnparseFlag()` to your type definitions. (See
 // below.)
+//
+// -----------------------------------------------------------------------------
+// Vector Flags
+// -----------------------------------------------------------------------------
+//
+// Supported `std::vector` flag types parse comma-separated lists of elements
+// (e.g. `--my_ints=1,2,3`), delegating each element to `absl::ParseFlag()`.
+// Passing an empty string (`--my_ints=` or `--my_ints=""`) produces an empty
+// vector. Specifying a vector flag multiple times on the command line
+// overwrites previous values rather than appending to them.
 //
 // -----------------------------------------------------------------------------
 // Optional Flags
@@ -236,6 +259,28 @@ bool AbslParseFlag(absl::string_view, absl::uint128*, std::string*);   // NOLINT
 bool AbslParseFlag(absl::string_view, float*, std::string*);
 bool AbslParseFlag(absl::string_view, double*, std::string*);
 bool AbslParseFlag(absl::string_view, std::string*, std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<short>*,             // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<unsigned short>*,    // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<int>*, std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<unsigned int>*,
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<long>*,              // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<unsigned long>*,     // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<long long>*,         // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view,
+                   std::vector<unsigned long long>*,  // NOLINT
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<absl::int128>*,
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<absl::uint128>*,
+                   std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<float>*, std::string*);
+bool AbslParseFlag(absl::string_view, std::vector<double>*, std::string*);
 bool AbslParseFlag(absl::string_view, std::vector<std::string>*, std::string*);
 
 template <typename T>
@@ -263,6 +308,18 @@ bool InvokeParseFlag(absl::string_view input, T* dst, std::string* err) {
 // considerations as fundamental types. Naming these 'AbslUnparseFlag' means we
 // can avoid the need for additional specializations of Unparse (below).
 std::string AbslUnparseFlag(absl::string_view v);
+std::string AbslUnparseFlag(const std::vector<short>&);               // NOLINT
+std::string AbslUnparseFlag(const std::vector<unsigned short>&);      // NOLINT
+std::string AbslUnparseFlag(const std::vector<int>&);                 // NOLINT
+std::string AbslUnparseFlag(const std::vector<unsigned int>&);        // NOLINT
+std::string AbslUnparseFlag(const std::vector<long>&);                // NOLINT
+std::string AbslUnparseFlag(const std::vector<unsigned long>&);       // NOLINT
+std::string AbslUnparseFlag(const std::vector<long long>&);           // NOLINT
+std::string AbslUnparseFlag(const std::vector<unsigned long long>&);  // NOLINT
+std::string AbslUnparseFlag(const std::vector<absl::int128>&);        // NOLINT
+std::string AbslUnparseFlag(const std::vector<absl::uint128>&);       // NOLINT
+std::string AbslUnparseFlag(const std::vector<float>&);               // NOLINT
+std::string AbslUnparseFlag(const std::vector<double>&);              // NOLINT
 std::string AbslUnparseFlag(const std::vector<std::string>&);
 
 template <typename T>
