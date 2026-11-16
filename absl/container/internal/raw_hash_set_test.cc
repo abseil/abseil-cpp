@@ -97,6 +97,16 @@ struct RawHashSetTestOnlyAccess {
   }
 };
 
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+class HashtablezInfoHandlePeer {
+ public:
+  template <typename C>
+  static const HashtablezInfo* GetInfo(C& c) {
+    return RawHashSetTestOnlyAccess::GetCommon(c).infoz().info_;
+  }
+};
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+
 namespace {
 
 using ::testing::ElementsAre;
@@ -4282,10 +4292,11 @@ TEST(RawHashSamplerTest, SooTableInsertToEmpty) {
     ASSERT_EQ(info->inline_element_size,
               sizeof(typename SooInt32Table::value_type));
     ASSERT_EQ(info->soo_capacity, SooCapacity());
-    ASSERT_EQ(info->capacity, NextCapacity(SooCapacity()));
+    ASSERT_EQ(info->capacity, SooCapacity());
     ASSERT_EQ(info->size, 1);
     ASSERT_EQ(info->max_reserve, 0);
     ASSERT_EQ(info->num_erases, 0);
+    ASSERT_EQ(info->num_rehashes, 0);
     ASSERT_EQ(info->max_probe_length, 0);
     ASSERT_EQ(info->total_probe_length, 0);
   }
@@ -4323,6 +4334,11 @@ TEST(RawHashSamplerTest, SooTableRepeatedInsertEraseDoesNotOversample) {
           t.erase(1);
         }
       });
+  for (const HashtablezInfo* info : infos) {
+    EXPECT_EQ(info->soo_capacity, SooCapacity());
+    ASSERT_EQ(info->capacity, SooCapacity());
+    ASSERT_EQ(info->size, 0);
+  }
 
   // SampleSooMutation checks EXPECT_NEAR(sampled/total, 1%, 0.5%).
   // If the sampling logic is incorrectly evaluated on every 0->1 element
@@ -4416,7 +4432,8 @@ TEST(RawHashSamplerTest, SooTableReserveToEmpty) {
     ASSERT_EQ(info->inline_element_size,
               sizeof(typename SooInt32Table::value_type));
     ASSERT_EQ(info->soo_capacity, SooCapacity());
-    ASSERT_GE(info->capacity, 100);
+    ASSERT_EQ(info->capacity,
+              SizeToCapacity(100) - kMaxBlockedElementsForLargeTables);
     ASSERT_EQ(info->size, 0);
     ASSERT_EQ(info->max_reserve, 100);
     ASSERT_EQ(info->num_erases, 0);
@@ -4467,8 +4484,9 @@ TEST(RawHashSamplerTest, SooTableSampleOnCopy) {
     ASSERT_EQ(info->inline_element_size,
               sizeof(typename SooInt32Table::value_type));
     ASSERT_EQ(info->soo_capacity, SooCapacity());
-    ASSERT_EQ(info->capacity, NextCapacity(SooCapacity()));
+    ASSERT_EQ(info->capacity, SooCapacity());
     ASSERT_EQ(info->size, 1);
+    ASSERT_EQ(info->num_rehashes, 0);
   }
 }
 
@@ -4570,6 +4588,135 @@ TEST(RawHashSamplerTest, MovedFromTableIsNotSampled) {
   EXPECT_EQ(final_size, start_size + 1);
   ASSERT_NE(latest_info, nullptr);
   EXPECT_EQ(latest_info->size.load(std::memory_order_relaxed), 2);
+  EXPECT_EQ(latest_info->capacity.load(std::memory_order_relaxed),
+            NextCapacity(SooCapacity()));
+}
+
+struct SampleEveryTable {
+  SampleEveryTable() {
+    SetHashtablezEnabled(true);
+    SetHashtablezSampleParameter(1);
+    TestOnlyRefreshSamplingStateForCurrentThread();
+  }
+  ~SampleEveryTable() { DisableSampling(); }
+};
+
+class RawHashSooSamplerTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    if (SooInt32Table().capacity() != SooCapacity()) {
+      CHECK_LT(sizeof(void*), 8) << "missing SOO coverage";
+      GTEST_SKIP() << "not SOO on this platform";
+    }
+  }
+
+  SampleEveryTable sample_all_;
+};
+
+TEST_F(RawHashSooSamplerTest, StaysSooCapacityWithoutGrowthOrReserve) {
+  SooInt32Table t;
+  t.insert(1);
+  const HashtablezInfo* info = HashtablezInfoHandlePeer::GetInfo(t);
+  ASSERT_NE(info, nullptr);
+  EXPECT_EQ(info->capacity, SooCapacity());
+
+  auto expect_stays_soo = [&](auto op) {
+    op();
+    EXPECT_EQ(info->capacity, SooCapacity());
+  };
+
+  // These operations don't change reported capacity to non-SOO.
+  expect_stays_soo([&] { t.erase(t.begin(), t.end()); });
+  EXPECT_EQ(info->size, 0);
+  expect_stays_soo([&] { t.insert(2); });
+  expect_stays_soo([&] { t.rehash(0); });
+  expect_stays_soo([&] { t.rehash(1); });
+  expect_stays_soo([&] { t.reserve(1); });
+  std::optional<SooInt32Table> moved;
+  expect_stays_soo([&] { moved.emplace(std::move(t)); });
+  EXPECT_EQ(info->size, 1);
+  EXPECT_EQ(info->max_reserve, 0);
+  EXPECT_EQ(info->num_rehashes, 0);
+}
+
+TEST_F(RawHashSooSamplerTest, LeavesSooCapacityOnGrowth) {
+  SooInt32Table t;
+  t.insert(1);
+  const HashtablezInfo* info = HashtablezInfoHandlePeer::GetInfo(t);
+  ASSERT_NE(info, nullptr);
+  EXPECT_EQ(info->capacity, SooCapacity());
+
+  // Growing to 2 elements transitions reported capacity to 3, and subsequent
+  // erases or rehash(0) keep capacity 3 because the table was resized.
+  t.insert(2);
+  EXPECT_EQ(info->capacity, NextCapacity(SooCapacity()));
+  EXPECT_EQ(info->size, 2);
+  EXPECT_EQ(info->num_rehashes, 1);
+
+  t.erase(2);
+  t.rehash(0);
+  EXPECT_EQ(info->capacity, NextCapacity(SooCapacity()));
+  EXPECT_EQ(info->size, 1);
+
+  t.erase(t.begin(), t.end());
+  EXPECT_EQ(info->capacity, NextCapacity(SooCapacity()));
+  EXPECT_EQ(info->size, 0);
+}
+
+TEST_F(RawHashSooSamplerTest, LeavesSooCapacityOnReserveOrRehash) {
+  // Reserving or rehashing for >1 capacity on a size-1 sampled SOO table
+  // transitions reported capacity out of SOO even when heap capacity is 3.
+  for (bool use_rehash : {false, true}) {
+    SooInt32Table s;
+    s.insert(1);
+    use_rehash ? s.rehash(2) : s.reserve(2);
+    const HashtablezInfo* s_info = HashtablezInfoHandlePeer::GetInfo(s);
+    ASSERT_NE(s_info, nullptr);
+    EXPECT_EQ(s_info->capacity, NextCapacity(SooCapacity()));
+    EXPECT_EQ(s_info->max_reserve, 2);
+    EXPECT_EQ(s_info->num_rehashes, 1);
+  }
+
+  SooInt32Table reserved_three;
+  reserved_three.reserve(3);
+  const HashtablezInfo* r3_info =
+      HashtablezInfoHandlePeer::GetInfo(reserved_three);
+  ASSERT_NE(r3_info, nullptr);
+  EXPECT_EQ(r3_info->capacity, NextCapacity(SooCapacity()));
+  EXPECT_EQ(r3_info->max_reserve, 3);
+  EXPECT_EQ(r3_info->num_rehashes, 1);
+}
+
+TYPED_TEST(RawHashSamplerTest, ReportsCapacityMinusBlockedElements) {
+  SampleEveryTable sample_all;
+
+  TypeParam t;
+  t.reserve(2);
+  const HashtablezInfo* info = HashtablezInfoHandlePeer::GetInfo(t);
+  ASSERT_NE(info, nullptr);
+  // SizeToCapacity(2) == 3 with 1 blocked element, so allocated slots == 2.
+  EXPECT_EQ(info->capacity, 2);
+
+  t.insert({1, 2});
+  EXPECT_EQ(info->capacity, 2);
+  EXPECT_EQ(info->size, 2);
+
+  t.erase(t.begin(), t.end());
+  EXPECT_EQ(info->capacity, 2);
+  EXPECT_EQ(info->size, 0);
+
+  // Growing past reserved size clears blocked elements.
+  t.insert({1, 2, 3});
+  EXPECT_EQ(info->capacity, 7);
+  EXPECT_EQ(info->size, 3);
+
+  // Copy-constructing a 2-element table reserves exact size 2 (3 - 1 blocked).
+  TypeParam src = {10, 20};
+  TypeParam copy(src);
+  const HashtablezInfo* copy_info = HashtablezInfoHandlePeer::GetInfo(copy);
+  ASSERT_NE(copy_info, nullptr);
+  EXPECT_EQ(copy_info->capacity, 2);
+  EXPECT_EQ(copy_info->size, 2);
 }
 
 #endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
