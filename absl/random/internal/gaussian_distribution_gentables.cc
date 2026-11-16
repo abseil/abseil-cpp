@@ -100,10 +100,15 @@ TableGenerator::TableGenerator() {
   tables_.x[kC] = 0.0;
   tables_.f[kC] = f(tables_.x[kC]);  // 1.0
 
+  // Advance the Ziggurat area recurrence using a running `v` to avoid
+  // accumulating round-trip f(f_inv(v)) rounding error across steps, while
+  // storing f(tables_.x[i]) so zg_.f[i] matches std::exp(-0.5 * x * x) in the
+  // wedge test.
+  double v = tables_.f[1];
   for (int i = 2; i < kC; i++) {
-    double v = (kV / tables_.x[i - 1]) + tables_.f[i - 1];
+    v += kV / tables_.x[i - 1];
     tables_.x[i] = f_inv(v);
-    tables_.f[i] = v;
+    tables_.f[i] = f(tables_.x[i]);
   }
 }
 
@@ -112,6 +117,8 @@ void TableGenerator::Print(std::ostream* os) {
          "// clang-format off\n"
          "\n"
          "#include \"absl/random/gaussian_distribution.h\"\n"
+         "\n"
+         "#include \"absl/base/config.h\"\n"
          "\n"
          "namespace absl {\n"
          "ABSL_NAMESPACE_BEGIN\n"

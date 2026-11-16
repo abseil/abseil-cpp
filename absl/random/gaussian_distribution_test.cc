@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <ios>
 #include <iterator>
 #include <limits>
@@ -25,15 +26,18 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/numeric/internal/representation.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
+#include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
@@ -41,9 +45,31 @@
 #include "absl/strings/str_replace.h"
 #include "absl/strings/strip.h"
 
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+
+class GaussianDistributionTestPeer {
+ public:
+  static constexpr double kR = gaussian_distribution_base::kR;
+  static constexpr double kRInv = gaussian_distribution_base::kRInv;
+  static constexpr double kV = gaussian_distribution_base::kV;
+  static constexpr size_t kNumStrips = gaussian_distribution_base::kMask + 1;
+
+  static double x(size_t i) { return gaussian_distribution_base::zg_.x[i]; }
+  static double f(size_t i) { return gaussian_distribution_base::zg_.f[i]; }
+};
+
+}  // namespace random_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
 namespace {
 
+using absl::random_internal::GaussianDistributionTestPeer;
 using absl::random_internal::kChiSquared;
+
+MATCHER(IsPositiveZero, "is +0.0") { return arg == 0 && !std::signbit(arg); }
 
 template <typename RealType>
 class GaussianDistributionInterfaceTest : public ::testing::Test {};
@@ -391,26 +417,48 @@ INSTANTIATE_TEST_SUITE_P(All, GaussianDistributionTests,
 // NOTE: absl::gaussian_distribution is not guaranteed to be stable.
 TEST(GaussianDistributionTest, StabilityTest) {
   // absl::gaussian_distribution stability relies on the underlying zignor
-  // data, absl::random_interna::RandU64ToDouble, std::exp, std::log, and
-  // std::abs.
-  absl::random_internal::sequence_urbg urbg(
-      {0x0003eb76f6f7f755ull, 0xFFCEA50FDB2F953Bull, 0xC332DDEFBE6C5AA5ull,
-       0x6558218568AB9702ull, 0x2AEF7DAD5B6E2F84ull, 0x1521B62829076170ull,
-       0xECDD4775619F1510ull, 0x13CCA830EB61BD96ull, 0x0334FE1EAA0363CFull,
-       0xB5735C904C70A239ull, 0xD59E9E0BCBAADE14ull, 0xEECC86BC60622CA7ull});
+  // data, bit extraction, std::exp, std::log, and std::abs.
+  absl::random_internal::sequence_urbg urbg({
+      0x0003eb76f6f7f755ull,
+      0xFFCEA50FDB2F953Bull,
+      0xC332DDEFBE6C5AA5ull,
+      0x6558218568AB9702ull,
+      0x2AEF7DAD5B6E2F84ull,
+      0x1521B62829076170ull,
+      0xECDD4775619F1510ull,
+      0x13CCA830EB61BD96ull,
+      0x0334FE1EAA0363CFull,
+      0xB5735C904C70A239ull,
+      0xD59E9E0BCBAADE14ull,
+      0xEECC86BC60622CA7ull,
+      // Wedge accept (strip 59, j ~= +0.995, v ~= 0.875) -> 2 calls.
+      0x7F5C28F5C28F5C3Bull,
+      0xE000000000000001ull,
+      // Wedge reject (strip 59, j ~= -0.9985, v ~= 0.0625) + retry -> 3 calls.
+      0x80315AF024D06A3Bull,
+      0x1000000000000001ull,
+      0x4000000000000020ull,
+      // Tail fallback (strip 0, j = -0.9375): reject then accept -> 5 calls.
+      0x8800000000000000ull,
+      0x0000100000000001ull,
+      0xC000000000000001ull,
+      0x13CCA830EB61BD96ull,
+      0x00000076F6F7F755ull,
+  });
 
-  std::vector<int> output(11);
+  std::vector<int> output(15);
 
   {
     absl::gaussian_distribution<double> dist;
     std::generate(std::begin(output), std::end(output),
                   [&] { return static_cast<int>(10000000.0 * dist(urbg)); });
 
-    EXPECT_EQ(13, urbg.invocations());
-    EXPECT_THAT(output,  //
-                testing::ElementsAre(1494, 25518841, 9991550, 1351856,
-                                     -20373238, 3456682, 333530, -6804981,
-                                     -15279580, -16459654, 1494));
+    EXPECT_EQ(22, urbg.invocations());
+    EXPECT_THAT(
+        output,  //
+        testing::ElementsAre(1494, -24125, -9192725, 25518841, 9991550, 1351856,
+                             -3581104, 3456682, 333530, -9491133, -7563160,
+                             -2555292, 15937097, 10123234, -41861012));
   }
 
   urbg.reset();
@@ -419,18 +467,17 @@ TEST(GaussianDistributionTest, StabilityTest) {
     std::generate(std::begin(output), std::end(output),
                   [&] { return static_cast<int>(1000000.0f * dist(urbg)); });
 
-    EXPECT_EQ(13, urbg.invocations());
+    EXPECT_EQ(22, urbg.invocations());
     EXPECT_THAT(
         output,  //
-        testing::ElementsAre(149, 2551884, 999155, 135185, -2037323, 345668,
-                             33353, -680498, -1527958, -1645965, 149));
+        testing::ElementsAre(149, -2412, -919272, 2551884, 999155, 135185,
+                             -358110, 345668, 33353, -949113, -756316, -255529,
+                             1593709, 1012323, -4186101));
   }
 }
 
 // This is an implementation-specific test. If any part of the implementation
 // changes, then it is likely that this test will change as well.
-// Also, if dependencies of the distribution change, such as RandU64ToDouble,
-// then this is also likely to change.
 TEST(GaussianDistributionTest, AlgorithmBounds) {
   absl::gaussian_distribution<double> dist;
 
@@ -443,21 +490,22 @@ TEST(GaussianDistributionTest, AlgorithmBounds) {
   // for i in range(0, len(X)-1):
   //   print i, X[i+1]/X[i], (X[i+1]/X[i] > 0.984375)
   //
-  // 0.125 <= |values| <= 0.75
+  // 0.125 <= |values| <= 0.75. Positive values have bit 63 == 0; negative
+  // values use two's complement (0xa000... == -0.75, 0xf000... == -0.125).
   const uint64_t kValues[] = {
       0x1000000000000100ull, 0x2000000000000100ull, 0x3000000000000100ull,
       0x4000000000000100ull, 0x5000000000000100ull, 0x6000000000000100ull,
-      // negative values
-      0x9000000000000100ull, 0xa000000000000100ull, 0xb000000000000100ull,
-      0xc000000000000100ull, 0xd000000000000100ull, 0xe000000000000100ull};
+      // negative values (-0.75 to -0.125)
+      0xa000000000000100ull, 0xb000000000000100ull, 0xc000000000000100ull,
+      0xd000000000000100ull, 0xe000000000000100ull, 0xf000000000000100ull};
 
   // 0.875 <= |values| <= 0.984375
   const uint64_t kExtraValues[] = {
       0x7000000000000100ull, 0x7800000000000100ull,  //
       0x7c00000000000100ull, 0x7e00000000000100ull,  //
-      // negative values
-      0xf000000000000100ull, 0xf800000000000100ull,  //
-      0xfc00000000000100ull, 0xfe00000000000100ull};
+      // negative values (-0.875 to -0.984375)
+      0x9000000000000100ull, 0x8800000000000100ull,  //
+      0x8400000000000100ull, 0x8200000000000100ull};
 
   auto make_box = [](uint64_t v, uint64_t box) {
     return (v & 0xffffffffffffff80ull) | box;
@@ -517,7 +565,7 @@ TEST(GaussianDistributionTest, AlgorithmBounds) {
   {
     // -0.9375
     absl::random_internal::sequence_urbg urbg(
-        {make_fallback(0xf800000000000000ull), 0x13CCA830EB61BD96ull,
+        {make_fallback(0x8800000000000000ull), 0x13CCA830EB61BD96ull,
          0x00000076f6f7f755ull});
     tail[1] = dist(urbg);
     EXPECT_EQ(3, urbg.invocations());
@@ -541,7 +589,7 @@ TEST(GaussianDistributionTest, AlgorithmBounds) {
   {
     // -0.9921875, 0.875
     absl::random_internal::sequence_urbg urbg(
-        {make_box(0xff00000000000000ull, 120), 0xe000000000000001ull,
+        {make_box(0x8100000000000000ull, 120), 0xe000000000000001ull,
          0x13CCA830EB61BD96ull});
     tail[1] = dist(urbg);
     EXPECT_EQ(2, urbg.invocations());
@@ -554,11 +602,192 @@ TEST(GaussianDistributionTest, AlgorithmBounds) {
   {
     // -0.9921875, 0.0625
     absl::random_internal::sequence_urbg urbg(
-        {make_box(0xff00000000000000ull, 120), 0x1000000000000001,
+        {make_box(0x8100000000000000ull, 120), 0x1000000000000001,
          make_box(0x1000000000000100ull, 50), 0x13CCA830EB61BD96ull});
     dist(urbg);
     EXPECT_EQ(3, urbg.invocations());
   }
+}
+
+TEST(GaussianDistributionTest, ZeroReachableAndPositiveSign) {
+  auto sample_double = [](std::initializer_list<uint64_t> words) {
+    absl::gaussian_distribution<double> dist;
+    absl::random_internal::sequence_urbg urbg(words);
+    double value = dist(urbg);
+    return std::pair<double, size_t>{value, urbg.invocations()};
+  };
+  auto sample_float = [](std::initializer_list<uint64_t> words) {
+    absl::gaussian_distribution<float> dist;
+    absl::random_internal::sequence_urbg urbg(words);
+    float value = dist(urbg);
+    return std::pair<float, size_t>{value, urbg.invocations()};
+  };
+
+  // s == 0 across fast-path strips [0, 126], including unused bits [7..9].
+  EXPECT_THAT(sample_double({0x0000000000000000ull}),
+              testing::Pair(IsPositiveZero(), 1));
+  EXPECT_THAT(sample_double({0x0000000000000040ull}),
+              testing::Pair(IsPositiveZero(), 1));
+  EXPECT_THAT(sample_double({0x000000000000007eull}),
+              testing::Pair(IsPositiveZero(), 1));
+  EXPECT_THAT(sample_double({0x00000000000003aaull}),
+              testing::Pair(IsPositiveZero(), 1));
+
+  // Top strip i == 127 has zg_.x[128] == 0.0, so 0.0 passes through the wedge.
+  EXPECT_THAT(sample_double({0x000000000000007full, 0x8000000000000000ull}),
+              testing::Pair(IsPositiveZero(), 2));
+
+  // Exact +0.0f is reachable for float as well.
+  EXPECT_THAT(sample_float({0x0000000000000000ull}),
+              testing::Pair(IsPositiveZero(), 1));
+  EXPECT_THAT(sample_float({0x000000000000007full, 0x8000000000000000ull}),
+              testing::Pair(IsPositiveZero(), 2));
+}
+
+TEST(GaussianDistributionTest, DisjointStripAndMantissaNearZero) {
+  absl::gaussian_distribution<double> dist;
+
+  // Smallest positive and negative non-zero variates j = +/-2^-53 must be
+  // completely independent of strip index i across all 128 strips.
+  std::vector<double> pos_ratios;
+  std::vector<double> neg_ratios;
+  pos_ratios.reserve(GaussianDistributionTestPeer::kNumStrips);
+  neg_ratios.reserve(GaussianDistributionTestPeer::kNumStrips);
+
+  constexpr uint64_t kPlusOne = uint64_t{1} << 10;
+  constexpr uint64_t kMinusOne = ~uint64_t{0x3ff};
+  for (size_t i = 0; i < GaussianDistributionTestPeer::kNumStrips; ++i) {
+    // Provide a mid-range wedge draw in case i == 127.
+    absl::random_internal::sequence_urbg pos_urbg(
+        {kPlusOne | i, 0x8000000000000000ull});
+    absl::random_internal::sequence_urbg neg_urbg(
+        {kMinusOne | i, 0x8000000000000000ull});
+    const double pos = dist(pos_urbg);
+    const double neg = dist(neg_urbg);
+    const double expected = 0x1p-53 * GaussianDistributionTestPeer::x(i);
+    pos_ratios.push_back(pos / expected);
+    neg_ratios.push_back(neg / -expected);
+  }
+  EXPECT_THAT(pos_ratios, testing::Each(testing::DoubleEq(1.0)));
+  EXPECT_THAT(neg_ratios, testing::Each(testing::DoubleEq(1.0)));
+
+  // At the sole asymmetric endpoint j = -1.0 (s = -2^53):
+  // - strip 0 routes to the negative tail fallback (< -kR);
+  // - strips 1..127 enter the wedge test at f(x) = f[i], rejecting for any v
+  //   bounded away from 1 by more than libm's ~1 ULP exp() tolerance.
+  {
+    absl::random_internal::sequence_urbg urbg(
+        {0x8000000000000000ull, 0x13CCA830EB61BD96ull, 0x00000076f6f7f755ull});
+    EXPECT_THAT(dist(urbg), testing::Lt(-GaussianDistributionTestPeer::kR));
+    EXPECT_THAT(urbg.invocations(), testing::Eq(3));
+  }
+  // v = 1 - 2^-32 keeps zg_.f[i+1] + v * (zg_.f[i] - zg_.f[i+1]) at least
+  // ~6.7e-13 above zg_.f[i], well above cross-platform 1 ULP libm exp()
+  // differences (~1e-16).
+  constexpr uint64_t kNearOneWedge = 0xffffffff00000000ull;
+  std::vector<size_t> neg_one_invocations;
+  neg_one_invocations.reserve(GaussianDistributionTestPeer::kNumStrips - 1);
+  for (size_t i = 1; i < GaussianDistributionTestPeer::kNumStrips; ++i) {
+    absl::random_internal::sequence_urbg urbg(
+        {0x8000000000000000ull | i, kNearOneWedge, 0x0ull});
+    EXPECT_THAT(dist(urbg), IsPositiveZero());
+    neg_one_invocations.push_back(urbg.invocations());
+  }
+  EXPECT_THAT(neg_one_invocations, testing::Each(testing::Eq(3)));
+
+  // Mode-region density check across |Z| < 2^-4 (the region where bit overlap
+  // previously occurred) and |Z| < 2^-8.
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ull);
+  constexpr int kSamples = 500000;
+  constexpr double kEps4 = 0x1p-4;
+  constexpr double kEps8 = 0x1p-8;
+  int pos_eps4 = 0;
+  int neg_eps4 = 0;
+  int abs_eps8 = 0;
+  for (int n = 0; n < kSamples; ++n) {
+    const double z = dist(rng);
+    if (std::abs(z) < kEps4) {
+      if (z >= 0.0) {
+        ++pos_eps4;
+      } else {
+        ++neg_eps4;
+      }
+      if (std::abs(z) < kEps8) {
+        ++abs_eps8;
+      }
+    }
+  }
+  const double expected_p4 = std::erf(kEps4 / std::sqrt(2.0));
+  const double expected_p8 = std::erf(kEps8 / std::sqrt(2.0));
+  const double se_p4 = std::sqrt(expected_p4 * (1.0 - expected_p4) / kSamples);
+  const double se_p8 = std::sqrt(expected_p8 * (1.0 - expected_p8) / kSamples);
+  const double se_half_p4 =
+      std::sqrt((expected_p4 / 2.0) * (1.0 - expected_p4 / 2.0) / kSamples);
+
+  EXPECT_THAT(static_cast<double>(pos_eps4 + neg_eps4) / kSamples,
+              testing::DoubleNear(expected_p4, 4.0 * se_p4));
+  EXPECT_THAT(static_cast<double>(pos_eps4) / kSamples,
+              testing::DoubleNear(expected_p4 / 2.0, 4.0 * se_half_p4));
+  EXPECT_THAT(static_cast<double>(neg_eps4) / kSamples,
+              testing::DoubleNear(expected_p4 / 2.0, 4.0 * se_half_p4));
+  EXPECT_THAT(static_cast<double>(abs_eps8) / kSamples,
+              testing::DoubleNear(expected_p8, 4.0 * se_p8));
+}
+
+TEST(GaussianDistributionTest, ZigguratTableConsistency) {
+  constexpr size_t kC = GaussianDistributionTestPeer::kNumStrips;
+  constexpr double kR = GaussianDistributionTestPeer::kR;
+  constexpr double kRInv = GaussianDistributionTestPeer::kRInv;
+  constexpr double kV = GaussianDistributionTestPeer::kV;
+
+  EXPECT_THAT(kRInv, testing::DoubleEq(1.0 / kR));
+  EXPECT_THAT(GaussianDistributionTestPeer::x(1), testing::DoubleEq(kR));
+  EXPECT_THAT(GaussianDistributionTestPeer::x(kC), testing::DoubleEq(0.0));
+  EXPECT_THAT(GaussianDistributionTestPeer::f(kC), testing::DoubleEq(1.0));
+
+  // Verify strict monotonicity of x (decreasing) and f (increasing).
+  for (size_t i = 0; i < kC; ++i) {
+    EXPECT_THAT(GaussianDistributionTestPeer::x(i),
+                testing::Gt(GaussianDistributionTestPeer::x(i + 1)));
+    EXPECT_THAT(GaussianDistributionTestPeer::f(i),
+                testing::Lt(GaussianDistributionTestPeer::f(i + 1)));
+  }
+
+  // Strip 0 box area (x[0] * f[1]) and true tail area must match kV.
+  EXPECT_THAT(std::abs(GaussianDistributionTestPeer::x(0) *
+                           GaussianDistributionTestPeer::f(1) -
+                       kV) /
+                  kV,
+              testing::Lt(1e-15));
+  const double sqrt_pi_over_2 = std::sqrt(std::acos(0.0));
+  const double tail_area = kR * std::exp(-0.5 * kR * kR) +
+                           sqrt_pi_over_2 * std::erfc(kR / std::sqrt(2.0));
+  EXPECT_THAT(std::abs(tail_area - kV) / kV, testing::Lt(1e-13));
+
+  // Every strip i in [1, kC - 1] must have equal area kV to < 1e-13.
+  std::vector<double> strip_area_rel_errors;
+  strip_area_rel_errors.reserve(kC - 1);
+  for (size_t i = 1; i < kC; ++i) {
+    const double area = GaussianDistributionTestPeer::x(i) *
+                        (GaussianDistributionTestPeer::f(i + 1) -
+                         GaussianDistributionTestPeer::f(i));
+    strip_area_rel_errors.push_back(std::abs(area - kV) / kV);
+  }
+  EXPECT_THAT(strip_area_rel_errors, testing::Each(testing::Lt(1e-13)));
+
+  // Every stored f[i] must match std::exp(-0.5 * x[i] * x[i]) within 1 ULP.
+  std::vector<double> f_ulp_errors;
+  f_ulp_errors.reserve(kC + 1);
+  for (size_t i = 0; i <= kC; ++i) {
+    const double xi = GaussianDistributionTestPeer::x(i);
+    const double expected_f = std::exp(-0.5 * xi * xi);
+    const double ulp =
+        std::nextafter(expected_f, std::numeric_limits<double>::infinity()) -
+        expected_f;
+    f_ulp_errors.push_back(
+        std::abs(GaussianDistributionTestPeer::f(i) - expected_f) / ulp);
+  }
+  EXPECT_THAT(f_ulp_errors, testing::Each(testing::Le(1.0)));
 }
 
 }  // namespace
