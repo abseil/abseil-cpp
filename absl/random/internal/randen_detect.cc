@@ -19,12 +19,14 @@
 
 #include "absl/random/internal/randen_detect.h"
 
+#include <cstddef>  // IWYU pragma: keep
+#include <cstdint>  // IWYU pragma: keep
 #include <optional>  // IWYU pragma: keep
 
 #include "absl/base/config.h"
 #include "absl/random/internal/platform.h"
 
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(ABSL_ARCH_AARCH64)
 #if __has_include(<arm/cpu_capabilities_public.h>)
 #include <arm/cpu_capabilities_public.h>
 #endif
@@ -32,20 +34,33 @@
 #include <sys/types.h>
 #endif
 
-#if !defined(__UCLIBC__) && defined(__GLIBC__) && \
-    (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
+// ABSL_HAVE_GETAUXVAL indicates that <sys/auxv.h> declares getauxval().
+#if defined(__ANDROID__)
+// Bionic declares getauxval() from API level 18.
+#if defined(__ANDROID_API__) && __ANDROID_API__ >= 18
 #define ABSL_HAVE_GETAUXVAL
+#endif
+#elif defined(__linux__) && !defined(__UCLIBC__)
+#if defined(__GLIBC__)
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16)
+#define ABSL_HAVE_GETAUXVAL
+#endif
+#elif __has_include(<sys/auxv.h>)
+// Other C libraries, such as musl (which has provided getauxval() since 1.1.0
+// and defines no macro to identify itself).
+#define ABSL_HAVE_GETAUXVAL
+#endif
 #endif
 
 #if defined(ABSL_ARCH_X86_64)
 #define ABSL_INTERNAL_USE_X86_CPUID
 #elif defined(ABSL_ARCH_PPC) || defined(ABSL_ARCH_ARM) || \
     defined(ABSL_ARCH_AARCH64)
-#if defined(__ANDROID__)
-#define ABSL_INTERNAL_USE_ANDROID_GETAUXVAL
-#define ABSL_INTERNAL_USE_GETAUXVAL
-#elif defined(__linux__) && defined(ABSL_HAVE_GETAUXVAL)
+#if defined(__linux__) && defined(ABSL_HAVE_GETAUXVAL)
 #define ABSL_INTERNAL_USE_LINUX_GETAUXVAL
+#define ABSL_INTERNAL_USE_GETAUXVAL
+#elif defined(__ANDROID__)
+#define ABSL_INTERNAL_USE_ANDROID_GETAUXVAL
 #define ABSL_INTERNAL_USE_GETAUXVAL
 #endif
 #endif
@@ -68,7 +83,8 @@ static void __cpuid(int cpu_info[4], int info_type) {
 #endif
 #endif  // ABSL_INTERNAL_USE_X86_CPUID
 
-// On linux, just use the c-library getauxval call.
+// On linux (including Android API >= 18), just use the c-library getauxval
+// call.
 #if defined(ABSL_INTERNAL_USE_LINUX_GETAUXVAL)
 
 #include <sys/auxv.h>
@@ -79,7 +95,8 @@ static uint32_t GetAuxval(uint32_t hwcap_type) {
 
 #endif
 
-// On android, probe the system's C library for getauxval().
+// On older android API levels, probe the system's C library for getauxval().
+// This fails in statically linked binaries, which cannot dlopen().
 // This is the same technique used by the android NDK cpu features library
 // as well as the google open-source cpu_features library.
 //
@@ -115,14 +132,36 @@ static uint32_t GetAuxval(uint32_t hwcap_type) {
 #if defined(__APPLE__) && defined(ABSL_ARCH_AARCH64)
 template <typename T>
 static std::optional<T> ReadSysctlByName(const char* name) {
-  T val;
+  T val{};
   size_t val_size = sizeof(T);
   int ret = sysctlbyname(name, &val, &val_size, nullptr, 0);
-  if (ret == -1) {
+  if (ret == -1 || val_size != sizeof(T)) {
     return std::nullopt;
   }
   return val;
 }
+
+#if defined(CAP_BIT_AdvSIMD) && defined(CAP_BIT_FEAT_AES)
+static std::optional<bool> ReadArmCapsNeonAndAes() {
+  uint8_t caps[64] = {};
+  size_t caps_size = sizeof(caps);
+  if (sysctlbyname("hw.optional.arm.caps", caps, &caps_size, nullptr, 0) ==
+      -1) {
+    return std::nullopt;
+  }
+  constexpr size_t kNeonByte = static_cast<size_t>(CAP_BIT_AdvSIMD) / 8;
+  constexpr uint8_t kNeonMask =
+      static_cast<uint8_t>(1u << (static_cast<size_t>(CAP_BIT_AdvSIMD) % 8));
+  constexpr size_t kAesByte = static_cast<size_t>(CAP_BIT_FEAT_AES) / 8;
+  constexpr uint8_t kAesMask =
+      static_cast<uint8_t>(1u << (static_cast<size_t>(CAP_BIT_FEAT_AES) % 8));
+  if (kNeonByte >= caps_size || kAesByte >= caps_size) {
+    return std::nullopt;
+  }
+  return ((caps[kNeonByte] & kNeonMask) != 0) &&
+         ((caps[kAesByte] & kAesMask) != 0);
+}
+#endif
 #endif
 
 namespace absl {
@@ -168,8 +207,12 @@ bool CPUSupportsRandenHwAes() {
   // 2. Use getauxval() to read the hardware bits and determine
   // cpu capabilities.
 
+#ifndef AT_HWCAP
 #define AT_HWCAP 16
+#endif
+#ifndef AT_HWCAP2
 #define AT_HWCAP2 26
+#endif
 #if defined(ABSL_ARCH_PPC)
   // For Power / PPC: Expect that the cpu supports VCRYPTO
   // See https://members.openpowerfoundation.org/document/dl/576
@@ -205,32 +248,30 @@ bool CPUSupportsRandenHwAes() {
 
 #elif defined(__APPLE__) && defined(ABSL_ARCH_AARCH64)
   // 3. Use sysctlbyname.
-
+  static const bool supported = []() {
   // Newer XNU kernels support querying all capabilities in a single
   // sysctlbyname.
 #if defined(CAP_BIT_AdvSIMD) && defined(CAP_BIT_FEAT_AES)
-  static const std::optional<uint64_t> caps =
-      ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
-  if (caps.has_value()) {
-    constexpr uint64_t kNeonAndAesCaps =
-        (uint64_t{1} << CAP_BIT_AdvSIMD) | (uint64_t{1} << CAP_BIT_FEAT_AES);
-    return (*caps & kNeonAndAesCaps) == kNeonAndAesCaps;
-  }
+    if (std::optional<bool> caps_neon_and_aes = ReadArmCapsNeonAndAes();
+        caps_neon_and_aes.has_value()) {
+      return *caps_neon_and_aes;
+    }
 #endif
 
-  // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#overview
-  static const std::optional<int> adv_simd =
-      ReadSysctlByName<int>("hw.optional.AdvSIMD");
-  if (adv_simd.value_or(0) == 0) {
-    return false;
-  }
-  // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
-  static const std::optional<int> feat_aes =
-      ReadSysctlByName<int>("hw.optional.arm.FEAT_AES");
-  if (feat_aes.value_or(0) == 0) {
-    return false;
-  }
-  return true;
+    // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#overview
+    std::optional<int> adv_simd = ReadSysctlByName<int>("hw.optional.AdvSIMD");
+    if (adv_simd.value_or(0) == 0) {
+      return false;
+    }
+    // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
+    // Older XNU kernels (such as macOS 11 on Apple M1) predate the
+    // hw.optional.arm.FEAT_AES sysctl key even though all Darwin arm64 hardware
+    // mandates FEAT_AES.
+    std::optional<int> feat_aes =
+        ReadSysctlByName<int>("hw.optional.arm.FEAT_AES");
+    return feat_aes.value_or(1) != 0;
+  }();
+  return supported;
 #else  // ABSL_INTERNAL_USE_GETAUXVAL
   // 4. By default, assume that the compiler default.
   return ABSL_HAVE_ACCELERATED_AES ? true : false;
