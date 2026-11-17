@@ -19,12 +19,15 @@
 #include <winternl.h>
 
 // MSVC header dbghelp.h has a warning for an ignored typedef.
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable:4091)
+#endif
 #include <dbghelp.h>
+#ifdef _MSC_VER
 #pragma warning(pop)
-
 #pragma comment(lib, "dbghelp.lib")
+#endif
 
 #include <algorithm>
 #include <cstring>
