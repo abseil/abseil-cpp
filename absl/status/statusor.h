@@ -60,6 +60,16 @@
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
+#if defined(_MSC_VER) && !defined(__NVCC__)
+// absl::StatusOr<T> has several empty base classes. By default the Microsoft
+// C++ ABI allocates storage for some of them, which makes
+// sizeof(absl::StatusOr<T>) larger than under every other ABI. This declspec
+// makes the empty base classes take up no storage
+#define ABSL_INTERNAL_STATUSOR_DECLSPEC __declspec(empty_bases)
+#else
+#define ABSL_INTERNAL_STATUSOR_DECLSPEC
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 #ifndef SWIG
@@ -197,12 +207,13 @@ class ABSL_MUST_USE_RESULT StatusOr;
 //    return Foo(arg);
 //  }
 template <typename T>
-class StatusOr : private internal_statusor::OperatorBase<T>,
-                 private internal_statusor::StatusOrData<T>,
-                 private internal_statusor::CopyCtorBase<T>,
-                 private internal_statusor::MoveCtorBase<T>,
-                 private internal_statusor::CopyAssignBase<T>,
-                 private internal_statusor::MoveAssignBase<T> {
+class ABSL_INTERNAL_STATUSOR_DECLSPEC StatusOr
+    : private internal_statusor::OperatorBase<T>,
+      private internal_statusor::StatusOrData<T>,
+      private internal_statusor::CopyCtorBase<T>,
+      private internal_statusor::MoveCtorBase<T>,
+      private internal_statusor::CopyAssignBase<T>,
+      private internal_statusor::MoveAssignBase<T> {
 #ifndef SWIG
   static_assert(!std::is_rvalue_reference_v<T>,
                 "rvalue references are not yet supported.");
@@ -807,5 +818,7 @@ void StatusOr<T>::IgnoreError() const {
 
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#undef ABSL_INTERNAL_STATUSOR_DECLSPEC
 
 #endif  // ABSL_STATUS_STATUSOR_H_
