@@ -35,10 +35,7 @@ class IntegerTypesTest : public ::testing::Test {};
 
 using UnsignedIntegerTypes =
     ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
-using OneByteIntegerTypes = ::testing::Types<
-    unsigned char,
-    uint8_t
-    >;
+using OneByteIntegerTypes = ::testing::Types<unsigned char, uint8_t>;
 
 TYPED_TEST_SUITE(UnsignedIntegerTypesTest, UnsignedIntegerTypes);
 TYPED_TEST_SUITE(IntegerTypesTest, OneByteIntegerTypes);
