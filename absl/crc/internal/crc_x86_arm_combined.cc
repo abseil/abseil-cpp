@@ -27,6 +27,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/cpu_detect.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/prefetch.h"
 #include "absl/crc/internal/crc32_x86_arm_combined_simd.h"
@@ -268,6 +269,45 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
     } else {
       static_assert(copy_type == CopyType::kNone);
     }
+  }
+
+  // Copies n < 64 bytes from `src` to `dst`. Fixed-size `std::memcpy()` calls
+  // compile to inline loads and stores, while a variable-length one compiles to
+  // a call that measurably slows down short head and tail copies and forces a
+  // stack frame in callers.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static void CopyLessThan64Bytes(
+      char* dst, const uint8_t* src, size_t n) {
+    ABSL_ASSERT(n < 64);
+    if (n >= 32) {
+      CopyInTwoChunksInline<32>(dst, src, n);
+    } else if (n >= 16) {
+      CopyInTwoChunksInline<16>(dst, src, n);
+    } else if (n >= 8) {
+      CopyInTwoChunksInline<8>(dst, src, n);
+    } else if (n >= 4) {
+      CopyInTwoChunksInline<4>(dst, src, n);
+    } else if (n >= 2) {
+      CopyInTwoChunksInline<2>(dst, src, n);
+    } else if (n == 1) {
+      *dst = static_cast<char>(*src);
+    }
+  }
+
+  // Copies `n` bytes from `src` to `dst`, with two possibly overlapping copies
+  // (the first kBytesPerCopy bytes of src and the last kBytesPerCopy bytes of
+  // src). Since the copies are of a fixed size, we must have kBytesPerCopy <= n
+  // <= 2 * kBytesPerCopy. This is faster than `std::memcpy()` for small,
+  // variable-sized copies, because it compiles to 2 simple loads and stores,
+  // instead of branching on the value of `n` and it is easily inlined.
+  template <size_t kBytesPerCopy>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static void CopyInTwoChunksInline(char* dst,
+                                                           const uint8_t* src,
+                                                           size_t n) {
+    ABSL_ASSERT(n <= 2 * kBytesPerCopy);
+    ABSL_ASSERT(n >= kBytesPerCopy);
+    std::memcpy(dst, src, kBytesPerCopy);
+    std::memcpy(dst + n - kBytesPerCopy, src + n - kBytesPerCopy,
+                kBytesPerCopy);
   }
 
   // Update a single 128-bit element of partialCRC with crc of 16 byte block.
@@ -705,7 +745,7 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       uintptr_t dst_addr = reinterpret_cast<uintptr_t>(d);
       size_t bytes_to_align =
           (kAlignment - (dst_addr & (kAlignment - 1))) & (kAlignment - 1);
-      std::memcpy(d, p, bytes_to_align);
+      CopyLessThan64Bytes(d, p, bytes_to_align);
       d += bytes_to_align;
       while (bytes_to_align >= 8) {
         ABSL_INTERNAL_STEP8(l, p);
@@ -926,15 +966,11 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       if constexpr (copy_type != CopyType::kNone) {
         d = reinterpret_cast<char*>(
             dst_pclmul_streams[kNumActivePclmulStreams - 1]);
-        size_t remaining_to_copy = static_cast<size_t>(e - p);
-        std::memcpy(d, p, remaining_to_copy);
       }
     } else {
       p = crc_streams[kNumActiveCrcStreams - 1];
       if constexpr (copy_type != CopyType::kNone) {
         d = reinterpret_cast<char*>(dst_crc_streams[kNumActiveCrcStreams - 1]);
-        size_t remaining_to_copy = static_cast<size_t>(e - p);
-        std::memcpy(d, p, remaining_to_copy);
       }
     }
 
@@ -962,15 +998,24 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
 
     *crc = l;
 
-    if constexpr (copy_type == CopyType::kNonTemporal) {
-      // According to the Intel 64 Software Developer's Manual
-      // (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html),
-      // non-temporal stores are weakly ordered due to bypassing caches, so
-      // they have to be fenced before the copy is visible to other threads.
-      // Regular stores are ordered and need no fence. Note that the fence is
-      // placed after all stores, to avoid unnecessary serialization and a
-      // performance hit.
-      NonTemporalStoreFence();
+    if constexpr (copy_type != CopyType::kNone) {
+      const uint8_t* copy_src = e - remaining_bytes;
+      while (e - copy_src >= 64) {
+        Copy64Bytes<copy_type>(reinterpret_cast<uint8_t*>(d), copy_src);
+        d += 64;
+        copy_src += 64;
+      }
+      CopyLessThan64Bytes(d, copy_src, static_cast<size_t>(e - copy_src));
+      if constexpr (copy_type == CopyType::kNonTemporal) {
+        // According to the Intel 64 Software Developer's Manual
+        // (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html),
+        // non-temporal stores are weakly ordered due to bypassing caches, so
+        // they have to be fenced before the copy is visible to other threads.
+        // Regular stores are ordered and need no fence. Note that the fence is
+        // placed after all stores, to avoid unnecessary serialization and a
+        // performance hit.
+        NonTemporalStoreFence();
+      }
     }
   }
 
