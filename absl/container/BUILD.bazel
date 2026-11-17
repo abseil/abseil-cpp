@@ -1374,16 +1374,42 @@ cc_library(
 )
 
 cc_library(
+    name = "raw_linked_hash_set",
+    hdrs = ["internal/raw_linked_hash_set.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//absl/container:__pkg__"],
+    deps = [
+        ":common",
+        ":flat_hash_set",
+        ":hash_container_defaults",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "raw_linked_hash_set_test",
+    srcs = ["internal/raw_linked_hash_set_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":raw_linked_hash_set",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "linked_hash_set",
     hdrs = ["linked_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":common",
-        ":flat_hash_set",
+        ":raw_linked_hash_set",
         "//absl/base:config",
-        "//absl/base:core_headers",
     ],
 )
 
@@ -1434,8 +1460,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":common",
-        ":flat_hash_set",
+        ":raw_linked_hash_set",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:throw_delegate",
