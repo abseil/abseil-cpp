@@ -123,6 +123,45 @@ TEST(StatusOr, ElementType) {
   static_assert(std::is_same<absl::StatusOr<char>::value_type, char>());
 }
 
+// absl::StatusOr<T> alias
+template <typename T>
+struct StatusAndValue {
+  absl::Status status;
+  T value;
+};
+
+template <typename T>
+constexpr bool HasLayoutOfStatusAndValue() {
+  return sizeof(absl::StatusOr<T>) == sizeof(StatusAndValue<T>) &&
+         alignof(absl::StatusOr<T>) == alignof(StatusAndValue<T>);
+}
+
+struct EmptyValue {};
+
+struct alignas(64) OverAlignedValue {
+  char c;
+};
+
+TEST(StatusOr, Layout) {
+  // The empty base classes of absl::StatusOr<T> must not take up any
+  // storage. Under the Microsoft C++ ABI this needs __declspec(empty_bases)
+  static_assert(HasLayoutOfStatusAndValue<char>());
+  static_assert(HasLayoutOfStatusAndValue<int>());
+  static_assert(HasLayoutOfStatusAndValue<double>());
+  static_assert(HasLayoutOfStatusAndValue<void*>());
+  static_assert(HasLayoutOfStatusAndValue<std::string>());
+  // Not copyable
+  static_assert(HasLayoutOfStatusAndValue<std::unique_ptr<int>>());
+  // Copyable, not assignable
+  static_assert(HasLayoutOfStatusAndValue<CopyNoAssign>());
+  // Reference
+  static_assert(HasLayoutOfStatusAndValue<int&>());
+  // Empty class
+  static_assert(HasLayoutOfStatusAndValue<EmptyValue>());
+  // Over-aligned class
+  static_assert(HasLayoutOfStatusAndValue<OverAlignedValue>());
+}
+
 TEST(StatusOr, TestMoveOnlyInitialization) {
   absl::StatusOr<std::unique_ptr<int>> thing(ReturnUniquePtr());
   ASSERT_TRUE(thing.ok());
