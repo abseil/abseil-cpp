@@ -120,11 +120,17 @@
 // Cacheline aligning objects properly allows constructive memory sharing and
 // prevents destructive (or "false") memory sharing.
 //
-// Deprecated. Callers should replace uses of this macro with
-// `alignas(ABSL_CACHELINE_SIZE)`.
+// NOTE: callers should replace uses of this macro with `alignas()` using
+// `std::hardware_constructive_interference_size` and/or
+// `std::hardware_destructive_interference_size` when C++17 becomes available to
+// them.
 //
 // See http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0154r1.html
 // for more information.
+//
+// On some compilers, `ABSL_CACHELINE_ALIGNED` expands to an `__attribute__`
+// or `__declspec` attribute. For compilers where this is not known to work,
+// the macro expands to nothing.
 //
 // No further guarantees are made here. The result of applying the macro
 // to variables and types is always implementation-defined.
@@ -149,7 +155,13 @@
 //    the generated machine code.
 // 3) Prefer applying this attribute to individual variables. Avoid
 //    applying it to types. This tends to localize the effect.
-#define ABSL_CACHELINE_ALIGNED alignas(ABSL_CACHELINE_SIZE)
+#if defined(__clang__) || defined(__GNUC__)
+#define ABSL_CACHELINE_ALIGNED __attribute__((aligned(ABSL_CACHELINE_SIZE)))
+#elif defined(_MSC_VER)
+#define ABSL_CACHELINE_ALIGNED __declspec(align(ABSL_CACHELINE_SIZE))
+#else
+#define ABSL_CACHELINE_ALIGNED
+#endif
 
 // ABSL_PREDICT_TRUE, ABSL_PREDICT_FALSE
 //
