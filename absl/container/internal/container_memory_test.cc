@@ -30,6 +30,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
+#include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/functional/overload.h"
 #include "absl/hash/hash.h"
@@ -251,6 +252,43 @@ TEST(DecomposePair, NotDecomposable) {
   EXPECT_STREQ("not decomposable",
                TryDecomposePair(f, std::piecewise_construct, std::make_tuple(),
                                 std::make_tuple(0.5)));
+}
+
+struct StringSetPolicy {
+  using key_type = std::string;
+  template <class F, class... Args>
+  static decltype(DecomposeValue(std::declval<F>(), std::declval<Args>()...))
+  apply(F&& f, Args&&... args) {
+    return DecomposeValue(std::forward<F>(f), std::forward<Args>(args)...);
+  }
+};
+
+using TransparentStringHash = StringHash;
+using TransparentStringEq = StringEq;
+
+TEST(IsDecomposable, RequireUsableKey) {
+  using NonTransparentHash = absl::Hash<std::string>;
+  using NonTransparentEq = std::equal_to<std::string>;
+
+  EXPECT_TRUE((IsDecomposable<void, StringSetPolicy, NonTransparentHash,
+                              NonTransparentEq, std::string>::value));
+  EXPECT_TRUE((IsDecomposable<void, StringSetPolicy, NonTransparentHash,
+                              NonTransparentEq, const std::string&>::value));
+  // Non-transparent Hash/Eq reject heterogeneous or convertible keys.
+  EXPECT_FALSE((IsDecomposable<void, StringSetPolicy, NonTransparentHash,
+                               NonTransparentEq, const char*>::value));
+  EXPECT_FALSE((IsDecomposable<void, StringSetPolicy, NonTransparentHash,
+                               TransparentStringEq, const char*>::value));
+  EXPECT_FALSE((IsDecomposable<void, StringSetPolicy, TransparentStringHash,
+                               NonTransparentEq, const char*>::value));
+
+  // Transparent Hash and Eq accept heterogeneous keys supported by both.
+  EXPECT_TRUE((IsDecomposable<void, StringSetPolicy, TransparentStringHash,
+                              TransparentStringEq, const char*>::value));
+  EXPECT_TRUE((IsDecomposable<void, StringSetPolicy, TransparentStringHash,
+                              TransparentStringEq, absl::string_view>::value));
+  EXPECT_FALSE((IsDecomposable<void, StringSetPolicy, TransparentStringHash,
+                               TransparentStringEq, int>::value));
 }
 
 TEST(MapSlotPolicy, ConstKeyAndValue) {

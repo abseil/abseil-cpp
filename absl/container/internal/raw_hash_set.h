@@ -3097,20 +3097,12 @@ class raw_hash_set : public raw_hash_set_base {
   template <class... Ts>
   using IsDecomposable = IsDecomposable<void, PolicyTraits, Hash, Eq, Ts...>;
 
-  template <class T, class ParamTypeToExclude>
-  using IsDecomposableAndInsertableImpl = std::bool_constant<
-      // Make sure that T isn't convertible to the preferred-qualified version
-      // of init_type itself, or otherwise we'll have ambiguous overloads.
-      !std::conjunction_v<
-          std::is_same<remove_cvref_t<T>, remove_cvref_t<ParamTypeToExclude>>,
-          std::is_convertible<T, ParamTypeToExclude>> &&
-      IsDecomposable<std::enable_if_t<Insertable<T>::value, T>>::value>;
-
+  // Enabler for templated `insert` overloads: `T` must be insertable and must
+  // not be `init_type` (which is handled by the dedicated `init_type`
+  // overloads to avoid overload ambiguity).
   template <class T>
-  using IsDecomposableAndInsertable = IsDecomposableAndInsertableImpl<
-      T,
-      PreferredMoveParamType<init_type, Alloc,
-                             (std::conditional_t<false, T, std::nullptr_t>())>>;
+  using IsInsertableNotInit = std::conjunction<
+      std::negation<std::is_same<remove_cvref_t<T>, init_type>>, Insertable<T>>;
 
   // Evaluates to true if an assignment from the given type would require the
   // source object to remain alive for the life of the element.
@@ -3503,22 +3495,26 @@ class raw_hash_set : public raw_hash_set_base {
     Clear<SooEnabled()>(common(), GetAllocPolicy(), get_destroy_slot_fn());
   }
 
-  // This overload kicks in when the argument is an rvalue of insertable and
-  // decomposable type other than init_type.
+  // This overload kicks in when the argument is an rvalue of insertable type
+  // other than init_type.
   //
   //   flat_hash_map<std::string, int> m;
   //   m.insert(std::make_pair("abc", 42));
   template <class T,
-            int = std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+            int = std::enable_if_t<IsInsertableNotInit<T>::value &&
                                        EnableElementMoveFrom<T>::value &&
                                        !IsLifetimeBoundAssignmentFrom<T>::value,
                                    int>()>
   std::pair<iterator, bool> insert(T&& value) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return emplace(std::forward<T>(value));
+    if constexpr (IsDecomposable<T>::value) {
+      return emplace(std::forward<T>(value));
+    } else {
+      return insert(static_cast<init_type>(std::forward<T>(value)));
+    }
   }
 
   template <class T, int&...,
-            std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+            std::enable_if_t<IsInsertableNotInit<T>::value &&
                                  EnableElementMoveFrom<T>::value &&
                                  IsLifetimeBoundAssignmentFrom<T>::value,
                              int> = 0>
@@ -3529,7 +3525,7 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
   // This overload kicks in when the argument is a bitfield or an lvalue of
-  // insertable and decomposable type.
+  // insertable type other than init_type.
   //
   //   union { int n : 1; };
   //   flat_hash_set<int> s;
@@ -3540,15 +3536,19 @@ class raw_hash_set : public raw_hash_set_base {
   //   s.insert(p);
   //
   template <class T, int = std::enable_if_t<
-                         IsDecomposableAndInsertable<const T&>::value &&
+                         IsInsertableNotInit<const T&>::value &&
                              !IsLifetimeBoundAssignmentFrom<const T&>::value,
                          int>()>
   std::pair<iterator, bool> insert(const T& value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return emplace(value);
+    if constexpr (IsDecomposable<const T&>::value) {
+      return emplace(value);
+    } else {
+      return insert(static_cast<init_type>(value));
+    }
   }
   template <class T, int&...,
-            std::enable_if_t<IsDecomposableAndInsertable<const T&>::value &&
+            std::enable_if_t<IsInsertableNotInit<const T&>::value &&
                                  IsLifetimeBoundAssignmentFrom<const T&>::value,
                              int> = 0>
   std::pair<iterator, bool> insert(
@@ -3584,8 +3584,20 @@ class raw_hash_set : public raw_hash_set_base {
   }
 #endif
 
+  // Handles `const init_type&` (and non-decomposable types convertible to it,
+  // notably keys derived from `key_type` on non-transparent sets) when
+  // `PreferredMoveParamType` is `init_type&&`.
+  template <std::nullptr_t Dummy = nullptr,
+            std::enable_if_t<std::is_rvalue_reference_v<PreferredMoveParamType<
+                                 init_type, Alloc, Dummy>>,
+                             int> = 0>
+  std::pair<iterator, bool> insert(const init_type& value)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return emplace(value);
+  }
+
   template <class T,
-            int = std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+            int = std::enable_if_t<IsInsertableNotInit<T>::value &&
                                        EnableElementMoveFrom<T>::value &&
                                        !IsLifetimeBoundAssignmentFrom<T>::value,
                                    int>()>
@@ -3593,7 +3605,7 @@ class raw_hash_set : public raw_hash_set_base {
     return insert(std::forward<T>(value)).first;
   }
   template <class T, int&...,
-            std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+            std::enable_if_t<IsInsertableNotInit<T>::value &&
                                  EnableElementMoveFrom<T>::value &&
                                  IsLifetimeBoundAssignmentFrom<T>::value,
                              int> = 0>
@@ -3604,7 +3616,7 @@ class raw_hash_set : public raw_hash_set_base {
   }
 
   template <class T, std::enable_if_t<
-                         IsDecomposableAndInsertable<const T&>::value, int> = 0>
+                         IsInsertableNotInit<const T&>::value, int> = 0>
   iterator insert(const_iterator,
                   const T& value) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(value).first;
@@ -3615,6 +3627,16 @@ class raw_hash_set : public raw_hash_set_base {
                   PreferredMoveParamType<init_type, Alloc, Dummy> value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(std::move(value)).first;
+  }
+
+  // Same as `insert(const init_type&)` above, with an iterator hint.
+  template <std::nullptr_t Dummy = nullptr,
+            std::enable_if_t<std::is_rvalue_reference_v<PreferredMoveParamType<
+                                 init_type, Alloc, Dummy>>,
+                             int> = 0>
+  iterator insert(const_iterator,
+                  const init_type& value) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return insert(value).first;
   }
 
   template <class InputIt>

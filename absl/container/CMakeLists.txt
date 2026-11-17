@@ -494,6 +494,7 @@ absl_cc_library(
   DEPS
     absl::canonical_hash
     absl::config
+    absl::container_common
     absl::core_headers
     absl::hash
     absl::memory
@@ -513,6 +514,7 @@ absl_cc_test(
     absl::config
     absl::container_memory
     absl::hash
+    absl::hash_function_defaults
     absl::no_destructor
     absl::overload
     absl::string_view
