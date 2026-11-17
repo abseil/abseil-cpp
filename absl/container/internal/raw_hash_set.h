@@ -378,26 +378,6 @@ void CopyAlloc(AllocType& lhs, AllocType& rhs,
 template <typename AllocType>
 void CopyAlloc(AllocType&, AllocType&, std::false_type /* propagate_alloc */) {}
 
-template <class ContainerKey, class Hash, class Eq>
-struct RequireUsableKey {
-  template <class PassedKey, class... Args>
-  std::pair<
-      decltype(std::declval<const Hash&>()(std::declval<const PassedKey&>())),
-      decltype(std::declval<const Eq&>()(std::declval<const ContainerKey&>(),
-                                         std::declval<const PassedKey&>()))>*
-  operator()(const PassedKey&, const Args&...) const;
-};
-
-template <class E, class Policy, class Hash, class Eq, class... Ts>
-struct IsDecomposable : std::false_type {};
-
-template <class Policy, class Hash, class Eq, class... Ts>
-struct IsDecomposable<
-    std::void_t<decltype(Policy::apply(
-        RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
-        std::declval<Ts>()...))>,
-    Policy, Hash, Eq, Ts...> : std::true_type {};
-
 template <typename T, template <typename...> class Template>
 struct is_instance_of : std::false_type {};
 template <template <typename...> class Template, typename... Args>
