@@ -105,4 +105,21 @@ TEST(Attributes, NoSanitizeCfi) {
   EXPECT_EQ(NoSanitizeCfiCall([](int x) { return x + 1; }, 41), 42);
 }
 
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE int PreserveMostCallee(
+    int a, int b) {
+  return a + b;
+}
+
+TEST(Attributes, PreserveMost) {
+#if defined(__GLIBC__) && \
+    (!defined(__GOOGLE_GRTE_VERSION__) || __GOOGLE_GRTE_VERSION__ < 20180301L)
+  static_assert(!ABSL_INTERNAL_HAVE_PRESERVE_MOST);
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::preserve_most) && defined(__clang__) && \
+    __clang_major__ >= 17 && defined(__x86_64__) && !defined(_WIN32) &&      \
+    !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL)
+  static_assert(ABSL_INTERNAL_HAVE_PRESERVE_MOST);
+#endif
+  EXPECT_EQ(PreserveMostCallee(20, 22), 42);
+}
+
 }  // namespace
