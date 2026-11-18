@@ -155,7 +155,10 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
     return ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                            \
         (this->template Func<K, V, 0>), Callee)(                               \
-        std::forward<decltype(k)>(k), std::forward<decltype(v)>(v)) Tail;      \
+        ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                               \
+            std::forward<decltype(k)>(k),                                      \
+            this->CanonicalizeKey(std::forward<decltype(k)>(k))),              \
+        std::forward<decltype(v)>(v)) Tail;                                    \
   }                                                                            \
   static_assert(true, "This is to force a semicolon.")
 
@@ -242,7 +245,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(key_arg<K>&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return try_emplace_impl(std::forward<key_arg<K>>(k),
+    return try_emplace_impl(this->CanonicalizeKey(std::forward<key_arg<K>>(k)),
                             std::forward<Args>(args)...);
   }
 
@@ -263,7 +266,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(const key_arg<K>& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return try_emplace_impl(k, std::forward<Args>(args)...);
+    return try_emplace_impl(this->CanonicalizeKey(k),
+                            std::forward<Args>(args)...);
   }
   template <
       class K = key_type, class... Args, EnableIf<LifetimeBoundK<K, true>> = 0,

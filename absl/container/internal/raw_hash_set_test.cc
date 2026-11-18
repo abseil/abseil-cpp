@@ -79,6 +79,8 @@ ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
+  template <typename C, typename K>
+  using KeyParam = typename C::raw_hash_set::template KeyParam<K>;
   template <typename C>
   static auto GetCommon(C&& c) -> decltype(std::forward<C>(c).common()) {
     return std::forward<C>(c).common();
@@ -3205,6 +3207,48 @@ TEST(Table, EmplaceHeterogeneousKeyHitDoesNotMoveValue) {
   EXPECT_EQ(*m[1], 42);
 }
 
+TEST(Table, CharArrayKeyParamCanonicalizesToStringView) {
+  using StringMap = absl::flat_hash_map<std::string, int>;
+  EXPECT_TRUE((std::is_same_v<
+               RawHashSetTestOnlyAccess::KeyParam<StringMap, const char (&)[4]>,
+               absl::string_view>));
+  EXPECT_TRUE((std::is_same_v<
+               RawHashSetTestOnlyAccess::KeyParam<StringMap, char (&)[64]>,
+               absl::string_view>));
+
+  StringMap m = {{"abc", 1}};
+  char buf[64] = "abc\0xyz";
+  EXPECT_EQ(m.find("abc")->second, 1);
+  EXPECT_EQ(m.find(buf)->second, 1);
+  EXPECT_FALSE(m.try_emplace(buf, 2).second);
+  EXPECT_FALSE(m.emplace(buf, 2).second);
+  EXPECT_FALSE(m.insert_or_assign(buf, 3).second);
+  EXPECT_EQ(m["abc"], 3);
+
+  // Exercise a string key with a non-default-constructible allocator.
+  using AllocString =
+      std::basic_string<char, std::char_traits<char>, FreezableAlloc<char>>;
+  bool frozen = false;
+  FreezableAlloc<char> alloc(&frozen);
+  absl::flat_hash_map<AllocString, int, absl::container_internal::StringHash,
+                      absl::container_internal::StringEq,
+                      FreezableAlloc<std::pair<const AllocString, int>>>
+      alloc_map{FreezableAlloc<std::pair<const AllocString, int>>(alloc)};
+  alloc_map[AllocString("abc", alloc)] = 1;
+  EXPECT_EQ(alloc_map.at("abc"), 1);
+
+  struct CStrOnlyKey {
+    std::string s;
+    CStrOnlyKey(const char* p) : s(p) {}  // NOLINT
+    CStrOnlyKey(absl::string_view) = delete;
+    operator absl::string_view() const { return s; }  // NOLINT
+  };
+  absl::flat_hash_map<CStrOnlyKey, int, absl::container_internal::StringHash,
+                      absl::container_internal::StringEq>
+      cstr_map;
+  cstr_map["abc"] = 1;
+  EXPECT_EQ(cstr_map.at("abc"), 1);
+}
 TEST(Table, DecomposeRangeInsert) {
   if (SwisstableGenerationsEnabled()) {
     GTEST_SKIP() << "Generations being enabled causes extra rehashes.";
