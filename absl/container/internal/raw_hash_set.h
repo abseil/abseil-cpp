@@ -4206,18 +4206,19 @@ class raw_hash_set : public raw_hash_set_base {
   // aren't allowed to do so.
   void swap_common(raw_hash_set& that) {
     using std::swap;
-    if (PolicyTraits::transfer_uses_memcpy()) {
+    if constexpr (!SooEnabled() || PolicyTraits::transfer_uses_memcpy()) {
       swap(common(), that.common());
-      return;
+    } else {
+      if (ABSL_PREDICT_FALSE(this == &that)) return;
+      CommonFields tmp = CommonFields(uninitialized_tag_t{});
+      const bool that_is_full_soo = that.is_full_soo();
+      move_common(that_is_full_soo, that.char_alloc_ref(), tmp,
+                  std::move(that.common()));
+      move_common(is_full_soo(), char_alloc_ref(), that.common(),
+                  std::move(common()));
+      move_common(that_is_full_soo, that.char_alloc_ref(), common(),
+                  std::move(tmp));
     }
-    CommonFields tmp = CommonFields(uninitialized_tag_t{});
-    const bool that_is_full_soo = that.is_full_soo();
-    move_common(that_is_full_soo, that.char_alloc_ref(), tmp,
-                std::move(that.common()));
-    move_common(is_full_soo(), char_alloc_ref(), that.common(),
-                std::move(common()));
-    move_common(that_is_full_soo, that.char_alloc_ref(), common(),
-                std::move(tmp));
   }
 
   // Only references `GetPolicyFunctions()` when generations are enabled, so
@@ -4231,10 +4232,15 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <bool propagate_alloc>
   raw_hash_set& assign_impl(raw_hash_set&& that) {
-    // We don't bother checking for this/that aliasing. We just need to avoid
-    // breaking the invariants in that case.
+    // We don't bother checking for this/that aliasing unless move_common()
+    // could transfer the inline SOO slot that destructor_impl() just destroyed.
+    // Otherwise, we just need to avoid breaking the invariants in that case.
     destructor_impl();
-    move_common(that.is_full_soo(), that.char_alloc_ref(), common(),
+    bool that_is_full_soo = that.is_full_soo();
+    if constexpr (SooEnabled() && !PolicyTraits::transfer_uses_memcpy()) {
+      that_is_full_soo = that_is_full_soo && ABSL_PREDICT_TRUE(this != &that);
+    }
+    move_common(that_is_full_soo, that.char_alloc_ref(), common(),
                 std::move(that.common()));
     hash_ref() = that.hash_ref();
     eq_ref() = that.eq_ref();

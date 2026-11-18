@@ -4954,6 +4954,49 @@ TYPED_TEST(InstanceTrackerTest, EraseIfPartial) {
   EXPECT_EQ(tracker.live_instances(), 0);
 }
 
+TYPED_TEST(InstanceTrackerTest, SelfMoveAssignAndSelfSwap) {
+  static_assert(sizeof(void*) < 8 ||
+                    FitsInSooSlot(sizeof(CopyableMovableInstance),
+                                  alignof(CopyableMovableInstance)),
+                "missing SOO coverage on 64-bit");
+  if (!FitsInSooSlot(sizeof(CopyableMovableInstance),
+                     alignof(CopyableMovableInstance))) {
+    GTEST_SKIP() << "CopyableMovableInstance does not fit in SOO slot";
+  }
+  using Table = TypeParam;
+  static_assert(
+      !absl::is_trivially_relocatable<CopyableMovableInstance>::value);
+
+  InstanceTracker tracker;
+  for (int size : {0, 1, 10}) {
+    SCOPED_TRACE(size);
+    Table t;
+    for (int i = 0; i < size; ++i) t.emplace(i);
+
+    tracker.ResetCopiesMovesSwaps();
+    t.swap(t);
+    using std::swap;
+    swap(t, t);
+    EXPECT_EQ(tracker.copies(), 0);
+    EXPECT_EQ(tracker.moves(), 0);
+    EXPECT_EQ(tracker.instances(), size);
+    EXPECT_EQ(tracker.live_instances(), size);
+    EXPECT_EQ(t.size(), size);
+
+    tracker.ResetCopiesMovesSwaps();
+    t = std::move(*&t);
+    EXPECT_EQ(tracker.copies(), 0);
+    EXPECT_EQ(tracker.moves(), 0);
+    EXPECT_EQ(tracker.instances(), 0);
+    EXPECT_EQ(tracker.live_instances(), 0);
+    if (SwisstableGenerationsEnabled()) {
+      // NOLINTNEXTLINE(bugprone-use-after-move)
+      EXPECT_DEATH_IF_SUPPORTED(t.contains(CopyableMovableInstance(0)),
+                                "self-move-assigned");
+    }
+  }
+}
+
 TEST(Table, EraseBeginEndResetsReservedGrowth) {
   bool frozen = false;
   BadHashFreezableIntTable t{FreezableAlloc<int64_t>(&frozen)};
