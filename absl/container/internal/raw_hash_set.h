@@ -2836,10 +2836,17 @@ class raw_hash_set_base {
            is_instance_of<Hash, absl::hash_internal::TransparentHash>::value;
   }
 
+  template <class Hash, class K>
+  struct IsInTransparentHash : std::false_type {};
+  template <class... Ts, class K>
+  struct IsInTransparentHash<absl::hash_internal::TransparentHash<Ts...>, K>
+      : std::bool_constant<(std::is_same_v<K, Ts> || ...)> {};
+
   // Hashing parameters shared by `raw_hash_set` and the type-erased
   // `find_or_prepare_insert_large`.
   template <class Hash, class SlotKey>
   struct HashParams {
+    using RawSlotKey = absl::remove_cvref_t<SlotKey>;
     static constexpr bool kIsAbsl = IsAbslHash<Hash, SlotKey>();
     // For non-default hashers the seed is xor'ed with the hash value rather
     // than being used as a seed for the hash function. Because we require
@@ -2848,15 +2855,28 @@ class raw_hash_set_base {
     // value can be passed directly without a right shift.
     static constexpr size_t kSeedShift =
         kIsAbsl ? 0 : HashtableInlineData::kSeedShift;
-    // When `kIsAbsl` is true, `Hash` hashes `SlotKey` identically to
-    // `absl::Hash<SlotKey>` (see `GetTypeErasedApplyToSlotFn`), but may convert
-    // other lookup keys first (e.g. `const char*` for `StringHash`).
-    template <class K>
+    template <class K, class NonConstK = absl::remove_cvref_t<K>>
     using HashKeyFor =
-        HashKey<Hash, absl::remove_cvref_t<K>, kIsAbsl, kSeedShift,
+        HashKey<Hash, NonConstK, kIsAbsl, kSeedShift,
+                // Use canonical hashing only when the hasher is an Abseil
+                // hasher and does not convert the lookup key before hashing.
                 /*kUseCanonical=*/kIsAbsl &&
-                    std::is_same_v<absl::remove_cvref_t<K>,
-                                   absl::remove_cvref_t<SlotKey>>>;
+                    // The stored key type is hashed directly without
+                    // conversion.
+                    (std::is_same_v<NonConstK, RawSlotKey> ||
+                     // Pointers differing only in pointee constness have the
+                     // same address, unlike derived-to-base conversions.
+                     (std::is_pointer_v<NonConstK> &&
+                      std::is_pointer_v<RawSlotKey> &&
+                      std::is_same_v<
+                          std::remove_const_t<std::remove_pointer_t<NonConstK>>,
+                          std::remove_const_t<
+                              std::remove_pointer_t<RawSlotKey>>>) ||
+                     // Heterogeneous keys sharing the same default hasher are
+                     // also hashed directly without conversion.
+                     std::is_same_v<Hash, hash_default_hash<NonConstK>> ||
+                     // TransparentHash hashes each listed type directly.
+                     IsInTransparentHash<Hash, NonConstK>::value)>;
   };
 
   template <class SlotKey, class Hash, size_t kHasherOffset, class K>

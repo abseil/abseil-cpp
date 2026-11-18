@@ -79,6 +79,8 @@ ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
+  template <typename C, typename K>
+  using HashKeyFor = typename C::raw_hash_set::template HashKeyFor<K>;
   template <typename C>
   static auto GetCommon(C&& c) -> decltype(std::forward<C>(c).common()) {
     return std::forward<C>(c).common();
@@ -4181,6 +4183,55 @@ TEST(Nodes, EmptyNodeType) {
 
   EXPECT_TRUE(
       (std::is_same_v<node_type::allocator_type, StringTable::allocator_type>));
+}
+
+TEST(Table, HeterogeneousDefaultHashUsesCanonicalHashKey) {
+  using StringSet = absl::flat_hash_set<std::string>;
+  EXPECT_TRUE(
+      (std::is_base_of_v<
+          absl::hash_internal::CanonicalHashKey<absl::string_view>,
+          RawHashSetTestOnlyAccess::HashKeyFor<StringSet, absl::string_view>>));
+  EXPECT_TRUE((std::is_base_of_v<
+               absl::hash_internal::CanonicalHashKey<absl::Cord>,
+               RawHashSetTestOnlyAccess::HashKeyFor<StringSet, absl::Cord>>));
+  EXPECT_FALSE((std::is_base_of_v<
+                absl::hash_internal::CanonicalHashKey<const char*>,
+                RawHashSetTestOnlyAccess::HashKeyFor<StringSet, const char*>>));
+
+  using UniquePtrSet = absl::flat_hash_set<std::unique_ptr<int>>;
+  EXPECT_TRUE((std::is_base_of_v<
+               absl::hash_internal::CanonicalHashKey<int*>,
+               RawHashSetTestOnlyAccess::HashKeyFor<UniquePtrSet, int*>>));
+
+  struct Base1 {
+    int a;
+  };
+  struct Base2 {
+    int b;
+  };
+  struct Derived : Base1, Base2 {};
+  using PtrSet = absl::flat_hash_set<Base2*>;
+  using ConstPtrSet = absl::flat_hash_set<const Base2*>;
+  EXPECT_TRUE((std::is_base_of_v<
+               absl::hash_internal::CanonicalHashKey<const Base2*>,
+               RawHashSetTestOnlyAccess::HashKeyFor<PtrSet, const Base2*>>));
+  EXPECT_TRUE((std::is_base_of_v<
+               absl::hash_internal::CanonicalHashKey<Base2*>,
+               RawHashSetTestOnlyAccess::HashKeyFor<ConstPtrSet, Base2*>>));
+  EXPECT_FALSE((std::is_base_of_v<
+                absl::hash_internal::CanonicalHashKey<Derived*>,
+                RawHashSetTestOnlyAccess::HashKeyFor<ConstPtrSet, Derived*>>));
+
+  using TransparentIntSet =
+      absl::flat_hash_set<int64_t, absl::TransparentHash<int64_t, int>,
+                          std::equal_to<>>;
+  EXPECT_TRUE((std::is_base_of_v<
+               absl::hash_internal::CanonicalHashKey<int>,
+               RawHashSetTestOnlyAccess::HashKeyFor<TransparentIntSet, int>>));
+  EXPECT_FALSE(
+      (std::is_base_of_v<
+          absl::hash_internal::CanonicalHashKey<int16_t>,
+          RawHashSetTestOnlyAccess::HashKeyFor<TransparentIntSet, int16_t>>));
 }
 
 TEST(Nodes, ExtractInsert) {
