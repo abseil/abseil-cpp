@@ -1006,6 +1006,11 @@ void Clear(CommonFields& c, const AllocPolicy& __restrict policy,
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
       DecrementSmallSize<kSooEnabled>(c);
+      if constexpr (!kSooEnabled) {
+        c.increment_generation();
+        SanitizerPoisonMemoryRegion(
+            SingleSlotAddress</*kSooEnabled=*/false>(c), policy.slot_size);
+      }
       c.infoz().RecordStorageChanged(0, cap);
     }
   } else {
@@ -2088,6 +2093,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(!policy.alloc_policy->soo_enabled);
   const bool is_empty = common.empty_when_small();
   if (common.capacity() == 1 && is_empty) {
+    common.maybe_increment_generation_on_insert();
     IncrementSmallSizeNonSoo(common, *policy.alloc_policy);
     // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
     void* res = common.single_non_soo_slot();

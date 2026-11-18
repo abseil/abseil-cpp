@@ -4790,6 +4790,17 @@ TEST(Sanitizer, PoisoningOnErase) {
   t.erase(0);
   EXPECT_TRUE(__asan_address_is_poisoned(&v));
 }
+
+TEST(Sanitizer, PoisoningOnClear) {
+  NonSooIntTable t;
+  auto& v = *t.insert(0).first;
+  ASSERT_EQ(t.capacity(), 1);
+
+  EXPECT_FALSE(__asan_address_is_poisoned(&v));
+  t.clear();
+  ASSERT_EQ(t.capacity(), 1);
+  EXPECT_TRUE(__asan_address_is_poisoned(&v));
+}
 #endif  // ABSL_HAVE_ADDRESS_SANITIZER
 
 template <typename T>
@@ -4839,6 +4850,44 @@ TEST(Iterator, InvalidUseCrashesWithSanitizers) {
     EXPECT_DEATH_IF_SUPPORTED(*it, InvalidIteratorMatcher());
     EXPECT_DEATH_IF_SUPPORTED(void(it == t.begin()), InvalidIteratorMatcher());
   }
+}
+
+TEST(Iterator, InvalidUseAfterClearSmallNonSooCrashesWithSanitizers) {
+  if (!SwisstableGenerationsEnabled()) GTEST_SKIP() << "Generations disabled.";
+
+  NonSooIntTable t;
+  t.insert(1);
+  ASSERT_EQ(t.capacity(), 1);
+  auto it = t.begin();
+  t.clear();
+  EXPECT_DEATH_IF_SUPPORTED(*it, InvalidIteratorMatcher());
+  EXPECT_DEATH_IF_SUPPORTED(void(it == t.begin()), InvalidIteratorMatcher());
+}
+
+TEST(Iterator, InvalidUseAfterEraseAndInsertSmallNonSooCrashesWithSanitizers) {
+  if (!SwisstableGenerationsEnabled()) GTEST_SKIP() << "Generations disabled.";
+
+  NonSooIntTable t;
+  t.insert(1);
+  ASSERT_EQ(t.capacity(), 1);
+  auto it = t.begin();
+  t.erase(it);
+  t.insert(2);
+  ASSERT_EQ(t.capacity(), 1);
+  EXPECT_DEATH_IF_SUPPORTED(*it, InvalidIteratorMatcher());
+  EXPECT_DEATH_IF_SUPPORTED(void(it == t.begin()), InvalidIteratorMatcher());
+
+  // Verify that reserved 1-element insertion and post-increment erase keep
+  // end() valid.
+  NonSooIntTable reserved;
+  reserved.reserve(1);
+  auto end_it = reserved.end();
+  reserved.insert(10);
+  EXPECT_NE(reserved.begin(), end_it);
+  for (auto cur = reserved.begin(); cur != end_it;) {
+    reserved.erase(cur++);
+  }
+  EXPECT_EQ(reserved.begin(), end_it);
 }
 
 TEST(Iterator, InvalidUseWithReserveCrashesWithSanitizers) {
