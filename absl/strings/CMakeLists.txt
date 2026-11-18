@@ -192,6 +192,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::absl_check
+    absl::config
     absl::dynamic_annotations
     absl::strings_resize_and_overwrite
     GTest::gmock_main
