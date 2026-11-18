@@ -2300,11 +2300,15 @@ struct DtorPolicy {
 // other optimizations for tables with small keys.
 
 template <size_t kSizeOfSizeT = sizeof(size_t)>
-constexpr size_t MaxSizeAtMaxValidCapacity(size_t slot_size) {
+constexpr size_t MaxValidCapacity() {
   using SizeT = std::conditional_t<kSizeOfSizeT == 4, uint32_t, uint64_t>;
   // We shift right by 2 for a safe margin against overflow.
-  constexpr SizeT kMaxValidCapacity = ~SizeT{} >> 2;
-  return CapacityToGrowth(kMaxValidCapacity) / slot_size;
+  return ~SizeT{} >> 2;
+}
+
+template <size_t kSizeOfSizeT = sizeof(size_t)>
+constexpr size_t MaxSizeAtMaxValidCapacity(size_t slot_size) {
+  return CapacityToGrowth(MaxValidCapacity<kSizeOfSizeT>()) / slot_size;
 }
 
 constexpr size_t MaxStorableSize() {
@@ -2325,8 +2329,11 @@ constexpr size_t MaxValidSizeForKeySize(size_t key_size) {
 template <size_t kSizeOfSizeT = sizeof(size_t)>
 constexpr size_t MaxValidSizeForSlotSize(size_t slot_size) {
   if constexpr (kSizeOfSizeT == 8) {
-    // For small slot sizes we are limited by HashtableStackData::kSizeBitCount.
-    if (slot_size < size_t{1} << (64 - HashtableInlineData::kSizeBitCount)) {
+    // For small slot sizes we are limited by
+    // HashtableInlineData::kSizeBitCount.
+    constexpr size_t kMaxSlotSizeForMaxStorableSize =
+        CapacityToGrowth(MaxValidCapacity<kSizeOfSizeT>()) / MaxStorableSize();
+    if (ABSL_PREDICT_TRUE(slot_size <= kMaxSlotSizeForMaxStorableSize)) {
       return MaxStorableSize();
     }
   }
