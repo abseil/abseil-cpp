@@ -142,11 +142,13 @@ TEST_F(FlagTest, Traits) {
   // small as possible because production binaries may define thousands of
   // flags.
   if (sizeof(void*) == 8) {
-    EXPECT_EQ(sizeof(flags::FlagImpl), 56);
-    EXPECT_EQ(sizeof(absl::Flag<bool>), 64);
-    EXPECT_EQ(sizeof(absl::Flag<int>), 64);
-    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 64);
-    EXPECT_EQ(sizeof(absl::Flag<double>), 64);
+    EXPECT_EQ(sizeof(flags::FlagImpl), 32);
+    EXPECT_EQ(sizeof(flags::FlagMetaHeader), 2);
+    EXPECT_EQ(sizeof(flags::FlagMeta), 40);
+    EXPECT_EQ(sizeof(absl::Flag<bool>), 40);
+    EXPECT_EQ(sizeof(absl::Flag<int>), 40);
+    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 40);
+    EXPECT_EQ(sizeof(absl::Flag<double>), 40);
   }
 }
 
@@ -159,17 +161,17 @@ using String = std::string;
 using int128 = absl::int128;
 using uint128 = absl::uint128;
 
-#define DEFINE_CONSTRUCTED_FLAG(T, dflt, dflt_kind)                          \
-  constexpr flags::FlagDefaultArg f1default##T{                              \
-      flags::FlagDefaultSrc{dflt}, flags::FlagDefaultKind::dflt_kind};       \
-  constexpr absl::Flag<T> f1##T{"f1", help_arg, f1default##T};               \
-  ABSL_CONST_INIT absl::Flag<T> f2##T {                                      \
-    "f2", {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc}, \
-        flags::FlagDefaultArg {                                              \
-      flags::FlagDefaultSrc(&TestMakeDflt<T>),                               \
-          flags::FlagDefaultKind::kGenFunc                                   \
-    }                                                                        \
-  }
+#define DEFINE_CONSTRUCTED_FLAG(T, dflt, dflt_kind)                            \
+  constexpr flags::FlagDefaultArg f1default##T{                                \
+      flags::FlagDefaultSrc{dflt}, flags::FlagDefaultKind::dflt_kind};         \
+  constexpr flags::FlagMeta f1meta##T =                                        \
+      flags::MakeFlagMeta<T>("f1", help_arg, f1default##T);                    \
+  constexpr absl::Flag<T> f1##T{&f1meta##T.hdr};                               \
+  constexpr flags::FlagMeta f2meta##T = flags::MakeFlagMeta<T>(                \
+      "f2", {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc}, \
+      flags::FlagDefaultArg{flags::FlagDefaultSrc(&TestMakeDflt<T>),           \
+                            flags::FlagDefaultKind::kGenFunc});                \
+  ABSL_CONST_INIT absl::Flag<T> f2##T { &f2meta##T.hdr }
 
 DEFINE_CONSTRUCTED_FLAG(bool, true, kOneWord);
 DEFINE_CONSTRUCTED_FLAG(int16_t, 1, kOneWord);
@@ -184,11 +186,6 @@ DEFINE_CONSTRUCTED_FLAG(String, &TestMakeDflt<String>, kGenFunc);
 DEFINE_CONSTRUCTED_FLAG(UDT, &TestMakeDflt<UDT>, kGenFunc);
 DEFINE_CONSTRUCTED_FLAG(int128, 13, kGenFunc);
 DEFINE_CONSTRUCTED_FLAG(uint128, 14, kGenFunc);
-
-constexpr absl::Flag<String> f_compat_5arg{
-    "f_compat", "std::string", "file", help_arg,
-    flags::FlagDefaultArg{flags::FlagDefaultSrc(&TestMakeDflt<String>),
-                          flags::FlagDefaultKind::kGenFunc}};
 
 template <typename T>
 bool TestConstructionFor(const absl::Flag<T>& f1, absl::Flag<T>& f2) {
@@ -222,10 +219,6 @@ TEST_F(FlagTest, TestConstruction) {
   TEST_CONSTRUCTED_FLAG(UDT);
   TEST_CONSTRUCTED_FLAG(int128);
   TEST_CONSTRUCTED_FLAG(uint128);
-  EXPECT_EQ(absl::GetFlagReflectionHandle(f_compat_5arg).Name(), "f_compat");
-  EXPECT_EQ(absl::GetFlagReflectionHandle(f_compat_5arg).Help(),
-            "literal help");
-  EXPECT_EQ(absl::GetFlagReflectionHandle(f_compat_5arg).Filename(), "");
 }
 
 // --------------------------------------------------------------------
@@ -1449,9 +1442,9 @@ TEST_F(FlagTest, FilenameInterning) {
   constexpr const char* kFileA = "dir/intern_test_a.cc";
   constexpr const char* kFileB = "dir/intern_test_b.cc";
 
-  absl::Flag<int32_t> f_a1{"fa1", help_arg, f1defaultint32_t};
-  absl::Flag<int32_t> f_a2{"fa2", help_arg, f1defaultint32_t};
-  absl::Flag<int32_t> f_b{"fb", help_arg, f1defaultint32_t};
+  absl::Flag<int32_t> f_a1{&f1metaint32_t.hdr};
+  absl::Flag<int32_t> f_a2{&f1metaint32_t.hdr};
+  absl::Flag<int32_t> f_b{&f1metaint32_t.hdr};
 
   flags::FlagRegistrar<int32_t, false>(ABSL_FLAG_IMPL_FLAG_PTR(f_a1), kFileA);
   flags::FlagRegistrar<int32_t, false>(ABSL_FLAG_IMPL_FLAG_PTR(f_a2), kFileA);
@@ -1462,6 +1455,29 @@ TEST_F(FlagTest, FilenameInterning) {
   EXPECT_EQ(f_a1.Filename(), "dir/intern_test_a.cc");
   EXPECT_EQ(f_a2.Filename(), "dir/intern_test_a.cc");
   EXPECT_EQ(f_b.Filename(), "dir/intern_test_b.cc");
+}
+
+ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(legacy_macro_expanded_flag, std::string,
+                                       "legacy_default")
+ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(legacy_macro_expanded_flag,
+                                    "Legacy 5-arg constructor help.")
+ABSL_CONST_INIT absl::Flag<std::string> FLAGS_legacy_macro_expanded_flag{
+    ABSL_FLAG_IMPL_FLAGNAME("legacy_macro_expanded_flag"),
+    ABSL_FLAG_IMPL_TYPENAME("std::string"), ABSL_FLAG_IMPL_FILENAME(),
+    ABSL_FLAG_IMPL_HELP_ARG(legacy_macro_expanded_flag),
+    ABSL_FLAG_IMPL_DEFAULT_ARG(std::string, legacy_macro_expanded_flag)};
+absl::flags_internal::FlagRegistrarEmpty
+    FLAGS_no_legacy_macro_expanded_flag_alias =
+        ABSL_FLAG_IMPL_REGISTRAR(std::string, FLAGS_legacy_macro_expanded_flag);
+
+TEST_F(FlagTest, LegacyFiveArgConstructorCompatibility) {
+  EXPECT_EQ(absl::GetFlag(FLAGS_legacy_macro_expanded_flag), "legacy_default");
+  EXPECT_EQ(FLAGS_legacy_macro_expanded_flag.Name(),
+            "legacy_macro_expanded_flag");
+  EXPECT_EQ(FLAGS_legacy_macro_expanded_flag.Help(),
+            "Legacy 5-arg constructor help.");
+  absl::SetFlag(&FLAGS_legacy_macro_expanded_flag, "updated");
+  EXPECT_EQ(absl::GetFlag(FLAGS_legacy_macro_expanded_flag), "updated");
 }
 
 }  // namespace

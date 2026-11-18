@@ -256,15 +256,20 @@ constexpr flags::FlagHelpArg kCompatHelpArg{flags::FlagHelpMsg("help"),
                                             flags::FlagHelpKind::kLiteral};
 constexpr flags::FlagDefaultArg kCompatStringDefaultArg{
     flags::FlagDefaultSrc(&MakeEmptyString), flags::FlagDefaultKind::kGenFunc};
-constexpr absl::Flag<std::string> kCompat4ArgFlag{"compat4", "file",
-                                                  kCompatHelpArg,
-                                                  kCompatStringDefaultArg};
-constexpr absl::Flag<std::string> kCompat5ArgCommonFlag{
-    "compat5_common", "std::string", "file", kCompatHelpArg,
-    kCompatStringDefaultArg};
-constexpr absl::Flag<std::string> kCompat5ArgCustomFlag{
-    "compat5_custom", "UnlistedStringAlias", "file", kCompatHelpArg,
-    kCompatStringDefaultArg};
+constexpr flags::FlagMeta kCompatMeta = flags::MakeFlagMeta<std::string>(
+    "compat_meta", kCompatHelpArg, kCompatStringDefaultArg);
+constexpr absl::Flag<std::string> kCompatMetaFlag{&kCompatMeta.hdr};
+constexpr flags::FlagMeta kCompatCommonMeta = flags::MakeFlagMeta<std::string>(
+    flags::FlagNameArg{"compat_common_meta",
+                       flags::LookupCommonOrEmptyFlagTypeId("std::string")},
+    kCompatHelpArg, kCompatStringDefaultArg);
+constexpr absl::Flag<std::string> kCompatCommonMetaFlag{&kCompatCommonMeta.hdr};
+constexpr flags::FlagMeta kCompatCustomMeta = flags::MakeFlagMeta<std::string>(
+    flags::FlagNameArg{
+        "compat_custom_meta",
+        flags::LookupCommonOrEmptyFlagTypeId("UnlistedStringAlias")},
+    kCompatHelpArg, kCompatStringDefaultArg);
+constexpr absl::Flag<std::string> kCompatCustomMetaFlag{&kCompatCustomMeta.hdr};
 
 TEST_F(CommandLineFlagTest, TestTypeName) {
   EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
@@ -290,13 +295,13 @@ TEST_F(CommandLineFlagTest, TestTypeName) {
             "CustomFlagUDT");
 
   EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
-                absl::GetFlagReflectionHandle(kCompat4ArgFlag)),
+                absl::GetFlagReflectionHandle(kCompatMetaFlag)),
             "");
   EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
-                absl::GetFlagReflectionHandle(kCompat5ArgCommonFlag)),
+                absl::GetFlagReflectionHandle(kCompatCommonMetaFlag)),
             "std::string");
   EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
-                absl::GetFlagReflectionHandle(kCompat5ArgCustomFlag)),
+                absl::GetFlagReflectionHandle(kCompatCustomMetaFlag)),
             "");
 }
 
