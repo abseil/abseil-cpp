@@ -41,13 +41,20 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
+#include "absl/random/bernoulli_distribution.h"
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+namespace random_internal {
+template <typename NumType, bool IsIntegralType>
+class UniformDistributionWrapperBase;
+}  // namespace random_internal
 
 // absl::uniform_real_distribution<T>
 //
@@ -144,6 +151,29 @@ class uniform_real_distribution {
   }
 
  private:
+  friend class random_internal::UniformDistributionWrapperBase<RealType, false>;
+
+  template <typename URBG>
+  result_type GenerateNonNegativeOpen(URBG& gen,  // NOLINT(runtime/references)
+                                      result_type lo, result_type hi,
+                                      result_type range);
+
+  template <bool ClosedUpper, typename URBG>
+  result_type GenerateSymmetric(URBG& gen,  // NOLINT(runtime/references)
+                                result_type lo, result_type hi,
+                                result_type range);
+
+  template <bool ClosedUpper, typename URBG>
+  result_type GenerateGeneral(URBG& gen,  // NOLINT(runtime/references)
+                              result_type lo, result_type hi,
+                              result_type range);
+
+  template <typename URBG>
+  result_type GenerateClosed(URBG& gen,  // NOLINT(runtime/references)
+                             const param_type& p) {
+    return GenerateGeneral<true>(gen, p.a(), p.b(), p.range_);
+  }
+
   param_type param_;
   random_internal::FastUniformBits<uint64_t> fast_u64_;
 };
@@ -154,8 +184,9 @@ class uniform_real_distribution {
 template <typename RealType>
 template <typename URBG>
 typename uniform_real_distribution<RealType>::result_type
-uniform_real_distribution<RealType>::operator()(
-    URBG& gen, const param_type& p) {  // NOLINT(runtime/references)
+uniform_real_distribution<RealType>::GenerateNonNegativeOpen(
+    URBG& gen,  // NOLINT(runtime/references)
+    result_type lo, result_type hi, result_type range) {
   using random_internal::GeneratePositiveTag;
   using random_internal::GenerateRealFromBits;
   using real_type =
@@ -165,12 +196,101 @@ uniform_real_distribution<RealType>::operator()(
     const result_type sample =
         GenerateRealFromBits<real_type, GeneratePositiveTag, true>(
             fast_u64_(gen));
-    const result_type res = p.a() + (sample * p.range_);
-    if (res < p.b() || p.range_ <= 0 || !std::isfinite(p.range_)) {
+    const result_type res = lo + (sample * range);
+    if (ABSL_PREDICT_TRUE(res < hi)) {
       return res;
     }
     // else sample rejected, try again.
   }
+}
+
+template <typename RealType>
+template <bool ClosedUpper, typename URBG>
+typename uniform_real_distribution<RealType>::result_type
+uniform_real_distribution<RealType>::GenerateSymmetric(
+    URBG& gen,  // NOLINT(runtime/references)
+    result_type lo, result_type hi, result_type range) {
+  using random_internal::GeneratePositiveTag;
+  using random_internal::GenerateRealFromBits;
+  using real_type =
+      std::conditional_t<std::is_same_v<RealType, float>, float, double>;
+
+  if (!(range > 0)) {
+    return lo;
+  }
+  while (true) {
+    const uint64_t bits = fast_u64_(gen);
+    const bool from_hi = (bits >> 63) != 0;
+    const uint64_t rem = (from_hi ? ~bits : bits) << 1;
+    const result_type sample =
+        GenerateRealFromBits<real_type, GeneratePositiveTag, true>(rem);
+    const result_type res =
+        from_hi ? (hi - (sample * range)) : (lo + (sample * range));
+    if (ABSL_PREDICT_TRUE(res >= lo &&
+                          (ClosedUpper ? (res <= hi) : (res < hi)))) {
+      return res;
+    }
+    // else sample rejected, try again.
+  }
+}
+
+template <typename RealType>
+template <bool ClosedUpper, typename URBG>
+typename uniform_real_distribution<RealType>::result_type
+uniform_real_distribution<RealType>::GenerateGeneral(
+    URBG& gen,  // NOLINT(runtime/references)
+    result_type lo, result_type hi, result_type range) {
+  if (!(lo < hi) || !std::isfinite(lo) || !std::isfinite(hi)) {
+    return lo;
+  }
+  if (lo < 0 && hi > 0) {
+    // Split sign-straddling intervals at 0 into [lo, 0) and [0, hi) / [0, hi].
+    // This avoids hi - lo overflow in -DNDEBUG builds and prevents asymmetric
+    // intervals such as [-1.0f, 2^-25f) from erasing floats near 0.
+    const result_type neg_len = -lo;
+    const result_type pos_len = hi;
+    const bool neg_smaller = neg_len <= pos_len;
+    const result_type small_len = neg_smaller ? neg_len : pos_len;
+    double p_small;
+    if constexpr (std::is_same_v<RealType, float>) {
+      const double neg_d = static_cast<double>(neg_len);
+      const double pos_d = static_cast<double>(pos_len);
+      p_small = static_cast<double>(small_len) / (neg_d + pos_d);
+    } else if (std::isfinite(range) && range > 0) {
+      p_small = static_cast<double>(small_len / range);
+    } else if (!std::isfinite(range)) {
+      const result_type half_range =
+          (result_type{0.5} * neg_len) + (result_type{0.5} * pos_len);
+      p_small =
+          static_cast<double>((result_type{0.5} * small_len) / half_range);
+    } else {
+      // Only reachable under flush-to-zero when both endpoints are subnormal.
+      return lo;
+    }
+    const bool pick_small = bernoulli_distribution(p_small)(gen);
+    const bool pick_neg = neg_smaller ? pick_small : !pick_small;
+    if (pick_neg) {
+      return GenerateSymmetric<false>(gen, lo, result_type{0}, neg_len);
+    }
+    if constexpr (ClosedUpper) {
+      return GenerateSymmetric<true>(gen, result_type{0}, hi, pos_len);
+    } else {
+      return GenerateNonNegativeOpen(gen, result_type{0}, hi, pos_len);
+    }
+  }
+  return GenerateSymmetric<ClosedUpper>(gen, lo, hi, range);
+}
+
+template <typename RealType>
+template <typename URBG>
+typename uniform_real_distribution<RealType>::result_type
+uniform_real_distribution<RealType>::operator()(
+    URBG& gen, const param_type& p) {  // NOLINT(runtime/references)
+  if (ABSL_PREDICT_TRUE(p.a() >= 0 && p.range_ > 0 &&
+                        std::isfinite(p.range_))) {
+    return GenerateNonNegativeOpen(gen, p.a(), p.b(), p.range_);
+  }
+  return GenerateGeneral<false>(gen, p.a(), p.b(), p.range_);
 }
 
 template <typename CharT, typename Traits, typename RealType>

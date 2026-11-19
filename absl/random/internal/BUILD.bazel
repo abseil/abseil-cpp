@@ -873,6 +873,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":uniform_helper",
+        "//absl/numeric:int128",
+        "//absl/numeric:representation",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
