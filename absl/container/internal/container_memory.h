@@ -143,32 +143,6 @@ void Deallocate(Alloc* alloc, void* p, size_t n) {
 
 namespace memory_internal {
 
-// Constructs T into uninitialized storage pointed by `ptr` using the args
-// specified in the tuple.
-template <class Alloc, class T, class Tuple, size_t... I>
-void ConstructFromTupleImpl(Alloc* alloc, T* ptr, Tuple&& t,
-                            std::index_sequence<I...>) {
-  std::allocator_traits<Alloc>::construct(
-      *alloc, ptr, std::get<I>(std::forward<Tuple>(t))...);
-}
-
-template <class T, class F>
-struct WithConstructedImplF {
-  template <class... Args>
-  decltype(std::declval<F>()(std::declval<T>())) operator()(
-      Args&&... args) const {
-    return std::forward<F>(f)(T(std::forward<Args>(args)...));
-  }
-  F&& f;
-};
-
-template <class T, class Tuple, size_t... Is, class F>
-decltype(std::declval<F>()(std::declval<T>())) WithConstructedImpl(
-    Tuple&& t, std::index_sequence<Is...>, F&& f) {
-  return WithConstructedImplF<T, F>{std::forward<F>(f)}(
-      std::get<Is>(std::forward<Tuple>(t))...);
-}
-
 template <class T, size_t... Is>
 auto TupleRefImpl(T&& t, std::index_sequence<Is...>)
     -> decltype(std::forward_as_tuple(std::get<Is>(std::forward<T>(t))...)) {
@@ -187,24 +161,18 @@ auto TupleRef(T&& t) -> decltype(TupleRefImpl(
       std::make_index_sequence<std::tuple_size_v<std::decay_t<T>>>());
 }
 
-template <class F, class K, class V>
-decltype(std::declval<F>()(std::declval<const K&>(), std::piecewise_construct,
-                           std::declval<std::tuple<K>>(), std::declval<V>()))
-DecomposePairImpl(F&& f, std::pair<std::tuple<K>, V> p) {
-  const auto& key = std::get<0>(p.first);
-  return std::forward<F>(f)(key, std::piecewise_construct, std::move(p.first),
-                            std::move(p.second));
-}
-
 }  // namespace memory_internal
 
 // Constructs T into uninitialized storage pointed by `ptr` using the args
 // specified in the tuple.
 template <class Alloc, class T, class Tuple>
 void ConstructFromTuple(Alloc* alloc, T* ptr, Tuple&& t) {
-  memory_internal::ConstructFromTupleImpl(
-      alloc, ptr, std::forward<Tuple>(t),
-      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
+  std::apply(
+      [&](auto&&... args) {
+        std::allocator_traits<Alloc>::construct(
+            *alloc, ptr, std::forward<decltype(args)>(args)...);
+      },
+      std::forward<Tuple>(t));
 }
 
 // Constructs T using the args specified in the tuple and calls F with the
@@ -212,10 +180,11 @@ void ConstructFromTuple(Alloc* alloc, T* ptr, Tuple&& t) {
 template <class T, class Tuple, class F>
 decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
                                                                F&& f) {
-  return memory_internal::WithConstructedImpl<T>(
-      std::forward<Tuple>(t),
-      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>(),
-      std::forward<F>(f));
+  return std::apply(
+      [&](auto&&... args) -> decltype(auto) {
+        return std::forward<F>(f)(T(std::forward<decltype(args)>(args)...));
+      },
+      std::forward<Tuple>(t));
 }
 
 // Given arguments of an std::pair's constructor, PairArgs() returns a pair of
