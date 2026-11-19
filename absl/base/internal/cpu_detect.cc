@@ -257,6 +257,23 @@ CpuType GetAmdCpuType() {
   }
 }
 
+// Reads extended control register 0 (XCR0). The caller must verify via CPUID
+// that the CPU and OS support OSXSAVE before calling this function.
+uint64_t ReadXcr0() {
+#if defined(_MSC_VER)
+  return _xgetbv(0);
+#elif defined(__GNUC__) || defined(__clang__)
+  uint32_t eax = 0;
+  uint32_t edx = 0;
+  // Use the raw opcode for xgetbv (0F 01 D0) so this compiles without -mxsave
+  // and on assemblers that do not recognize the xgetbv mnemonic.
+  __asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(0));
+  return (static_cast<uint64_t>(edx) << 32) | eax;
+#else
+  return 0;
+#endif
+}
+
 }  // namespace
 
 CpuType GetCpuType() {
@@ -275,10 +292,9 @@ bool SupportsArmCRC32PMULL() { return false; }
 bool SupportsArmSHA3() { return false; }
 
 bool SupportsAvx2() {
-#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && !defined(_WIN32) && \
-    !defined(_WIN64)
-  return __builtin_cpu_supports("avx2") != 0;
-#elif defined(_WIN32) || defined(_WIN64)
+  // Query CPUID and XCR0 directly instead of using __builtin_cpu_supports(),
+  // which pulls in a static initializer (__cpu_indicator_init) from the
+  // compiler runtime.
   int cpu_info[4];
   __cpuid(cpu_info, 0);
   if (cpu_info[0] < 7) {
@@ -289,14 +305,13 @@ bool SupportsAvx2() {
   if ((cpu_info[2] & kOsxsaveAndAvx) != kOsxsaveAndAvx) {
     return false;
   }
-  if ((_xgetbv(0) & 0x6) != 0x6) {
+  // Check that the OS saves both XMM (bit 1) and YMM (bit 2) state.
+  constexpr uint64_t kXmmAndYmmState = 0x6;
+  if ((ReadXcr0() & kXmmAndYmmState) != kXmmAndYmmState) {
     return false;
   }
   __cpuidex(cpu_info, 7, 0);
   return (cpu_info[1] & (1 << 5)) != 0;
-#else
-  return false;
-#endif
 }
 
 bool SupportsBmi2() {
