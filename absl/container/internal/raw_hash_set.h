@@ -1918,19 +1918,13 @@ class HashSetIteratorBase : private HashSetIteratorGenerationInfo {
       AssertSameContainer(ctrl_, b.ctrl_, slot_, b.slot_, generation_ptr(),
                           b.generation_ptr());
     }
-    return unchecked_equals(b);
+    return slot_ == b.slot_;
   }
 
-  // An equality check which skips ABSL Hardening iterator invalidation
-  // checks.
-  // Should be used when the lifetimes of the iterators are well-enough
-  // understood to prove that they cannot be invalid.
-  // Note: `b` is passed by reference because `HashSetIteratorBase` has an
-  // anonymous union member (`ctrl_`), which causes Clang to lower by-value
-  // copies as `memcpy` that affects compiler inlining decisions.
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_equals(
-      const HashSetIteratorBase& b) const {
-    return slot_ == b.slot_;
+  // Returns true if this iterator is at the end sentinel, skipping hardening
+  // iterator invalidation checks when iterator lifetimes are known to be valid.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_is_end() const {
+    return slot_ == nullptr;
   }
 
   ctrl_t* control() const { return ctrl_; }
@@ -3179,6 +3173,7 @@ class raw_hash_set : public raw_hash_set_base {
 
    private:
     using Base::Base;
+    using Base::unchecked_is_end;
     ABSL_ATTRIBUTE_ALWAYS_INLINE explicit iterator(const Base& b) : Base(b) {}
 
     // Dereferences the iterator without ABSL Hardening iterator invalidation
@@ -3226,9 +3221,8 @@ class raw_hash_set : public raw_hash_set_base {
     }
 
    private:
-    ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_equals(
-        const const_iterator& b) const {
-      return inner_.unchecked_equals(b.inner_);
+    ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_is_end() const {
+      return inner_.unchecked_is_end();
     }
     ABSL_ATTRIBUTE_ALWAYS_INLINE reference unchecked_deref() const {
       return inner_.unchecked_deref();
@@ -3769,7 +3763,7 @@ class raw_hash_set : public raw_hash_set_base {
   template <class K = key_type>
   size_type erase(const_key_arg<K> key) {
     auto it = find(key);
-    if (it.unchecked_equals(end())) return 0;
+    if (it.unchecked_is_end()) return 0;
     erase(it);
     return 1;
   }
@@ -3841,7 +3835,7 @@ class raw_hash_set : public raw_hash_set_base {
         src.template erase_meta_only_small<SooEnabled(), sizeof(slot_type)>();
       return;
     }
-    for (auto it = src.begin(), e = src.end(); it != e;) {
+    for (auto it = src.begin(); !it.unchecked_is_end();) {
       auto next = std::next(it);
       if (insert_slot(it.slot()))
         src.template erase_meta_only_large<sizeof(slot_type),
@@ -3872,8 +3866,7 @@ class raw_hash_set : public raw_hash_set_base {
             std::enable_if_t<!std::is_same_v<K, iterator>, int> = 0>
   node_type extract(const_key_arg<K> key) {
     auto it = find(key);
-    return it.unchecked_equals(end()) ? node_type()
-                                      : extract(const_iterator{it});
+    return it.unchecked_is_end() ? node_type() : extract(const_iterator{it});
   }
 
   void swap(raw_hash_set& that) noexcept(
@@ -3959,25 +3952,21 @@ class raw_hash_set : public raw_hash_set_base {
 
   template <class K = key_type>
   bool contains(const_key_arg<K> key) const {
-    // Here neither the iterator returned by `find()` nor `end()` can be invalid
-    // outside of potential thread-safety issues.
-    // `find()`'s return value is constructed, used, and then destructed
-    // all in this context.
-    return !find(key).unchecked_equals(end());
+    return !find(key).unchecked_is_end();
   }
 
   template <class K = key_type>
   std::pair<iterator, iterator> equal_range(const_key_arg<K> key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
-    if (!it.unchecked_equals(end())) return {it, std::next(it)};
+    if (!it.unchecked_is_end()) return {it, std::next(it)};
     return {it, it};
   }
   template <class K = key_type>
   std::pair<const_iterator, const_iterator> equal_range(
       const_key_arg<K> key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
-    if (!it.unchecked_equals(end())) return {it, std::next(it)};
+    if (!it.unchecked_is_end()) return {it, std::next(it)};
     return {it, it};
   }
 
@@ -3994,7 +3983,7 @@ class raw_hash_set : public raw_hash_set_base {
     if (outer->capacity() > inner->capacity()) std::swap(outer, inner);
     for (const value_type& elem : *outer) {
       auto it = PolicyTraits::apply(FindElement{*inner}, elem);
-      if (unchecked_equals(it, inner->end())) return false;
+      if (unchecked_is_end(it)) return false;
       // Note: we used key_equal to check for key equality in FindElement, but
       // we may need to do an additional comparison using
       // value_type::operator==. E.g. the keys could be equal and the
@@ -4262,7 +4251,7 @@ class raw_hash_set : public raw_hash_set_base {
     const size_t size = that.size();
     if (size == 0) return *this;
     reserve(size);
-    for (iterator it = that.begin(); it != that.end(); ++it) {
+    for (iterator it = that.begin(); !it.unchecked_is_end(); ++it) {
       insert(std::move(PolicyTraits::element(it.slot())));
       that.destroy(it.slot());
     }
@@ -4474,8 +4463,8 @@ class raw_hash_set : public raw_hash_set_base {
     return it.unchecked_deref();
   }
   template <class Iter>
-  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(Iter a, Iter b) {
-    return a.unchecked_equals(b);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_is_end(const Iter& it) {
+    return it.unchecked_is_end();
   }
 
  private:
@@ -4847,7 +4836,7 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
     if (per_slot != ~size_t{}) {
       m += per_slot * c.size();
     } else {
-      for (auto it = c.begin(); it != c.end(); ++it) {
+      for (auto it = c.begin(); !it.unchecked_is_end(); ++it) {
         m += Traits::space_used(it.slot());
       }
     }
