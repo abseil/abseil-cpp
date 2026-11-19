@@ -29,6 +29,7 @@
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -63,8 +64,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   using Hash = typename raw_hash_map::raw_hash_set::hasher;
   using Eq = typename raw_hash_map::raw_hash_set::key_equal;
   using Alloc = typename raw_hash_map::raw_hash_set::allocator_type;
-  using KeyArgImpl =
-      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
+  using KeyArgImpl = typename raw_hash_map::raw_hash_set::KeyArgImpl;
+  using slot_type = typename raw_hash_map::raw_hash_set::slot_type;
 
   template <class K>
   using key_arg =
@@ -155,7 +156,11 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
     return ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                            \
         (this->template Func<K, V, 0>), Callee)(                               \
-        std::forward<decltype(k)>(k), std::forward<decltype(v)>(v)) Tail;      \
+        ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                               \
+            std::forward<decltype(k)>(k),                                      \
+            KeyArgImpl::template Canonicalize<key_type>(                       \
+                std::forward<decltype(k)>(k))),                                \
+        std::forward<decltype(v)>(v)) Tail;                                    \
   }                                                                            \
   static_assert(true, "This is to force a semicolon.")
 
@@ -242,7 +247,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(key_arg<K>&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return try_emplace_impl(std::forward<key_arg<K>>(k),
+    return try_emplace_impl(KeyArgImpl::template Canonicalize<key_type>(
+                                std::forward<key_arg<K>>(k)),
                             std::forward<Args>(args)...);
   }
 
@@ -263,7 +269,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>
   std::pair<iterator, bool> try_emplace(const key_arg<K>& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return try_emplace_impl(k, std::forward<Args>(args)...);
+    return try_emplace_impl(KeyArgImpl::template Canonicalize<key_type>(k),
+                            std::forward<Args>(args)...);
   }
   template <
       class K = key_type, class... Args, EnableIf<LifetimeBoundK<K, true>> = 0,
@@ -369,21 +376,34 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       "Redundant template parameters were passed. Use InstantiateRawHashMap<> "
       "instead");
 
+  // Performs slot lookup and insertion or assignment for all insert-or-assign
+  // calls, passing string-view keys by value.
   template <class K, class V>
-  std::pair<iterator, bool> insert_or_assign_impl(K&& k, V&& v)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::pair<slot_type*, bool> insert_or_assign_slot(K k, V&& v) {
     auto res = this->template find_or_prepare_insert<KeyParam<K>>(k);
     if (res.second) {
       this->emplace_at(res.first, std::forward<K>(k), std::forward<V>(v));
     } else {
       Policy::value(&Policy::element(res.first)) = std::forward<V>(v);
     }
+    return res;
+  }
+
+  // Deduces the key type for insert-or-assign overloads and converts the
+  // resulting slot into an iterator.
+  template <class K, class V>
+  std::pair<iterator, bool> insert_or_assign_impl(K&& k, V&& v)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    auto res =
+        insert_or_assign_slot<typename KeyArgImpl::template ForwardParam<K>, V>(
+            std::forward<K>(k), std::forward<V>(v));
     return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 
+  // Performs slot lookup and insertion for subscript and try-emplace calls
+  // other than single-argument string-view insertions.
   template <class K = key_type, class... Args>
-  std::pair<iterator, bool> try_emplace_impl(K&& k, Args&&... args)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::pair<slot_type*, bool> try_emplace_slot(K k, Args&&... args) {
     auto res = this->template find_or_prepare_insert<KeyParam<K>>(k);
     if (res.second) {
       // Try to avoid using std::tuple since that slows compilation.
@@ -413,6 +433,24 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
                          std::forward_as_tuple(std::forward<Args>(args)...));
       }
     }
+    return res;
+  }
+
+  // Deduces the key type for try-emplace overloads, sharing the decomposable
+  // string-view helper for single-argument insertions.
+  template <class K = key_type, class... Args>
+  std::pair<iterator, bool> try_emplace_impl(K&& k, Args&&... args)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    auto res = [&] {
+      if constexpr (std::is_same_v<K, absl::string_view> &&
+                    sizeof...(Args) == 1) {
+        return this->emplace_decomposable_sv(k, std::forward<Args>(args)...);
+      } else {
+        return try_emplace_slot<typename KeyArgImpl::template ForwardParam<K>,
+                                Args...>(std::forward<K>(k),
+                                         std::forward<Args>(args)...);
+      }
+    }();
     return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 };

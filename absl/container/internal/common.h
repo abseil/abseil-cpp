@@ -21,9 +21,11 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 
 // TODO(b/402804213): Clean up these macros when no longer needed.
@@ -79,11 +81,76 @@ template <class T>
 struct IsTransparent<T, std::void_t<typename T::is_transparent>>
     : std::true_type {};
 
-template <bool is_transparent>
+template <bool kHasStringViewLookup>
+struct KeyArgBase {
+ private:
+  template <typename T, typename RawT = absl::remove_cvref_t<T>>
+  static constexpr bool kIsCharArray =
+      std::is_array_v<RawT> &&
+      std::is_same_v<std::remove_const_t<std::remove_extent_t<RawT>>, char>;
+
+  // Returns true if `K` is `char[N]` or `absl::string_view` under
+  // `kHasStringViewLookup` and `Key` is constructible from `absl::string_view`.
+  template <typename K, typename Key>
+  static constexpr bool ShouldCanonicalize() {
+    if constexpr (kHasStringViewLookup &&
+                  (kIsCharArray<K> || std::is_same_v<absl::remove_cvref_t<K>,
+                                                     absl::string_view>)) {
+      return std::is_constructible_v<Key, absl::string_view>;
+    }
+    return false;
+  }
+
+ public:
+  // Canonicalized read-only parameter type for non-deduced lookup helpers:
+  // collapses `char[N]` to `absl::string_view` when `kHasStringViewLookup` is
+  // true, and passes cheap-to-copy types by value.
+  template <typename Arg>
+  using Param = type_traits_internal::AddConstRefIfExpensiveToCopy<
+      std::conditional_t<kHasStringViewLookup && kIsCharArray<Arg>,
+                         absl::string_view, absl::remove_cvref_t<Arg>>>;
+
+  // Forwarding parameter type for helpers called with a `Canonicalize` result:
+  // passes `absl::string_view` by value in registers and forwards other keys.
+  template <typename K>
+  using ForwardParam = std::conditional_t<std::is_same_v<K, absl::string_view>,
+                                          absl::string_view, K&&>;
+
+  // Canonicalizes `k` to `absl::string_view` by value when `k` is `char[N]` or
+  // `absl::string_view` on a `kHasStringViewLookup` container and `Key` is
+  // constructible from `absl::string_view`; otherwise forwards `k` unchanged.
+  template <typename Key, typename K>
+  static decltype(auto) Canonicalize(K&& k) {
+    if constexpr (ShouldCanonicalize<K, Key>()) {
+      return absl::string_view(k);
+    } else {
+      return std::forward<K>(k);
+    }
+  }
+
+  // Forwards 0-arg `emplace()` calls for custom policies whose `apply` accepts
+  // zero constructor arguments.
+  template <typename Policy, typename F>
+  static decltype(auto) Apply(F&& f) {
+    return Policy::apply(std::forward<F>(f));
+  }
+
+  // Calls `Policy::apply` for decomposable `emplace(args...)`, canonicalizing
+  // `first` (the set element or map key) via `Canonicalize`.
+  template <typename Policy, typename F, typename First, typename... Rest>
+  static decltype(auto) Apply(F&& f, First&& first, Rest&&... rest) {
+    return Policy::apply(
+        std::forward<F>(f),
+        Canonicalize<typename Policy::key_type>(std::forward<First>(first)),
+        std::forward<Rest>(rest)...);
+  }
+};
+
+template <bool kIsTransparent, bool kHasStringViewLookup = false>
 struct KeyArg;
 
-template <>
-struct KeyArg<true> {
+template <bool kHasStringViewLookup>
+struct KeyArg<true, kHasStringViewLookup> : KeyArgBase<kHasStringViewLookup> {
   // Transparent case: forward the user's argument type as-is (without
   // converting to the key type).
   template <typename Arg, typename Key>
@@ -95,8 +162,8 @@ struct KeyArg<true> {
   using SelectReadOnly = const Arg&;
 };
 
-template <>
-struct KeyArg<false> {
+template <bool kHasStringViewLookup>
+struct KeyArg<false, kHasStringViewLookup> : KeyArgBase<false> {
   // Non-transparent case: convert the user's argument to the key type first.
   template <typename Arg, typename Key>
   using Select = Key;
