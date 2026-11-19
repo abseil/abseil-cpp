@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -247,6 +248,256 @@ TEST(DiscreteDistributionTest, StabilityTest) {
     EXPECT_EQ(12, urbg.invocations());
   }
   EXPECT_THAT(output, testing::ElementsAre(3, 3, 0, 3, 0, 4));
+}
+
+TEST(DiscreteDistributionTest, AllZeroLargeAndNearUnitWeights) {
+  using testing::DoubleEq;
+  using testing::ElementsAre;
+  using testing::Gt;
+  using testing::Lt;
+  using testing::Pointwise;
+
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+
+  // Defensive fallback when all weights are zero (violating
+  // [rand.dist.samp.discrete]'s S > 0 precondition): behave like an empty
+  // weight list and produce {1.0}.
+  absl::discrete_distribution<int> all_zero({0.0, 0.0, 0.0});
+  EXPECT_THAT(all_zero.probabilities(), ElementsAre(1.0));
+  EXPECT_EQ(all_zero(rng), 0);
+
+  // Finite weights whose sum overflows double still normalize accurately.
+  absl::discrete_distribution<int> huge({0.5e308, 1.5e308});
+  EXPECT_THAT(huge.probabilities(), ElementsAre(0.25, 0.75));
+
+  // Overflowing weights where secondary weights sum to <= 16*eps * max_weight
+  // must still normalize by the rescaled sum so the dominant entry is < 1.0
+  // and matches the non-overflowing half-scaled distribution.
+  constexpr double kMax = (std::numeric_limits<double>::max)();
+  {
+    absl::discrete_distribution<int> dominant_overflow({kMax, 1e293});
+    absl::discrete_distribution<int> dominant_scaled({0.5 * kMax, 0.5 * 1e293});
+    EXPECT_THAT(dominant_overflow.probabilities(),
+                ElementsAre(Lt(1.0), Gt(0.0)));
+    EXPECT_THAT(dominant_overflow.probabilities(),
+                Pointwise(DoubleEq(), dominant_scaled.probabilities()));
+  }
+  {
+    absl::discrete_distribution<int> multi_overflow(
+        {kMax, 1e293, 1e293, 1e293, 1e293, 1e293, 1e293});
+    absl::discrete_distribution<int> multi_scaled(
+        {0.5 * kMax, 0.5 * 1e293, 0.5 * 1e293, 0.5 * 1e293, 0.5 * 1e293,
+         0.5 * 1e293, 0.5 * 1e293});
+    EXPECT_THAT(multi_overflow.probabilities(),
+                ElementsAre(Lt(1.0), Gt(0.0), Gt(0.0), Gt(0.0), Gt(0.0),
+                            Gt(0.0), Gt(0.0)));
+    EXPECT_THAT(multi_overflow.probabilities(),
+                Pointwise(DoubleEq(), multi_scaled.probabilities()));
+  }
+
+  // Zero-weight outcomes in a near-1.0 weight vector must never be sampled.
+  std::vector<double> near_unit(2000, 0.0);
+  near_unit[0] = 0.5 - 5e-7;
+  near_unit[1] = 0.5;
+  absl::discrete_distribution<int> sparse(near_unit.begin(), near_unit.end());
+  for (int i = 0; i < 20000; ++i) {
+    const int v = sparse(rng);
+    EXPECT_LE(v, 1);
+  }
+}
+
+TEST(DiscreteDistributionTest, StrandedUnderPreservesAcceptance) {
+  using testing::AnyOf;
+  using testing::DoubleEq;
+  using testing::DoubleNear;
+  using testing::Each;
+  using testing::ElementsAre;
+  using testing::Gt;
+  using testing::Pair;
+
+  constexpr double kEps = std::numeric_limits<double>::epsilon();
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ULL);
+
+  // Sum is 1.0 - 6*eps (within 16*eps tolerance), so InitDiscreteDistribution
+  // skips rescaling and `over` empties leaving index 1 stranded in `under`.
+  // Both tiny nonzero (1e-300) and stranded `under` entries must keep their
+  // exact acceptance probabilities rather than being inflated to 1.0.
+  {
+    std::vector<double> p = {1e-300, 0.5 - 4.0 * kEps, 0.5 - 2.0 * kEps};
+    const auto q = absl::random_internal::InitDiscreteDistribution(&p);
+    EXPECT_THAT(q, ElementsAre(Pair(DoubleEq(3.0 * 1e-300), 2),
+                               Pair(DoubleEq(1.0 - 18.0 * kEps), 2),
+                               Pair(DoubleEq(0.5 - 6.0 * kEps), 1)));
+    EXPECT_LT(q[1].first, 1.0);
+
+    absl::discrete_distribution<int> dist(p.begin(), p.end());
+    std::vector<int> counts(3, 0);
+    for (int i = 0; i < 20000; ++i) {
+      const int v = dist(rng);
+      ASSERT_GE(v, 0);
+      ASSERT_LT(static_cast<size_t>(v), counts.size());
+      ++counts[static_cast<size_t>(v)];
+    }
+    EXPECT_THAT(counts, ElementsAre(0, Gt(0), Gt(0)));
+  }
+
+  // Same setup with an exact 0.0 weight at index 0.
+  {
+    std::vector<double> p = {0.0, 0.5 - 4.0 * kEps, 0.5 - 2.0 * kEps};
+    const auto q = absl::random_internal::InitDiscreteDistribution(&p);
+    EXPECT_THAT(q,
+                ElementsAre(Pair(0.0, 2), Pair(DoubleEq(1.0 - 18.0 * kEps), 2),
+                            Pair(DoubleEq(0.5 - 6.0 * kEps), 1)));
+    EXPECT_LT(q[1].first, 1.0);
+
+    absl::discrete_distribution<int> dist(p.begin(), p.end());
+    std::vector<int> counts(3, 0);
+    for (int i = 0; i < 20000; ++i) {
+      const int v = dist(rng);
+      ASSERT_GE(v, 0);
+      ASSERT_LT(static_cast<size_t>(v), counts.size());
+      ++counts[static_cast<size_t>(v)];
+    }
+    EXPECT_THAT(counts, ElementsAre(0, Gt(0), Gt(0)));
+  }
+
+  // Both 0.0 and 1e-300 together in a near-1.0 vector within tolerance.
+  {
+    std::vector<double> p = {0.0, 1e-300, 0.5 - 4.0 * kEps, 0.5 - 2.0 * kEps};
+    const auto q = absl::random_internal::InitDiscreteDistribution(&p);
+    EXPECT_THAT(q, ElementsAre(Pair(0.0, 2), Pair(DoubleEq(4.0 * 1e-300), 3),
+                               Pair(DoubleEq(1.0 - 24.0 * kEps), 3),
+                               Pair(DoubleEq(1.0 - 8.0 * kEps), 2)));
+    EXPECT_LT(q[2].first, 1.0);
+
+    absl::discrete_distribution<int> dist(p.begin(), p.end());
+    std::vector<int> counts(4, 0);
+    for (int i = 0; i < 20000; ++i) {
+      const int v = dist(rng);
+      ASSERT_GE(v, 0);
+      ASSERT_LT(static_cast<size_t>(v), counts.size());
+      ++counts[static_cast<size_t>(v)];
+    }
+    EXPECT_THAT(counts, ElementsAre(0, 0, Gt(0), Gt(0)));
+  }
+
+  // All entries start strictly under 1.0 (`over` is empty from the start),
+  // stranding multiple `under` entries simultaneously; every entry preserves
+  // its `q[i].first < 1.0` and aliases its remainder to `nonzero_idx` (3).
+  {
+    std::vector<double> p = {0.25 - 2.0 * kEps, 0.25 - 2.0 * kEps,
+                             0.25 - 2.0 * kEps, 0.25 - kEps};
+    const auto q = absl::random_internal::InitDiscreteDistribution(&p);
+    EXPECT_THAT(q, ElementsAre(Pair(DoubleEq(1.0 - 8.0 * kEps), 3),
+                               Pair(DoubleEq(1.0 - 8.0 * kEps), 3),
+                               Pair(DoubleEq(1.0 - 8.0 * kEps), 3),
+                               Pair(DoubleEq(1.0 - 4.0 * kEps), 3)));
+    for (const auto& entry : q) {
+      EXPECT_LT(entry.first, 1.0);
+    }
+  }
+
+  // Deficit 1e-13 at n=2000 exceeds constant 16*eps tolerance (whereas a
+  // linear 4*n*eps tolerance would skip rescaling), keeping both 0.0 and
+  // 1e-300 entries uninflated.
+  {
+    std::vector<double> p(2000, 0.0);
+    p[1] = 1e-300;
+    p[2] = 0.5 - 1e-13;
+    p[3] = 0.5;
+    const auto q = absl::random_internal::InitDiscreteDistribution(&p);
+    EXPECT_THAT(p[3], Gt(0.5));
+    EXPECT_THAT(q[0], Pair(0.0, AnyOf(2, 3)));
+    EXPECT_THAT(q[1], Pair(DoubleNear(2000.0 * 1e-300, 1e-309), AnyOf(2, 3)));
+
+    absl::discrete_distribution<int> dist(p.begin(), p.end());
+    std::vector<int> samples;
+    samples.reserve(20000);
+    for (int i = 0; i < 20000; ++i) {
+      samples.push_back(dist(rng));
+    }
+    EXPECT_THAT(samples, Each(AnyOf(2, 3)));
+  }
+}
+
+TEST(DiscreteDistributionTest, UnaryOpConstructorOverflowRange) {
+  using testing::DoubleEq;
+  using testing::ElementsAre;
+
+  {
+    std::vector<double> args;
+    absl::discrete_distribution<int> dist(4, -1e308, 1e308, [&](double x) {
+      args.push_back(x);
+      return static_cast<double>(args.size());
+    });
+    EXPECT_THAT(args, ElementsAre(DoubleEq(-7.5e307), DoubleEq(-2.5e307),
+                                  DoubleEq(2.5e307), DoubleEq(7.5e307)));
+    EXPECT_THAT(dist.probabilities(), ElementsAre(0.1, 0.2, 0.3, 0.4));
+  }
+
+  {
+    std::vector<double> args;
+    const double weights[] = {1.0, 2.0, 1.0};
+    absl::discrete_distribution<int> dist(3, -1.7e308, 1.7e308, [&](double x) {
+      const double w = weights[args.size()];
+      args.push_back(x);
+      return w;
+    });
+    EXPECT_THAT(args,
+                ElementsAre(DoubleEq(-1.7e308 * (2.0 / 3.0)), DoubleEq(0.0),
+                            DoubleEq(1.7e308 * (2.0 / 3.0))));
+    EXPECT_THAT(dist.probabilities(), ElementsAre(0.25, 0.5, 0.25));
+  }
+
+  {
+    std::vector<double> args;
+    absl::discrete_distribution<int> dist(1, -1.7e308, 1.7e308, [&](double x) {
+      args.push_back(x);
+      return 1.0;
+    });
+    EXPECT_THAT(args, ElementsAre(DoubleEq(0.0)));
+    EXPECT_THAT(dist.probabilities(), ElementsAre(1.0));
+  }
+
+  {
+    std::vector<double> args;
+    absl::discrete_distribution<int> dist(4, -1.5e308, 0.5e308, [&](double x) {
+      args.push_back(x);
+      return 1.0;
+    });
+    EXPECT_THAT(args, ElementsAre(DoubleEq(-1.25e308), DoubleEq(-7.5e307),
+                                  DoubleEq(-2.5e307), DoubleEq(2.5e307)));
+    EXPECT_THAT(dist.probabilities(), ElementsAre(0.25, 0.25, 0.25, 0.25));
+  }
+}
+
+TEST(DiscreteDistributionTest, LargeNonPowerOfTwoSerializationRoundTrip) {
+  auto verify_round_trip = [](const std::vector<double>& weights) {
+    absl::discrete_distribution<int> before(weights.begin(), weights.end());
+    std::stringstream ss;
+    ss << before;
+    absl::discrete_distribution<int> after;
+    ss >> after;
+    EXPECT_FALSE(ss.fail());
+    EXPECT_EQ(before, after);
+  };
+
+  for (size_t n : {size_t{1000}, size_t{10000}}) {
+    verify_round_trip(std::vector<double>(n, 1.0));
+
+    std::vector<double> varied(n);
+    for (size_t i = 0; i < n; ++i) {
+      varied[i] = 1.0 + static_cast<double>((i * 31) % 997) * 0.13;
+    }
+    verify_round_trip(varied);
+  }
+
+  // Overflow-rescaled large non-power-of-two distribution also round-trips.
+  std::vector<double> huge(1000);
+  for (size_t i = 0; i < huge.size(); ++i) {
+    huge[i] = 1e307 * static_cast<double>(1 + (i % 7));
+  }
+  verify_round_trip(huge);
 }
 
 }  // namespace

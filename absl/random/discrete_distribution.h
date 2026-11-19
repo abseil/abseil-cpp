@@ -16,6 +16,7 @@
 #define ABSL_RANDOM_DISCRETE_DISTRIBUTION_H_
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <initializer_list>
 #include <istream>
@@ -75,12 +76,26 @@ class discrete_distribution {
     explicit param_type(size_t nw, double xmin, double xmax,
                         UnaryOperation fw) {
       if (nw > 0) {
+        assert(std::isfinite(xmin) && std::isfinite(xmax) && xmin < xmax);
         p_.reserve(nw);
-        double delta = (xmax - xmin) / static_cast<double>(nw);
-        assert(delta > 0);
-        double t = delta * 0.5;
-        for (size_t i = 0; i < nw; ++i) {
-          p_.push_back(fw(xmin + i * delta + t));
+        const double span = xmax - xmin;
+        if (std::isfinite(span)) {
+          const double delta = span / static_cast<double>(nw);
+          assert(delta > 0);
+          const double t = delta * 0.5;
+          for (size_t i = 0; i < nw; ++i) {
+            p_.push_back(fw(xmin + static_cast<double>(i) * delta + t));
+          }
+        } else {
+          // `xmax - xmin` overflowed (`xmin < 0 < xmax`); compute each
+          // midpoint as an overflow-free convex combination of `xmin` and
+          // `xmax`.
+          const double dnw = static_cast<double>(nw);
+          for (size_t i = 0; i < nw; ++i) {
+            const double w_hi = (static_cast<double>(i) + 0.5) / dnw;
+            const double w_lo = (static_cast<double>(nw - 1 - i) + 0.5) / dnw;
+            p_.push_back(fw(w_lo * xmin + w_hi * xmax));
+          }
         }
       }
       init();

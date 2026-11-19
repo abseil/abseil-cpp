@@ -17,8 +17,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <iterator>
-#include <numeric>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -27,6 +26,28 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace random_internal {
+namespace {
+
+// Adds a non-negative finite `value` into a Neumaier compensated sum
+// (`sum + compensation`). If the running sum overflows to infinity, records
+// infinity in `sum` and clears `compensation` so `sum + compensation` remains
+// `+inf` rather than `NaN`.
+void NeumaierAdd(double value, double& sum, double& compensation) {
+  const double t = sum + value;
+  if (!std::isfinite(t)) {
+    sum = t;
+    compensation = 0.0;
+    return;
+  }
+  if (sum >= value) {
+    compensation += (sum - t) + value;
+  } else {
+    compensation += (value - t) + sum;
+  }
+  sum = t;
+}
+
+}  // namespace
 
 // Initializes the distribution table for Walker's Aliasing algorithm, described
 // in Knuth, Vol 2. as well as in https://en.wikipedia.org/wiki/Alias_method
@@ -37,11 +58,44 @@ std::vector<std::pair<double, size_t>> InitDiscreteDistribution(
   assert(!probabilities->empty());
 
   // Step 1. Normalize the input probabilities to 1.0.
-  double sum = std::accumulate(std::begin(*probabilities),
-                               std::end(*probabilities), 0.0);
-  if (std::fabs(sum - 1.0) > 1e-6) {
-    // Scale `probabilities` only when the sum is too far from 1.0.  Scaling
-    // unconditionally will alter the probabilities slightly.
+  double max_weight = 0.0;
+  size_t nonzero_idx = 0;
+  double sum = 0.0;
+  double compensation = 0.0;
+  for (size_t i = 0; i < probabilities->size(); ++i) {
+    const double w = (*probabilities)[i];
+    assert(w >= 0.0 && std::isfinite(w));
+    if (w > max_weight) {
+      max_weight = w;
+      nonzero_idx = i;
+    }
+    NeumaierAdd(w, sum, compensation);
+  }
+  if (max_weight == 0.0) {
+    // Defensive fallback when all weights are zero (violating
+    // [rand.dist.samp.discrete]'s S > 0 precondition): behave like an empty
+    // weight list, returning outcome 0 with probability 1 instead of NaN.
+    probabilities->assign(1, 1.0);
+    return {{1.0, 0}};
+  }
+
+  sum += compensation;
+  const bool overflowed = !std::isfinite(sum);
+  if (overflowed) {
+    sum = 0.0;
+    compensation = 0.0;
+    for (double& item : *probabilities) {
+      item /= max_weight;
+      NeumaierAdd(item, sum, compensation);
+    }
+    sum += compensation;
+  }
+  constexpr double kTol = 16.0 * std::numeric_limits<double>::epsilon();
+  if ((overflowed && sum != 1.0) || std::fabs(sum - 1.0) > kTol) {
+    // Scale `probabilities` unless they already sum to 1.0 within rounding
+    // error (such as during stream round-trip deserialization). On the
+    // overflow-rescaled path, normalize whenever `sum != 1.0` so small
+    // secondary weights cannot leave the maximum entry at 1.0.
     for (double& item : *probabilities) {
       item = item / sum;
     }
@@ -92,13 +146,16 @@ std::vector<std::pair<double, size_t>> InitDiscreteDistribution(
   }
 
   // Due to rounding errors, there may be un-paired elements in either
-  // collection; these should all be values near 1.0.  For these values, set `q`
-  // to 1.0 and set the alternate to the identity.
+  // collection. For `over` elements (`q[i].first >= 1.0`), clamp acceptance to
+  // 1.0 and set the alternate to the identity. For `under` elements
+  // (`0.0 <= q[i].first < 1.0`), preserve `q[i].first` and alias only the
+  // remaining `1.0 - q[i].first` mass to `nonzero_idx` so zero or tiny weights
+  // can never be inflated to 1.0.
   for (auto i : over) {
     q[i] = {1.0, i};
   }
   for (auto i : under) {
-    q[i] = {1.0, i};
+    q[i].second = nonzero_idx;
   }
   return q;
 }
