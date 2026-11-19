@@ -633,6 +633,20 @@ struct EqualElement {
   type_traits_internal::AddConstRefIfExpensiveToCopy<KeyEqual> eq;
 };
 
+template <class T, bool kDerefSlot>
+const T& DerefSlot(const void* slot) {
+  if constexpr (kDerefSlot) {
+    const T* node;
+    // Copy the pointer via memcpy to avoid a strict-aliasing violation when
+    // `slot` has type `std::pair<const T, mapped_type>**`, which cannot be
+    // dereferenced as `const T**` (`first` is at offset 0 of the pair).
+    std::memcpy(&node, slot, sizeof(node));
+    return *node;
+  } else {
+    return *static_cast<const T*>(slot);
+  }
+}
+
 // Type-erased slot equality functor with the key at offset 0 of `slot` (or
 // `*slot` if `kDerefSlot` is true).
 template <class SlotKey, bool kDerefSlot>
@@ -641,38 +655,35 @@ struct SlotEqFn {
 
   template <class Eq, class SearchKey>
   bool operator()(const Eq& eq, const void* slot, const SearchKey& key) const {
-    if constexpr (kDerefSlot) {
-      const void* node;
-      // Copy the pointer to avoid strict aliasing issues.
-      std::memcpy(&node, slot, sizeof(node));
-      slot = node;
-    }
-    return EqualElement<SearchKey, Eq>{key,
-                                       eq}(*static_cast<const SlotKey*>(slot));
+    return EqualElement<SearchKey, Eq>{key, eq}(
+        DerefSlot<SlotKey, kDerefSlot>(slot));
   }
 };
 
 // Type erased function for computing hash of the slot.
 using HashSlotFn = size_t (*)(const void* hash_fn, void* slot, size_t seed);
 
-// Type erased function to apply `Fn` to data inside of the `slot`.
-// The data is expected to have type `T`.
-template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
+// Type erased function to apply `Fn` to data inside of `slot` (or `*slot` if
+// `kDerefSlot` is true). The data is expected to have type `T`.
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift,
+          bool kDerefSlot = false>
 size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  return HashElement<Fn, kIsAbsl, kSeedShift>{
-      *f, seed}(*static_cast<const T*>(slot));
+  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(
+      DerefSlot<T, kDerefSlot>(slot));
 }
 
-// Type erased function to apply `CanonicalHasher` to data inside of the `slot`.
-template <class CanonicalHasher>
+// Type erased function to apply `CanonicalHasher` to data inside of `slot` (or
+// `*slot` if `kDerefSlot` is true).
+template <class CanonicalHasher, bool kDerefSlot = false>
 size_t TypeErasedApplyAbslHashToSlotFn(const void*, void* slot, size_t seed) {
   using T = typename CanonicalHasher::KeyType;
   return absl::hash_internal::HashWithSeed().hash(
-      CanonicalHasher(), *static_cast<const T*>(slot), seed);
+      CanonicalHasher(), DerefSlot<T, kDerefSlot>(slot), seed);
 }
 
-template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift,
+          bool kDerefSlot = false>
 constexpr HashSlotFn GetTypeErasedApplyToSlotFn() {
   using NonConstT = std::remove_const_t<T>;
   // Use the canonical `absl::Hash<NonConstT>` implementation when `Fn` is
@@ -680,49 +691,11 @@ constexpr HashSlotFn GetTypeErasedApplyToSlotFn() {
   // that hashes `NonConstT` identically.
   if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
     return &TypeErasedApplyAbslHashToSlotFn<
-        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
+        decltype(absl::hash_internal::CanonicalHasher<NonConstT>()),
+        kDerefSlot>;
   }
-  return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
-}
-
-// Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
-// The data is expected to have type `T`.
-template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
-size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
-                                       size_t seed) {
-  const auto* f = static_cast<const Fn*>(fn);
-  const T* slot;
-  // We use memcpy to avoid a strict-aliasing violation when this is called from
-  // NodeHashMapPolicy::get_hash_slot_fn(). In that case, slot_ptr has type
-  // `std::pair<const T, mapped_type>**`, which is not safe to dereference as
-  // `const T**`. Note that it is safe to dereference `slot` afterwards because
-  // `std::pair<const T, mapped_type>::first` is at offset 0.
-  std::memcpy(&slot, slot_ptr, sizeof(slot));
-  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
-}
-
-// Type erased function to apply `CanonicalHasher` to data inside of the
-// `*slot_ptr`.
-template <class CanonicalHasher>
-size_t TypeErasedDerefAndApplyAbslHashToSlotFn(const void*, void* slot_ptr,
-                                               size_t seed) {
-  using T = typename CanonicalHasher::KeyType;
-  const T* slot;
-  // See comment in `TypeErasedDerefAndApplyToSlotFn`.
-  std::memcpy(&slot, slot_ptr, sizeof(slot));
-  return absl::hash_internal::HashWithSeed().hash(CanonicalHasher(), *slot,
-                                                  seed);
-}
-
-template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
-constexpr HashSlotFn GetTypeErasedDerefAndApplyToSlotFn() {
-  using NonConstT = std::remove_const_t<T>;
-  // See comment in `GetTypeErasedApplyToSlotFn`.
-  if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
-    return &TypeErasedDerefAndApplyAbslHashToSlotFn<
-        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
-  }
-  return &TypeErasedDerefAndApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
+  return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift,
+                                  kDerefSlot>;
 }
 
 }  // namespace container_internal
