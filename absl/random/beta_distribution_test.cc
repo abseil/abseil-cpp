@@ -157,6 +157,24 @@ TYPED_TEST(BetaDistributionInterfaceTest, SerializeTest) {
   }
 }
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(BetaDistributionInterfaceTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "-1 2",  // alpha < 0
+           "2 -1",  // beta < 0
+       }) {
+    absl::beta_distribution<TypeParam> dist(2, 3);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
   // We use a fixed bit generator for distribution accuracy tests.  This allows
   // these tests to be deterministic, while still testing the qualify of the

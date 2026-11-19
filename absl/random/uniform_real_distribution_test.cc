@@ -251,6 +251,27 @@ TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
 #pragma warning(pop)  // warning(disable:4756)
 #endif
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(UniformRealDistributionTest, DeserializeRejectsInvalidParams) {
+  // lo and hi are representable, but hi - lo is not.
+  const TypeParam kBig = (std::numeric_limits<TypeParam>::max)() / 4 * 3;
+  std::stringstream overflowing_range;
+  overflowing_range << -kBig << " " << kBig;
+
+  for (const std::string& input : {std::string("5 1"),  // hi < lo
+                                   overflowing_range.str()}) {
+    absl::uniform_real_distribution<TypeParam> dist(3, 6);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 TYPED_TEST(UniformRealDistributionTest, TestMoments) {
   using DistributionType = absl::uniform_real_distribution<TypeParam>;
 

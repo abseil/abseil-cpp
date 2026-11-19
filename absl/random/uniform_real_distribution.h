@@ -194,7 +194,13 @@ std::basic_istream<CharT, Traits>& operator>>(
   if (is.fail()) return is;
   auto b = random_internal::read_floating_point<result_type>(is);
   if (!is.fail()) {
-    x.param(param_type(a, b));
+    if (!(a <= b && (b - a) <= (std::numeric_limits<result_type>::max)())) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(a, b));
+    }
   }
   return is;
 }

@@ -57,6 +57,25 @@ TEST_P(BernoulliTest, Serialize) {
   EXPECT_EQ(before, after);
 }
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TEST(BernoulliTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "-0.5",   // p < 0
+           "1.5",    // p > 1
+           "1e300",  // p > 1, and p * 2^32 does not fit in an integer
+       }) {
+    absl::bernoulli_distribution dist(0.25);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 TEST_P(BernoulliTest, Accuracy) {
   // Sadly, the claim to fame for this implementation is precise accuracy, which
   // is very, very hard to measure, the improvements come as trials approach the

@@ -123,7 +123,13 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   auto p = random_internal::read_floating_point<double>(is);
   if (!is.fail()) {
-    x.param(bernoulli_distribution::param_type(p));
+    if (!(p >= 0.0 && p <= 1.0)) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(bernoulli_distribution::param_type(p));
+    }
   }
   return is;
 }

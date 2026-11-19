@@ -131,6 +131,19 @@ TYPED_TEST(UniformIntDistributionTest, ViolatesPreconditionsDeathTest) {
 #endif  // NDEBUG
 }
 
+// operator>> must reject input that violates the param_type preconditions by
+// setting failbit and leaving the distribution unchanged.
+TYPED_TEST(UniformIntDistributionTest, DeserializeRejectsInvalidParams) {
+  absl::uniform_int_distribution<TypeParam> dist(3, 6);
+  const auto before = dist.param();
+
+  std::istringstream is("10 5");  // hi < lo
+  is >> dist;
+
+  EXPECT_TRUE(is.fail());
+  EXPECT_EQ(dist.param(), before);
+}
+
 TYPED_TEST(UniformIntDistributionTest, TestMoments) {
   constexpr int kSize = 100000;
   using Limits = std::numeric_limits<TypeParam>;
