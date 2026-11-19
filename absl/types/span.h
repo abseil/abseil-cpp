@@ -64,13 +64,9 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/hardening.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
-#include "absl/base/port.h"  // TODO(strel): remove this include
 #include "absl/base/throw_delegate.h"
-#include "absl/hash/internal/weakly_mixed_integer.h"
-#include "absl/meta/type_traits.h"
 #include "absl/types/internal/span.h"
 
 namespace absl {
