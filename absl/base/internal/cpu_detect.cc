@@ -243,11 +243,12 @@ CpuType GetAmdCpuType() {
       }
       break;
     case 0x1A:
+      if (model_num >= 0x50 && model_num <= 0x5F) {
+        return CpuType::kAmdVenice;
+      }
       switch (model_num) {
         case 0x2:
           return CpuType::kAmdTurin;
-        case 0x50:
-          return CpuType::kAmdVenice;
         default:
           return CpuType::kUnknown;
       }
