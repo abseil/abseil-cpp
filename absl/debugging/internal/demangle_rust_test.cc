@@ -204,6 +204,15 @@ TEST(DemangleRust, UnexpectedlyNamedClosure) {
       "crate_name::func_name::{closure:closure_name#4}");
 }
 
+TEST(DemangleRust, PunycodedNameInBracedForm) {
+  EXPECT_DEMANGLING("_RNCNvC7ice_cap4funcu19Eyjafjallajkull_jtb",
+                    "ice_cap::func::{closure:Eyjafjallajökull#0}");
+  EXPECT_DEMANGLING("_RNSNvC7ice_cap4funcs_u19Eyjafjallajkull_jtb",
+                    "ice_cap::func::{shim:Eyjafjallajökull#1}");
+  EXPECT_DEMANGLING("_RNXNvC7ice_cap4funcu19Eyjafjallajkull_jtb",
+                    "ice_cap::func::{X:Eyjafjallajökull#0}");
+}
+
 TEST(DemangleRust, ItemNestedInsideClosure) {
   EXPECT_DEMANGLING(
       "_RNvNCNvCs123_10crate_name9func_name015inner_func_nameCs_12client_crate",

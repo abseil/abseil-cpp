@@ -719,6 +719,24 @@ class RustSymbolParser {
     int num_bytes = 0;
     if (!ParseDecimalNumber(num_bytes)) return false;
     (void)Eat('_');  // optional separator, needed if a digit follows
+
+    // Emit the beginnings of braced forms like {shim:vtable#0}.
+    if (uppercase_namespace != '\0') {
+      switch (uppercase_namespace) {
+        case 'C':
+          if (!Emit("{closure")) return false;
+          break;
+        case 'S':
+          if (!Emit("{shim")) return false;
+          break;
+        default:
+          if (!EmitChar('{') || !EmitChar(uppercase_namespace)) return false;
+          break;
+      }
+      if (num_bytes > 0 && !Emit(":")) return false;
+    }
+
+    // Emit the name itself.
     if (is_punycoded) {
       // A length exceeding the remaining input would make punycode_end point
       // past the end of the buffer, forming an out-of-bounds pointer.
@@ -744,26 +762,7 @@ class RustSymbolParser {
           if (Take() == '\0') return false;
         }
       }
-    }
-
-    // Emit the beginnings of braced forms like {shim:vtable#0}.
-    if (uppercase_namespace != '\0') {
-      switch (uppercase_namespace) {
-        case 'C':
-          if (!Emit("{closure")) return false;
-          break;
-        case 'S':
-          if (!Emit("{shim")) return false;
-          break;
-        default:
-          if (!EmitChar('{') || !EmitChar(uppercase_namespace)) return false;
-          break;
-      }
-      if (num_bytes > 0 && !Emit(":")) return false;
-    }
-
-    // Emit the name itself.
-    if (!is_punycoded) {
+    } else {
       for (int i = 0; i < num_bytes; ++i) {
         const char c = Take();
         if (!IsIdentifierChar(c) &&
