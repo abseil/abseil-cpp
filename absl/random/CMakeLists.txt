@@ -186,6 +186,7 @@ absl_cc_library(
   SRCS
     "discrete_distribution.cc"
     "gaussian_distribution.cc"
+    "poisson_distribution.cc"
   HDRS
     "bernoulli_distribution.h"
     "beta_distribution.h"

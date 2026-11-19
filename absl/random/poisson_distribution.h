@@ -23,14 +23,34 @@
 #include <ostream>
 
 #include "absl/base/config.h"
+#include "absl/random/bernoulli_distribution.h"
 #include "absl/random/internal/fast_uniform_bits.h"
-#include "absl/random/internal/fastmath.h"
 #include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+
+// Ratio-of-uniforms computes variates in IEEE-754 `double`, which represents
+// consecutive integers exactly up to 2^53 (~9e15). Cap `mean` at 1e15 so that
+// variates around `mean` preserve unit integer resolution.
+inline constexpr double kPoissonMaxMean = 1e15;
+
+// Computes g(x, mean) = (x + 0.5) * ln(mean / x) + (x - mean) - R(x), where
+// d = x - mean and R(x) is the Stirling log-factorial remainder. Because
+// ln(P(X = x)) = g(x, mean) - 0.5 * ln(2 * pi * mean), the difference
+// g(x, mean) - g(mode, mean) equals ln(P(X = x) / P(X = mode)) without
+// subtracting large O(mean * ln(mean)) terms.
+double PoissonLogRatioTerm(double x, double d, double mean);
+
+// Computes ln(P(X = x) / P(X = mode)) for integer x >= 0, given d = x - mean,
+// lmu = ln(mean), and g_mode = PoissonLogRatioTerm(mode, mode - mean, mean).
+double PoissonLogRatio(double x, double d, double mean, double lmu,
+                       double g_mode);
+
+}  // namespace random_internal
 
 // absl::poisson_distribution:
 // Generates discrete variates conforming to a Poisson distribution.
@@ -76,11 +96,11 @@ class poisson_distribution {
     friend class poisson_distribution;
 
     double mean_;
-    double emu_;  // e ^ -mean_
+    double emu_;  // exp(-mean_) for Knuth, -expm1(-mean_) for tiny mean
     double lmu_;  // ln(mean_)
     double s_;
     double log_k_;
-    int split_;
+    int split_;  // -1: tiny mean, 0: ratio-of-uniforms, >0: Knuth splits
 
     static_assert(random_internal::IsIntegral<IntType>::value,
                   "Class-template absl::poisson_distribution<> must be "
@@ -133,15 +153,18 @@ class poisson_distribution {
 
 template <typename IntType>
 poisson_distribution<IntType>::param_type::param_type(double mean)
-    : mean_(mean), split_(0) {
+    : mean_(mean), emu_(0.0), lmu_(0.0), s_(0.0), log_k_(0.0), split_(0) {
   assert(mean >= 0);
   assert(mean <=
          static_cast<double>((std::numeric_limits<result_type>::max)()));
-  // As a defensive measure, avoid large values of the mean.  The rejection
-  // algorithm used does not support very large values well.  It my be worth
-  // changing algorithms to better deal with these cases.
-  assert(mean <= 1e10);
-  if (mean_ < 10) {
+  assert(mean <= random_internal::kPoissonMaxMean);
+  if (mean_ < 1e-4) {
+    // For tiny lambda, exp(-lambda) loses relative precision near 1.0 (and
+    // rounds to >= 1 - 2^-53 for lambda < 1.665e-16). Use exact Bernoulli +
+    // arrival-time thinning via -expm1(-lambda).
+    split_ = -1;
+    emu_ = -std::expm1(-mean_);
+  } else if (mean_ < 10) {
     // For small lambda, use the knuth method.
     split_ = 1;
     emu_ = std::exp(-mean_);
@@ -157,8 +180,8 @@ poisson_distribution<IntType>::param_type::param_type(double mean)
     lmu_ = std::log(mean_);
     double a = mean_ + 0.5;
     s_ = kSA + std::sqrt(k2E * a);
-    const double mode = std::ceil(mean_) - 1;
-    log_k_ = lmu_ * mode - absl::random_internal::StirlingLogFactorial(mode);
+    const double mode = std::ceil(mean_) - 1.0;
+    log_k_ = random_internal::PoissonLogRatioTerm(mode, mode - mean_, mean_);
   }
 }
 
@@ -172,10 +195,32 @@ poisson_distribution<IntType>::operator()(
   using random_internal::GenerateRealFromBits;
   using random_internal::GenerateSignedTag;
 
-  if (p.split_ != 0) {
+  if (p.split_ < 0) {
+    // Exact Poisson sampling for tiny mean (< 1e-4) via arrival-time thinning:
+    // P(X >= 1) = 1 - exp(-mean) = -expm1(-mean). Conditional on X >= 1, the
+    // first arrival time T1 satisfies rem = mean - T1 = log1p(V * expm1(mean))
+    // for V ~ Uniform[0, 1), and (X - 1 | T1) ~ Poisson(rem).
+    if (p.mean_ == 0.0) return 0;
+    const result_type max_n = (max)();
+    result_type n = 0;
+    double rem = p.mean_;
+    double prob = p.emu_;
+    while (bernoulli_distribution(prob)(g)) {
+      ++n;
+      if (n == max_n) return max_n;
+      const double v =
+          GenerateRealFromBits<double, GeneratePositiveTag, true>(fast_u64_(g));
+      rem = std::log1p(v * std::expm1(rem));
+      if (rem == 0.0) break;
+      prob = -std::expm1(-rem);
+    }
+    return n;
+  }
+
+  if (p.split_ > 0) {
     // Use Knuth's algorithm with range splitting to avoid floating-point
     // errors. Knuth's algorithm is: Ui is a sequence of uniform variates on
-    // (0,1); return the number of variates required for product(Ui) <
+    // [0, 1); return the number of variates required for product(Ui) <=
     // exp(-lambda).
     //
     // The expected number of variates required for Knuth's method can be
@@ -186,15 +231,17 @@ poisson_distribution<IntType>::operator()(
     //  lambda = [2, 5,  9, 10, 11, 12, 13, 14, 15, 16, 17]
     //  n      = [3, 8, 13, 15, 16, 18, 19, 21, 22, 24, 25]
     //
+    const result_type max_n = (max)();
     result_type n = 0;
     for (int split = p.split_; split > 0; --split) {
       double r = 1.0;
-      do {
+      for (;;) {
         r *= GenerateRealFromBits<double, GeneratePositiveTag, true>(
-            fast_u64_(g));  // U(-1, 0)
+            fast_u64_(g));  // U[0, 1)
+        if (r <= p.emu_) break;
         ++n;
-      } while (r > p.emu_);
-      --n;
+        if (n == max_n) return max_n;
+      }
     }
     return n;
   }
@@ -208,26 +255,31 @@ poisson_distribution<IntType>::operator()(
   // P(floor(x) = k | u^2 < f(floor(x))/k), where
   // f(m) = lambda^m exp(-lambda)/ m!, for 0 <= m, and f(m) = 0 otherwise,
   // and k = max(f).
-  const double a = p.mean_ + 0.5;
+  const double a_int = std::floor(p.mean_);
+  const double mean_frac = p.mean_ - a_int;
+  const double a_frac = mean_frac + 0.5;
   for (;;) {
     const double u = GenerateRealFromBits<double, GeneratePositiveTag, false>(
         fast_u64_(g));  // U(0, 1)
     const double v = GenerateRealFromBits<double, GenerateSignedTag, false>(
         fast_u64_(g));  // U(-1, 1)
 
-    const double x = std::floor(p.s_ * v / u + a);
+    const double dx = std::floor(p.s_ * v / u + a_frac);
+    const double x = a_int + dx;
     if (x < 0) continue;  // f(negative) = 0
-    const double rhs = x * p.lmu_;
-    // clang-format off
-    double s = (x <= 1.0) ? 0.0
-             : (x == 2.0) ? 0.693147180559945
-             : absl::random_internal::StirlingLogFactorial(x);
-    // clang-format on
-    const double lhs = 2.0 * std::log(u) + p.log_k_ + s;
-    if (lhs < rhs) {
-      return x > static_cast<double>((max)())
-                 ? (max)()
-                 : static_cast<result_type>(x);  // f(x)/k >= u^2
+    const double d = dx - mean_frac;
+    if (2.0 * std::log(u) <
+        random_internal::PoissonLogRatio(x, d, p.mean_, p.lmu_, p.log_k_)) {
+      constexpr double kMax =
+          static_cast<double>((std::numeric_limits<result_type>::max)());
+      if constexpr (std::numeric_limits<result_type>::digits >
+                    std::numeric_limits<double>::digits) {
+        // For integers wider than double's significand (e.g. 64-bit, 128-bit),
+        // kMax rounds up to a power of two, which is one past (max)().
+        return x >= kMax ? (max)() : static_cast<result_type>(x);
+      } else {
+        return x > kMax ? (max)() : static_cast<result_type>(x);
+      }
     }
   }
 }
