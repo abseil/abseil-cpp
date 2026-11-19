@@ -18,6 +18,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
@@ -449,6 +451,393 @@ TEST(FormatParse, RoundTripDistantPast) {
   EXPECT_TRUE(absl::ParseTime(absl::RFC3339_full, s, &out, &err))
       << s << ": " << err;
   EXPECT_EQ(in, out);
+}
+
+TEST(ParseTime, Rfc3339DifferentialEquivalence) {
+  // Trailing space in the format string is semantically identical to the base
+  // RFC3339 format in cctz::detail::parse() (which always skips trailing
+  // whitespace), while bypassing the RFC3339 fast path in absl::ParseTime().
+  const std::string ref_full = std::string(absl::RFC3339_full) + " ";
+  const std::string ref_sec = std::string(absl::RFC3339_sec) + " ";
+  const std::string copy_full = absl::RFC3339_full;
+  const std::string copy_sec = absl::RFC3339_sec;
+
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const absl::TimeZone lax =
+      absl::time_internal::LoadTimeZone("America/Los_Angeles");
+  const absl::Time sentinel = absl::FromUnixSeconds(123456789);
+  constexpr absl::string_view kErrSentinel = "unchanged";
+
+  static constexpr absl::string_view kInputs[] = {
+      // Standard valid timestamps (epoch, pre-epoch, extreme 4-digit years).
+      "1970-01-01T00:00:00Z",
+      "1970-01-01t00:00:00z",
+      "1969-12-31T23:59:59Z",
+      "1969-12-31T23:59:59.999999Z",
+      "1969-12-31T23:59:59.999999999Z",
+      "0000-01-01T00:00:00Z",
+      "0000-02-29T12:34:56Z",
+      "0000-03-01T00:00:00Z",
+      "9999-12-31T23:59:59Z",
+      "9999-12-31T23:59:59.999999999Z",
+      "9999-12-31T23:59:59-23:59:59",
+      "0000-01-01T00:00:00+23:59:59",
+
+      // Leap year and calendar boundary cases.
+      "1900-02-28T23:59:59Z",
+      "1900-02-29T00:00:00Z",
+      "2000-02-29T00:00:00Z",
+      "2023-02-29T00:00:00Z",
+      "2024-02-29T00:00:00Z",
+      "2100-02-29T00:00:00Z",
+      "2400-02-29T00:00:00Z",
+      "2024-04-30T00:00:00Z",
+      "2024-04-31T00:00:00Z",
+      "2024-06-31T00:00:00Z",
+      "2024-09-31T00:00:00Z",
+      "2024-11-31T00:00:00Z",
+      "2024-00-01T00:00:00Z",
+      "2024-13-01T00:00:00Z",
+      "2024-01-00T00:00:00Z",
+      "2024-01-32T00:00:00Z",
+
+      // Fractional seconds: 1..20 digits and quarter-nanosecond boundaries.
+      "2024-05-06T07:08:09.0Z",
+      "2024-05-06T07:08:09.5Z",
+      "2024-05-06T07:08:09.12Z",
+      "2024-05-06T07:08:09.123Z",
+      "2024-05-06T07:08:09.1234Z",
+      "2024-05-06T07:08:09.12345Z",
+      "2024-05-06T07:08:09.123456Z",
+      "2024-05-06T07:08:09.1234567Z",
+      "2024-05-06T07:08:09.12345678Z",
+      "2024-05-06T07:08:09.123456789Z",
+      "2024-05-06T07:08:09.0000000000Z",
+      "2024-05-06T07:08:09.0000000002Z",
+      "2024-05-06T07:08:09.0000000003Z",
+      "2024-05-06T07:08:09.0000000005Z",
+      "2024-05-06T07:08:09.0000000007Z",
+      "2024-05-06T07:08:09.0000000008Z",
+      "2024-05-06T07:08:09.00000000024Z",
+      "2024-05-06T07:08:09.00000000025Z",
+      "2024-05-06T07:08:09.00000000049Z",
+      "2024-05-06T07:08:09.00000000050Z",
+      "2024-05-06T07:08:09.00000000074Z",
+      "2024-05-06T07:08:09.00000000075Z",
+      "2024-05-06T07:08:09.00000000099Z",
+      "2024-05-06T07:08:09.000000000249999Z",
+      "2024-05-06T07:08:09.00000000024999999999Z",
+      "2024-05-06T07:08:09.2147483647Z",
+      "2024-05-06T07:08:09.2147483648Z",
+      "2024-05-06T07:08:09.99999999999999999999Z",
+      "2024-05-06T07:08:09.123456789",
+      "2024-05-06T07:08:09.1234567890",
+      "2024-05-06T07:08:09.12345678901",
+      "2024-05-06T07:08:09.12345678901234567890",
+      "2024-05-06T07:08:09.Z",
+      "2024-05-06T07:08:09.",
+
+      // All valid and invalid %Ez offset forms.
+      "2024-05-06T07:08:09+00:00",
+      "2024-05-06T07:08:09-00:00",
+      "2024-05-06T07:08:09+00",
+      "2024-05-06T07:08:09-00",
+      "2024-05-06T07:08:09+0000",
+      "2024-05-06T07:08:09-0000",
+      "2024-05-06T07:08:09+00:00:00",
+      "2024-05-06T07:08:09-00:00:00",
+      "2024-05-06T07:08:09+000000",
+      "2024-05-06T07:08:09-000000",
+      "2024-05-06T07:08:09+05:30",
+      "2024-05-06T07:08:09-07:00",
+      "2024-05-06T07:08:09+0530",
+      "2024-05-06T07:08:09-0700",
+      "2024-05-06T07:08:09+01:02:03",
+      "2024-05-06T07:08:09-01:02:03",
+      "2024-05-06T07:08:09+010203",
+      "2024-05-06T07:08:09-010203",
+      "2024-05-06T07:08:09+01:0203",
+      "2024-05-06T07:08:09+0102:03",
+      "2024-05-06T07:08:09+01:02 ",
+      "2024-05-06T07:08:09+02",
+      "2024-05-06T07:08:09-12",
+      "2024-05-06T07:08:09+23:59:59",
+      "2024-05-06T07:08:09-23:59:59",
+      "2024-05-06T07:08:09+24:00",
+      "2024-05-06T07:08:09-24:00",
+      "2024-05-06T07:08:09+00:60",
+      "2024-05-06T07:08:09+00:00:60",
+      "2024-05-06T07:08:09+08:99",
+      "2024-05-06T07:08:09+01::02",
+      "2024-05-06T07:08:09+01020304",
+      "2024-05-06T07:08:09+01:",
+      "2024-05-06T07:08:09+01:2",
+      "2024-05-06T07:08:09+01:23:",
+      "2024-05-06T07:08:09+01:23:4",
+      "2024-05-06T07:08:09+1",
+      "2024-05-06T07:08:09-1",
+      "2024-05-06T07:08:09+",
+      "2024-05-06T07:08:09-",
+      "2024-05-06T07:08:09+-08:00",
+      "2024-05-06T07:08:09-00:-0",
+      "2024-05-06T07:08:09",
+
+      // Leap seconds and out-of-range time fields.
+      "2016-12-31T23:59:60Z",
+      "2016-12-31T23:59:60.999Z",
+      "2016-12-31T23:59:60-05:00",
+      "2016-12-31T23:59:61Z",
+      "2024-05-06T24:00:00Z",
+      "2024-05-06T00:60:00Z",
+
+      // Fallback valid cases: non-4-digit years, single-digit fields,
+      // infinities.
+      "77-06-28T09:08:07Z",
+      "999-01-01T00:00:00Z",
+      "10000-01-01T00:00:00Z",
+      "-0001-01-01T00:00:00Z",
+      "-2024-01-01T00:00:00Z",
+      "2024-1-2T3:4:5Z",
+      "2024-01-2T03:04:05Z",
+      "infinite-future",
+      "  infinite-future  ",
+      "   infinite-future  ",
+      "infinite-past",
+      "\tinfinite-past\n",
+
+      // Leading/trailing whitespace (including >=20-byte whitespace-padded
+      // short inputs), trailing junk, and malformed syntax.
+      "                    ",
+      "   2024-05-06T07:08:09",
+      " 2024-05-06T07:08:09Z",
+      "\t\n\r\v\f2024-05-06T07:08:09Z",
+      "2024-05-06T07:08:09Z ",
+      "2024-05-06T07:08:09Z \t\n\r\v\f",
+      "  2024-05-06T07:08:09.123456-07:00  ",
+      "2024-05-06T07:08:09Z extra",
+      "2024-05-06T07:08:09Z0",
+      "2024-05-06 07:08:09Z",
+      "2024/05/06T07:08:09Z",
+      "2024-05-06T07:08:09.123.456Z",
+      "-000-01-01T00:00:00Z",
+      "",
+      "2024-05-06T07:08:0",
+      "\x80"
+      "2024-05-06T07:08:09Z",
+      "2024-05-06T07:08:09Z\xa0",
+      absl::string_view("2024-05-06T07:08:09Z\0", 21),
+      absl::string_view("2024-05-06T07:08:09Z \0", 22),
+      absl::string_view("2024-05-06\0T07:08:09Z", 21),
+  };
+
+  auto check_tz_variant =
+      [&](absl::string_view label, absl::string_view ref_fmt,
+          absl::string_view fast_ptr_fmt, absl::string_view fast_copy_fmt,
+          absl::string_view input, absl::TimeZone tz) {
+        absl::Time expected_t = sentinel;
+        std::string expected_err(kErrSentinel);
+        const bool expected_ok =
+            absl::ParseTime(ref_fmt, input, tz, &expected_t, &expected_err);
+
+        for (const absl::string_view fmt : {fast_ptr_fmt, fast_copy_fmt}) {
+          absl::Time actual_t = sentinel;
+          std::string actual_err(kErrSentinel);
+          const bool actual_ok =
+              absl::ParseTime(fmt, input, tz, &actual_t, &actual_err);
+          EXPECT_EQ(actual_ok, expected_ok)
+              << label << " tz=" << tz.name()
+              << " input=" << testing::PrintToString(input);
+          EXPECT_EQ(actual_t, expected_t)
+              << label << " tz=" << tz.name()
+              << " input=" << testing::PrintToString(input);
+          EXPECT_EQ(actual_err, expected_err)
+              << label << " tz=" << tz.name()
+              << " input=" << testing::PrintToString(input);
+
+          absl::Time null_err_t = sentinel;
+          EXPECT_EQ(absl::ParseTime(fmt, input, tz, &null_err_t, nullptr),
+                    expected_ok)
+              << label << " nullptr err tz=" << tz.name()
+              << " input=" << testing::PrintToString(input);
+          EXPECT_EQ(null_err_t, expected_t)
+              << label << " nullptr err tz=" << tz.name()
+              << " input=" << testing::PrintToString(input);
+        }
+      };
+
+  for (const absl::string_view input : kInputs) {
+    for (const absl::TimeZone tz : {utc, lax}) {
+      check_tz_variant("RFC3339_full", ref_full, absl::RFC3339_full, copy_full,
+                       input, tz);
+      check_tz_variant("RFC3339_sec", ref_sec, absl::RFC3339_sec, copy_sec,
+                       input, tz);
+    }
+
+    // Exercise the 4-arg ParseTime overload and AbslParseFlag directly.
+    absl::Time expected_full_t = sentinel;
+    std::string expected_full_err(kErrSentinel);
+    const bool expected_full_ok =
+        absl::ParseTime(ref_full, input, &expected_full_t, &expected_full_err);
+
+    absl::Time four_arg_full_t = sentinel;
+    std::string four_arg_full_err(kErrSentinel);
+    EXPECT_EQ(absl::ParseTime(absl::RFC3339_full, input, &four_arg_full_t,
+                              &four_arg_full_err),
+              expected_full_ok)
+        << "4-arg RFC3339_full input=" << testing::PrintToString(input);
+    EXPECT_EQ(four_arg_full_t, expected_full_t)
+        << "4-arg RFC3339_full input=" << testing::PrintToString(input);
+    EXPECT_EQ(four_arg_full_err, expected_full_err)
+        << "4-arg RFC3339_full input=" << testing::PrintToString(input);
+
+    absl::Time flag_t = sentinel;
+    std::string flag_err(kErrSentinel);
+    EXPECT_EQ(absl::AbslParseFlag(input, &flag_t, &flag_err), expected_full_ok)
+        << "AbslParseFlag input=" << testing::PrintToString(input);
+    EXPECT_EQ(flag_t, expected_full_t)
+        << "AbslParseFlag input=" << testing::PrintToString(input);
+    EXPECT_EQ(flag_err, expected_full_err)
+        << "AbslParseFlag input=" << testing::PrintToString(input);
+
+    absl::Time expected_sec_t = sentinel;
+    std::string expected_sec_err(kErrSentinel);
+    const bool expected_sec_ok =
+        absl::ParseTime(ref_sec, input, &expected_sec_t, &expected_sec_err);
+
+    absl::Time four_arg_sec_t = sentinel;
+    std::string four_arg_sec_err(kErrSentinel);
+    EXPECT_EQ(absl::ParseTime(absl::RFC3339_sec, input, &four_arg_sec_t,
+                              &four_arg_sec_err),
+              expected_sec_ok)
+        << "4-arg RFC3339_sec input=" << testing::PrintToString(input);
+    EXPECT_EQ(four_arg_sec_t, expected_sec_t)
+        << "4-arg RFC3339_sec input=" << testing::PrintToString(input);
+    EXPECT_EQ(four_arg_sec_err, expected_sec_err)
+        << "4-arg RFC3339_sec input=" << testing::PrintToString(input);
+  }
+}
+
+TEST(ParseTime, Rfc3339NullStringView) {
+  const absl::Time sentinel = absl::FromUnixSeconds(42);
+  absl::Time t = sentinel;
+  std::string err;
+
+  // Default-constructed string_view has data() == nullptr and size() == 0.
+  const absl::string_view null_sv;
+  ASSERT_EQ(null_sv.data(), nullptr);
+  EXPECT_FALSE(absl::ParseTime(absl::RFC3339_full, null_sv, &t, &err));
+  EXPECT_EQ(t, sentinel);
+  EXPECT_FALSE(absl::ParseTime(absl::RFC3339_sec, null_sv, &t, &err));
+  EXPECT_EQ(t, sentinel);
+  EXPECT_FALSE(absl::AbslParseFlag(null_sv, &t, &err));
+  EXPECT_EQ(t, sentinel);
+}
+
+TEST(ParseTime, Rfc3339NullTimeOnInvalidInput) {
+  // Passing nullptr for `time` on invalid input (both <20-byte and >=20-byte
+  // fast-path candidates) must not dereference `time` or form a null reference.
+  static constexpr absl::string_view kInvalidInputs[] = {
+      "not-a-time",
+      "2024-05-06T07:08:09Z extra",
+      "2024-02-30T07:08:09Z",
+  };
+  for (const absl::string_view input : kInvalidInputs) {
+    std::string err;
+    EXPECT_FALSE(absl::ParseTime(absl::RFC3339_full, input, nullptr, &err))
+        << input;
+    EXPECT_FALSE(err.empty()) << input;
+
+    err.clear();
+    EXPECT_FALSE(absl::ParseTime(absl::RFC3339_sec, input, absl::UTCTimeZone(),
+                                 nullptr, &err))
+        << input;
+    EXPECT_FALSE(err.empty()) << input;
+
+    err.clear();
+    EXPECT_FALSE(
+        absl::AbslParseFlag(input, static_cast<absl::Time*>(nullptr), &err))
+        << input;
+    EXPECT_FALSE(err.empty()) << input;
+  }
+}
+
+TEST(ParseTime, Rfc3339EmbeddedNulFormatNotMatched) {
+  // 24-byte and 22-byte formats with an embedded NUL must not match
+  // RFC3339_full or RFC3339_sec.
+  const absl::Time sentinel = absl::FromUnixSeconds(42);
+  absl::Time t = sentinel;
+  std::string err;
+  const std::string nul_full_fmt("%Y-%m-%d%ET%H:%M:%E*S\0Ez", 24);
+  const std::string nul_sec_fmt("%Y-%m-%d%ET%H:%M:%S\0Ez", 22);
+  EXPECT_FALSE(absl::ParseTime(nul_full_fmt, "2024-05-06T07:08:09Z", &t, &err));
+  EXPECT_EQ(t, sentinel);
+  EXPECT_FALSE(absl::ParseTime(nul_sec_fmt, "2024-05-06T07:08:09Z", &t, &err));
+  EXPECT_EQ(t, sentinel);
+}
+
+TEST(ParseTime, Rfc3339FormatSubsliceNotMatchedAsFull) {
+  // Ensure pointer-based format matching still checks format.size() for both
+  // RFC3339_full and RFC3339_sec.
+  const absl::Time sentinel = absl::FromUnixSeconds(42);
+  for (const absl::string_view date_only :
+       {absl::string_view(absl::RFC3339_full, 8),
+        absl::string_view(absl::RFC3339_sec, 8)}) {
+    ASSERT_EQ(date_only, "%Y-%m-%d");
+    absl::Time t = sentinel;
+    std::string err;
+    EXPECT_TRUE(absl::ParseTime(date_only, "2024-05-06", &t, &err)) << err;
+    EXPECT_EQ(t,
+              absl::FromCivil(absl::CivilDay(2024, 5, 6), absl::UTCTimeZone()));
+
+    // A full >=20-byte RFC3339 timestamp must be rejected (not fast-pathed).
+    t = sentinel;
+    err.clear();
+    EXPECT_FALSE(absl::ParseTime(date_only, "2024-05-06T07:08:09Z", &t, &err));
+    EXPECT_EQ(t, sentinel);
+    EXPECT_THAT(err, HasSubstr("Illegal trailing data"));
+  }
+}
+
+TEST(ParseTime, Rfc3339CalendarExhaustive400YearCycle) {
+  // Verify civil-to-Unix-seconds conversion across a full 400-year Gregorian
+  // cycle (0000..0400) plus modern years (1968..2035).
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  auto check_date = [&](int year, int month, int day) {
+    const std::string input =
+        absl::StrFormat("%04d-%02d-%02dT12:34:56Z", year, month, day);
+    absl::Time t;
+    std::string err;
+    ASSERT_TRUE(absl::ParseTime(absl::RFC3339_sec, input, &t, &err))
+        << input << ": " << err;
+    EXPECT_EQ(t, absl::FromCivil(
+                     absl::CivilSecond(year, month, day, 12, 34, 56), utc))
+        << input;
+  };
+
+  for (int year = 0; year <= 400; ++year) {
+    check_date(year, 1, 1);
+    check_date(year, 2, 28);
+    check_date(year, 3, 1);
+    check_date(year, 12, 31);
+    const bool is_leap = absl::CivilDay(year, 2, 29).month() == 2;
+    const std::string feb29 = absl::StrFormat("%04d-02-29T00:00:00Z", year);
+    absl::Time t;
+    std::string err;
+    if (is_leap) {
+      ASSERT_TRUE(absl::ParseTime(absl::RFC3339_sec, feb29, &t, &err))
+          << feb29 << ": " << err;
+      EXPECT_EQ(t, absl::FromCivil(absl::CivilDay(year, 2, 29), utc)) << feb29;
+    } else {
+      EXPECT_FALSE(absl::ParseTime(absl::RFC3339_sec, feb29, &t, &err))
+          << feb29;
+    }
+  }
+
+  for (int year = 1968; year <= 2035; ++year) {
+    for (int month = 1; month <= 12; ++month) {
+      check_date(year, month, 1);
+    }
+  }
 }
 
 }  // namespace
