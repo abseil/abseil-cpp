@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -31,6 +32,12 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+
+// Maximum supported mean for absl::poisson_distribution::param_type.
+inline constexpr double kPoissonMaxMean = 1e10;
+
+}  // namespace random_internal
 
 // absl::poisson_distribution:
 // Generates discrete variates conforming to a Poisson distribution.
@@ -140,7 +147,7 @@ poisson_distribution<IntType>::param_type::param_type(double mean)
   // As a defensive measure, avoid large values of the mean.  The rejection
   // algorithm used does not support very large values well.  It my be worth
   // changing algorithms to better deal with these cases.
-  assert(mean <= 1e10);
+  assert(mean <= random_internal::kPoissonMaxMean);
   if (mean_ < 10) {
     // For small lambda, use the knuth method.
     split_ = 1;
@@ -247,11 +254,19 @@ std::basic_istream<CharT, Traits>& operator>>(
     std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
     poisson_distribution<IntType>& x) {     // NOLINT(runtime/references)
   using param_type = typename poisson_distribution<IntType>::param_type;
+  using result_type = typename poisson_distribution<IntType>::result_type;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  double mean = random_internal::read_floating_point<double>(is);
+  const double mean = random_internal::read_floating_point<double>(is);
   if (!is.fail()) {
-    x.param(param_type(mean));
+    constexpr double kMaxMean =
+        static_cast<double>((std::numeric_limits<result_type>::max)());
+    if (mean >= 0.0 && mean <= kMaxMean &&
+        mean <= random_internal::kPoissonMaxMean) {
+      x.param(param_type(mean));
+    } else {
+      is.setstate(std::ios_base::failbit);
+    }
   }
   return is;
 }

@@ -234,26 +234,22 @@ std::basic_istream<CharT, Traits>& operator>>(
   using param_type = typename log_uniform_int_distribution<IntType>::param_type;
   using result_type =
       typename log_uniform_int_distribution<IntType>::result_type;
-  using stream_type =
-      typename random_internal::stream_format_type<IntType>::type;
-
-  stream_type min;
-  stream_type max;
-  stream_type base;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  is >> min >> max >> base;
-  if (!is.fail()) {
-    const result_type min_val = static_cast<result_type>(min);
-    const result_type max_val = static_cast<result_type>(max);
-    const result_type base_val = static_cast<result_type>(base);
-    if (max_val < min_val || base_val <= 1) {
-      // The input violates the param_type preconditions; signal failure by
-      // setting the failbit instead of constructing an invalid param_type.
-      is.setstate(is.rdstate() | std::ios_base::failbit);
-    } else {
-      x.param(param_type(min_val, max_val, base_val));
-    }
+  result_type min_val = 0;
+  result_type max_val = 0;
+  result_type base_val = 0;
+  if (!random_internal::read_integral(is, min_val) ||
+      !random_internal::read_integral(is, max_val) ||
+      !random_internal::read_integral(is, base_val)) {
+    return is;
+  }
+  if (max_val < min_val || base_val <= 1) {
+    // The input violates the param_type preconditions; signal failure by
+    // setting the failbit instead of constructing an invalid param_type.
+    is.setstate(std::ios_base::failbit);
+  } else {
+    x.param(param_type(min_val, max_val, base_val));
   }
   return is;
 }

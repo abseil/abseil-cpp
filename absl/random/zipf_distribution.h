@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -253,16 +254,27 @@ std::basic_istream<CharT, Traits>& operator>>(
     zipf_distribution<IntType>& x) {        // NOLINT(runtime/references)
   using result_type = typename zipf_distribution<IntType>::result_type;
   using param_type = typename zipf_distribution<IntType>::param_type;
-  using stream_type =
-      typename random_internal::stream_format_type<IntType>::type;
-  stream_type k;
-  double q;
-  double v;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  is >> k >> q >> v;
-  if (!is.fail()) {
-    x.param(param_type(static_cast<result_type>(k), q, v));
+  result_type k = 0;
+  if (!random_internal::read_integral(is, k)) {
+    return is;
+  }
+  const double q = random_internal::read_floating_point<double>(is);
+  if (is.fail()) return is;
+  const double v = random_internal::read_floating_point<double>(is);
+  if (is.fail()) return is;
+
+  if constexpr (std::numeric_limits<result_type>::is_signed) {
+    if (k < result_type{0}) {
+      is.setstate(std::ios_base::failbit);
+      return is;
+    }
+  }
+  if (std::isfinite(q) && q > 1.0 && std::isfinite(v) && v > 0.0) {
+    x.param(param_type(k, q, v));
+  } else {
+    is.setstate(std::ios_base::failbit);
   }
   return is;
 }

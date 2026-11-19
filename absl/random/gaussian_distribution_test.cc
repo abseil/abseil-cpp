@@ -561,4 +561,69 @@ TEST(GaussianDistributionTest, AlgorithmBounds) {
   }
 }
 
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(GaussianDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::gaussian_distribution<double> kInitial(1.0, 2.0);
+  const absl::gaussian_distribution<float> kFloatInitial(1.0f, 2.0f);
+
+  // Valid streams including zero/negative stddev and subnormal values.
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 1.0"),
+              ParsesEqualTo(absl::gaussian_distribution<double>(0.0, 1.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "2.5 -1.5"),
+              ParsesEqualTo(absl::gaussian_distribution<double>(2.5, -1.5)));
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 0.0"),
+              ParsesEqualTo(absl::gaussian_distribution<double>(0.0, 0.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1e-320 1.0"),
+              ParsesEqualTo(absl::gaussian_distribution<double>(1e-320, 1.0)));
+
+  // Truncated, overflowing, and non-finite inputs under the default locale.
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 -inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1e400 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 1e400"), FailsLeavingUnchanged());
+
+  // Non-finite values delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "nan 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "0.0 nan", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "inf 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "0.0 inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "-inf 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "0.0 -inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "nan 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "0.0 inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+}
+
 }  // namespace

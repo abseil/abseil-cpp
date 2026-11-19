@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/chi_square.h"
+#include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
@@ -422,6 +423,110 @@ TEST(ZipfDistributionTest, AlgorithmBounds) {
     absl::random_internal::sequence_urbg urbg({instance.first});
     EXPECT_EQ(instance.second, dist(urbg));
   }
+}
+
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(ZipfDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::zipf_distribution<int> kIntSentinel(42, 3.0, 2.0);
+  const absl::zipf_distribution<int8_t> kI8Sentinel(42, 3.0, 2.0);
+  const absl::zipf_distribution<uint8_t> kU8Sentinel(42, 3.0, 2.0);
+  const absl::zipf_distribution<uint32_t> kU32Sentinel(42, 3.0, 2.0);
+
+  // Valid boundary values for 8-bit integer types and subnormal v.
+  EXPECT_THAT(ParseFromStream(kI8Sentinel, "0 2.0 1.0"),
+              ParsesEqualTo(absl::zipf_distribution<int8_t>(0, 2.0, 1.0)));
+  EXPECT_THAT(ParseFromStream(kI8Sentinel, "127 2.0 1.0"),
+              ParsesEqualTo(absl::zipf_distribution<int8_t>(127, 2.0, 1.0)));
+  EXPECT_THAT(ParseFromStream(kU8Sentinel, "255 2.0 1.0"),
+              ParsesEqualTo(absl::zipf_distribution<uint8_t>(255, 2.0, 1.0)));
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.5 1e-320"),
+              ParsesEqualTo(absl::zipf_distribution<int>(10, 2.5, 1e-320)));
+
+  // Out-of-range, negative, or overflowing k.
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "-5 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI8Sentinel, "-5 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Sentinel, "-5 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU32Sentinel, "-5 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Sentinel, "-0 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU32Sentinel, "-0 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI8Sentinel, "128 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI8Sentinel, "300 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Sentinel, "300 2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU32Sentinel, "5000000000 2.0 1.0"),
+              FailsLeavingUnchanged());
+
+  // Invalid q (must be finite and > 1.0).
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 1.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 0.5 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 -2.0 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 nan 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 inf 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 -inf 1.0"),
+              FailsLeavingUnchanged());
+
+  // Invalid v (must be finite and > 0.0).
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 0.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 -1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 nan"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 inf"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 -inf"),
+              FailsLeavingUnchanged());
+
+  // Non-finite q and v delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 nan 1.0",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 inf 1.0",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 -inf 1.0",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 nan",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 inf",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0 -inf",
+                              /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+
+  // Truncated and malformed streams.
+  EXPECT_THAT(ParseFromStream(kIntSentinel, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "10 2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kIntSentinel, "abc 2.0 1.0"),
+              FailsLeavingUnchanged());
 }
 
 }  // namespace

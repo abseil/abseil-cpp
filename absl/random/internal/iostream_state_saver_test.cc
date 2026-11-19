@@ -20,11 +20,14 @@
 #include <cstdint>
 #include <cstdlib>
 #include <ios>
+#include <istream>
 #include <limits>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <type_traits>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -373,6 +376,202 @@ TEST(StrToDTest, DoubleDenormMin) {
   double x = std::strtod(kV, &end);
   EXPECT_EQ(std::numeric_limits<double>::denorm_min(), x);
   // errno may equal ERANGE.
+}
+
+template <typename FloatType>
+struct FloatReadResult {
+  bool ok = false;
+  bool failed = false;
+  FloatType out = 0;
+  FloatType initial = 0;
+};
+
+template <typename FloatType>
+void PrintTo(const FloatReadResult<FloatType>& r, std::ostream* os) {
+  *os << "{ok=" << (r.ok ? "true" : "false")
+      << ", failed=" << (r.failed ? "true" : "false") << ", out=" << r.out
+      << "}";
+}
+
+template <typename FloatType>
+FloatReadResult<FloatType> ReadFloat(const std::string& input) {
+  std::istringstream is(input);
+  const FloatType val =
+      absl::random_internal::read_floating_point<FloatType>(is);
+  return {!is.fail(), is.fail(), val, FloatType{0}};
+}
+
+template <typename IntType>
+struct IntReadResult {
+  bool ok = false;
+  bool failed = false;
+  IntType out;
+  IntType initial;
+};
+
+template <typename IntType>
+void PrintTo(const IntReadResult<IntType>& r, std::ostream* os) {
+  using format_type =
+      typename absl::random_internal::stream_format_type<IntType>::type;
+  *os << "{ok=" << (r.ok ? "true" : "false")
+      << ", failed=" << (r.failed ? "true" : "false")
+      << ", out=" << static_cast<format_type>(r.out)
+      << ", initial=" << static_cast<format_type>(r.initial) << "}";
+}
+
+template <typename IntType>
+IntReadResult<IntType> ReadInt(const std::string& input, IntType sentinel) {
+  IntType out = sentinel;
+  std::istringstream is(input);
+  const bool ok = absl::random_internal::read_integral(is, out);
+  return {ok, is.fail(), out, sentinel};
+}
+
+template <typename IntType>
+IntReadResult<IntType> ReadInt(const std::wstring& input, IntType sentinel) {
+  IntType out = sentinel;
+  std::wistringstream is(input);
+  const bool ok = absl::random_internal::read_integral(is, out);
+  return {ok, is.fail(), out, sentinel};
+}
+
+MATCHER(FailsPreservingOut,
+        "fails extraction and leaves output equal to initial value") {
+  return !arg.ok && arg.failed && arg.out == arg.initial;
+}
+
+MATCHER_P(ReadsValue, expected,
+          "succeeds without failbit and extracts expected value") {
+  return arg.ok && !arg.failed && arg.out == expected;
+}
+
+TEST(ReadFloatingPointTest, EmptyAndInvalidStreamsPreserveFailbit) {
+  using absl::random_internal::read_floating_point;
+
+  EXPECT_THAT(ReadFloat<double>(""), FailsPreservingOut());
+  EXPECT_THAT(ReadFloat<double>("   "), FailsPreservingOut());
+  EXPECT_THAT(ReadFloat<double>("invalid"), FailsPreservingOut());
+
+  // Underflow to 0.0: preserve whatever failbit std::num_get sets (libc++ and
+  // MSVC fail on ERANGE underflow; libstdc++ succeeds with 0.0).
+  {
+    std::istringstream raw("1e-400");
+    double raw_val = 1.0;
+    raw >> raw_val;
+
+    std::istringstream is("1e-400");
+    const double val = read_floating_point<double>(is);
+    EXPECT_EQ(is.fail(), raw.fail());
+    EXPECT_EQ(val, 0.0);
+  }
+  // Overflow: all standard libraries set failbit (assigning +inf or DBL_MAX).
+  {
+    std::istringstream is("1e400");
+    const double val = read_floating_point<double>(is);
+    EXPECT_TRUE(is.fail());
+    EXPECT_TRUE(std::isinf(val) || val == (std::numeric_limits<double>::max)());
+  }
+
+  // Pre-failed stream returns 0 without consuming input or clearing failbit.
+  {
+    std::istringstream is("1.5");
+    is.setstate(std::ios_base::failbit);
+    const double val = read_floating_point<double>(is);
+    EXPECT_TRUE(is.fail());
+    EXPECT_EQ(val, 0.0);
+    is.clear();
+    double remaining = 0.0;
+    is >> remaining;
+    EXPECT_EQ(remaining, 1.5);
+  }
+
+  // Pre-failed badbit streams short-circuit, preserving badbit and failbit.
+  {
+    std::istream null_is(nullptr);
+    const double val = read_floating_point<double>(null_is);
+    EXPECT_TRUE(null_is.bad());
+    EXPECT_TRUE(null_is.fail());
+    EXPECT_EQ(val, 0.0);
+  }
+  {
+    std::istringstream is("4.94065645841246544e-324");
+    is.setstate(std::ios_base::badbit);
+    const double val = read_floating_point<double>(is);
+    EXPECT_TRUE(is.bad());
+    EXPECT_TRUE(is.fail());
+    EXPECT_EQ(val, 0.0);
+  }
+
+  // Subnormal and min values continue to succeed without failbit.
+  EXPECT_THAT(ReadFloat<double>("4.94065645841246544e-324"),
+              ReadsValue(std::numeric_limits<double>::denorm_min()));
+}
+
+TEST(ReadIntegralTest, UnsignedRejectsNegativeAndPreservesOut) {
+  using absl::random_internal::read_integral;
+
+  EXPECT_THAT(ReadInt<uint64_t>("", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("   ", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("-", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("-0", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("-1", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("  -42", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("abc", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint64_t>("99999999999999999999999", 77),
+              FailsPreservingOut());
+
+  EXPECT_THAT(ReadInt<uint8_t>("-0", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint8_t>("-1", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint8_t>("256", 77), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint8_t>("300", 77), FailsPreservingOut());
+
+  EXPECT_THAT(ReadInt<bool>("-0", true), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<bool>("-1", true), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<bool>("2", true), FailsPreservingOut());
+
+  EXPECT_THAT(ReadInt<uint32_t>(L"  -5", 99), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<uint32_t>(L"  42", 0), ReadsValue(42u));
+
+  uint32_t out = 55;
+  std::istream null_is(nullptr);
+  EXPECT_FALSE(read_integral(null_is, out));
+  EXPECT_TRUE(null_is.bad());
+  EXPECT_EQ(out, 55u);
+}
+
+TEST(ReadIntegralTest, SignedAndNarrowBounds) {
+  using absl::random_internal::read_integral;
+
+  EXPECT_THAT(ReadInt<int8_t>("", 11), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<int8_t>("abc", 11), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<int8_t>("-129", 11), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<int8_t>("128", 11), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<int8_t>("-254", 11), FailsPreservingOut());
+  EXPECT_THAT(ReadInt<int8_t>("258", 11), FailsPreservingOut());
+
+  EXPECT_THAT(ReadInt<int8_t>("-128", 0), ReadsValue(int8_t{-128}));
+  EXPECT_THAT(ReadInt<int8_t>("127", 0), ReadsValue(int8_t{127}));
+  EXPECT_THAT(ReadInt<uint8_t>("0", 1), ReadsValue(uint8_t{0}));
+  EXPECT_THAT(ReadInt<uint8_t>("255", 1), ReadsValue(uint8_t{255}));
+
+  {
+    int8_t lo = 0;
+    int8_t hi = 0;
+    std::istringstream is("-128 127");
+    EXPECT_TRUE(read_integral(is, lo));
+    EXPECT_TRUE(read_integral(is, hi));
+    EXPECT_EQ(lo, -128);
+    EXPECT_EQ(hi, 127);
+  }
+  {
+    uint8_t lo = 1;
+    uint8_t hi = 1;
+    std::istringstream is("0 255");
+    EXPECT_TRUE(read_integral(is, lo));
+    EXPECT_TRUE(read_integral(is, hi));
+    EXPECT_EQ(lo, 0u);
+    EXPECT_EQ(hi, 255u);
+  }
 }
 
 }  // namespace

@@ -202,6 +202,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
+        "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "@googletest//:gtest",

@@ -22,7 +22,9 @@
 #include <string>
 #include <utility>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
@@ -214,6 +216,49 @@ TEST(BernoulliTest, StabilityTest2) {
     EXPECT_EQ(12, urbg.invocations());
     EXPECT_EQ(v, "001111101111") << dist;
   }
+}
+
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(BernoulliTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::bernoulli_distribution kInitial(0.25);
+
+  // Valid boundary and subnormal probabilities.
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0"),
+              ParsesEqualTo(absl::bernoulli_distribution(0.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "0.5"),
+              ParsesEqualTo(absl::bernoulli_distribution(0.5)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1.0"),
+              ParsesEqualTo(absl::bernoulli_distribution(1.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1e-320"),
+              ParsesEqualTo(absl::bernoulli_distribution(1e-320)));
+
+  // Empty, out-of-range, and non-finite inputs under the default locale.
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "   "), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-0.1"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1.5"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf"), FailsLeavingUnchanged());
+
+  // Non-finite values delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(ParseFromStream(kInitial, "nan", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
 }
 
 }  // namespace

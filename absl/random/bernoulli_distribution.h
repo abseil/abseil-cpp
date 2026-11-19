@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <ios>
 #include <istream>
 #include <ostream>
 
@@ -123,7 +124,11 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   auto p = random_internal::read_floating_point<double>(is);
   if (!is.fail()) {
-    x.param(bernoulli_distribution::param_type(p));
+    if (p >= 0.0 && p <= 1.0) {
+      x.param(bernoulli_distribution::param_type(p));
+    } else {
+      is.setstate(std::ios_base::failbit);
+    }
   }
   return is;
 }

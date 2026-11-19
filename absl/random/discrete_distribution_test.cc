@@ -249,4 +249,104 @@ TEST(DiscreteDistributionTest, StabilityTest) {
   EXPECT_THAT(output, testing::ElementsAre(3, 3, 0, 3, 0, 4));
 }
 
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(DiscreteDistributionTest, MaxNarrowTypeSerializationRoundTrips) {
+  // 256 weights for uint8_t (max == 255) previously wrapped uint8_t loop index
+  // at 255 -> 0; 128 weights for int8_t (max == 127) overflowed signed int8_t.
+  {
+    std::vector<double> weights(256, 1.0);
+    const absl::discrete_distribution<uint8_t> expected(weights.begin(),
+                                                        weights.end());
+    std::ostringstream oss;
+    oss << expected;
+    EXPECT_THAT(absl::random_internal::ParseFromStream(
+                    absl::discrete_distribution<uint8_t>(), oss.str()),
+                ParsesEqualTo(expected));
+  }
+  {
+    std::vector<double> weights(128, 1.0);
+    const absl::discrete_distribution<int8_t> expected(weights.begin(),
+                                                       weights.end());
+    std::ostringstream oss;
+    oss << expected;
+    EXPECT_THAT(absl::random_internal::ParseFromStream(
+                    absl::discrete_distribution<int8_t>(), oss.str()),
+                ParsesEqualTo(expected));
+  }
+}
+
+TEST(DiscreteDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::discrete_distribution<int> kInitial({1.0, 2.0});
+  const absl::discrete_distribution<int8_t> kI8Initial({1.0, 2.0});
+  const absl::discrete_distribution<uint8_t> kU8Initial({1.0, 2.0});
+
+  // Valid streams including subnormal positive weight.
+  EXPECT_THAT(ParseFromStream(kInitial, "2 0.25 0.75"),
+              ParsesEqualTo(absl::discrete_distribution<int>({0.25, 0.75})));
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1e-320 1.0"),
+              ParsesEqualTo(absl::discrete_distribution<int>({1e-320, 1.0})));
+
+  // Empty, malformed, zero, and negative counts (including unsigned wraparound
+  // to n == 2 on 64-bit platforms).
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "abc"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-1 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-2 0.5 0.5"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-18446744073709551614 0.25 0.75"),
+              FailsLeavingUnchanged());
+
+  // Count exceeding IntType::max() + 1 or huge truncated count (must not OOM).
+  EXPECT_THAT(ParseFromStream(kI8Initial, "129 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Initial, "257 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1000000000000 1.0"),
+              FailsLeavingUnchanged());
+
+  // Truncated, all-zero, negative, overflowing-sum, and non-finite weights.
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1 0.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "3 0.0 0.0 0.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 -1.0 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1.0 -1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1e308 1e308"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "3 1e308 1e308 1.0"),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 nan 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1.0 nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 inf 1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1.0 inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2 1.0 -inf"), FailsLeavingUnchanged());
+
+  // Non-finite weights delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2 nan 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2 1.0 nan", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2 inf 1.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2 1.0 inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2 1.0 -inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+}
+
 }  // namespace

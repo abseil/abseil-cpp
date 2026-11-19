@@ -35,6 +35,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -194,7 +195,13 @@ std::basic_istream<CharT, Traits>& operator>>(
   if (is.fail()) return is;
   auto b = random_internal::read_floating_point<result_type>(is);
   if (!is.fail()) {
-    x.param(param_type(a, b));
+    if (std::isfinite(a) && std::isfinite(b) && a <= b &&
+        static_cast<result_type>(b - a) <=
+            (std::numeric_limits<result_type>::max)()) {
+      x.param(param_type(a, b));
+    } else {
+      is.setstate(std::ios_base::failbit);
+    }
   }
   return is;
 }

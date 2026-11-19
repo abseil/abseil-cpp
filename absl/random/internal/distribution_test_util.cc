@@ -16,7 +16,9 @@
 
 #include <cassert>
 #include <cmath>
+#include <ios>
 #include <limits>
+#include <locale>
 #include <ostream>
 #include <string>
 
@@ -495,6 +497,96 @@ double MaxErrorTolerance(double acceptance_probability) {
           : InverseNormalSurvival(0.5 * (1.0 - acceptance_probability));
   ABSL_ASSERT(max_err > 0);
   return max_err;
+}
+
+namespace {
+
+class NonFiniteNumGet final : public std::num_get<char> {
+ protected:
+  using std::num_get<char>::do_get;
+
+  iter_type do_get(iter_type in, iter_type end,
+                   std::ios_base& str,           // NOLINT(runtime/references)
+                   std::ios_base::iostate& err,  // NOLINT(runtime/references)
+                   float& v) const override {    // NOLINT(runtime/references)
+    return ParseFloat(in, end, str, err, v);
+  }
+
+  iter_type do_get(iter_type in, iter_type end,
+                   std::ios_base& str,           // NOLINT(runtime/references)
+                   std::ios_base::iostate& err,  // NOLINT(runtime/references)
+                   double& v) const override {   // NOLINT(runtime/references)
+    return ParseFloat(in, end, str, err, v);
+  }
+
+  iter_type do_get(
+      iter_type in, iter_type end,
+      std::ios_base& str,               // NOLINT(runtime/references)
+      std::ios_base::iostate& err,      // NOLINT(runtime/references)
+      long double& v) const override {  // NOLINT(runtime/references)
+    return ParseFloat(in, end, str, err, v);
+  }
+
+ private:
+  template <typename T>
+  iter_type ParseFloat(
+      iter_type in, iter_type end,
+      std::ios_base& str,           // NOLINT(runtime/references)
+      std::ios_base::iostate& err,  // NOLINT(runtime/references)
+      T& v) const {                 // NOLINT(runtime/references)
+    if (in == end) {
+      return std::num_get<char>::do_get(in, end, str, err, v);
+    }
+    bool negative = false;
+    if (*in == '-' || *in == '+') {
+      negative = (*in == '-');
+      ++in;
+      if (in == end || *in == '-' || *in == '+') {
+        v = T{0};
+        err |= std::ios_base::failbit;
+        if (in == end) err |= std::ios_base::eofbit;
+        return in;
+      }
+    }
+    auto match_literal = [&](const char* literal, T result) {
+      for (const char* p = literal; *p != '\0'; ++p) {
+        if (in == end || *in != *p) {
+          v = T{0};
+          err |= std::ios_base::failbit;
+          if (in == end) err |= std::ios_base::eofbit;
+          return in;
+        }
+        ++in;
+      }
+      if (in == end) {
+        err |= std::ios_base::eofbit;
+      } else if (*in != ' ' && *in != '\t' && *in != '\n' && *in != '\r') {
+        v = T{0};
+        err |= std::ios_base::failbit;
+        return in;
+      }
+      v = negative ? -result : result;
+      return in;
+    };
+    if (*in == 'n') {
+      return match_literal("nan", std::numeric_limits<T>::quiet_NaN());
+    }
+    if (*in == 'i') {
+      return match_literal("inf", std::numeric_limits<T>::infinity());
+    }
+    in = std::num_get<char>::do_get(in, end, str, err, v);
+    if (negative) {
+      v = -v;
+    }
+    return in;
+  }
+};
+
+}  // namespace
+
+void ImbueNonFiniteLocale(std::ios* stream) {
+  ABSL_ASSERT(stream != nullptr);
+  stream->imbue(std::locale(stream->getloc(), new NonFiniteNumGet()));
 }
 
 }  // namespace random_internal

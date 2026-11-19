@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <ios>
 #include <istream>
 #include <iterator>
 #include <limits>
@@ -222,19 +223,21 @@ class alignas(8) randen_engine {
   friend std::basic_istream<CharT, Traits>& operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
       randen_engine<T>& engine) {             // NOLINT(runtime/references)
-    using numeric_type =
-        typename random_internal::stream_format_type<result_type>::type;
+    auto saver = random_internal::make_istream_state_saver(is);
     result_type state[kStateSizeT];
-    size_t next;
     for (auto& elem : state) {
-      // It is not possible to read uint8_t from wide streams, so it is
-      // necessary to read a wider type and then cast it to uint8_t.
-      numeric_type value;
-      is >> value;
-      elem = little_endian::ToHost(static_cast<result_type>(value));
+      result_type value = 0;
+      if (!random_internal::read_integral(is, value)) {
+        return is;
+      }
+      elem = little_endian::ToHost(value);
     }
-    is >> next;
-    if (is.fail()) {
+    size_t next = 0;
+    if (!random_internal::read_integral(is, next)) {
+      return is;
+    }
+    if (next < kCapacityT || next > kStateSizeT) {
+      is.setstate(std::ios_base::failbit);
       return is;
     }
     std::memcpy(engine.state(), state, sizeof(state));

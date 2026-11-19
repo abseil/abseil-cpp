@@ -568,4 +568,59 @@ TEST(PoissonDistributionTest, AlgorithmExpectedValue_3) {
   EXPECT_EQ(121, dist(urbg));
 }
 
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(PoissonDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::poisson_distribution<int32_t> kInitial(4.5);
+  const absl::poisson_distribution<int8_t> kI8Initial(4.5);
+  const absl::poisson_distribution<uint8_t> kU8Initial(4.5);
+  const absl::poisson_distribution<int64_t> kI64Initial(4.5);
+
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "abc"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1e20"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1e400"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0"),
+              ParsesEqualTo(absl::poisson_distribution<int32_t>(0.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1e-320"),
+              ParsesEqualTo(absl::poisson_distribution<int32_t>(1e-320)));
+
+  EXPECT_THAT(ParseFromStream(kI8Initial, "128.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI8Initial, "200.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI8Initial, "127.0"),
+              ParsesEqualTo(absl::poisson_distribution<int8_t>(127.0)));
+
+  EXPECT_THAT(ParseFromStream(kU8Initial, "256.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Initial, "300.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kU8Initial, "255.0"),
+              ParsesEqualTo(absl::poisson_distribution<uint8_t>(255.0)));
+
+  constexpr double kMaxMean = absl::random_internal::kPoissonMaxMean;
+  EXPECT_THAT(ParseFromStream(kI64Initial, absl::StrCat(kMaxMean)),
+              ParsesEqualTo(absl::poisson_distribution<int64_t>(kMaxMean)));
+  EXPECT_THAT(ParseFromStream(kI64Initial, absl::StrCat(kMaxMean * 10.0)),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kI64Initial, "1e20"), FailsLeavingUnchanged());
+}
+
 }  // namespace

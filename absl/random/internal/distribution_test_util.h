@@ -16,7 +16,11 @@
 #define ABSL_RANDOM_INTERNAL_DISTRIBUTION_TEST_UTIL_H_
 
 #include <cstddef>
+#include <ios>
 #include <ostream>
+#include <sstream>
+#include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/strings/string_view.h"
@@ -104,6 +108,60 @@ double BetaIncomplete(double x, double p, double q);
 // over BetaIncomplete(), targeting ~1e-13 relative accuracy where the CDF is
 // not flat to double precision.
 double BetaIncompleteInv(double p, double q, double alpha);
+
+// Imbues `stream` with a test-only `std::num_get<char>` facet that parses
+// "nan", "inf", and "-inf" with goodbit so stream deserialization tests can
+// exercise distribution `std::isfinite()` and range guards even on libc++ and
+// libstdc++, where the default `num_get` facet already sets failbit on those
+// tokens.
+void ImbueNonFiniteLocale(std::ios* stream);
+
+// Result of extracting a distribution from a test stream via `ParseFromStream`.
+template <typename T>
+struct StreamParseResult {
+  bool failed = false;
+  bool flags_preserved = false;
+  T value;
+  T initial;
+};
+
+template <typename T>
+void PrintTo(const StreamParseResult<T>& result, std::ostream* os) {
+  *os << "{failed=" << (result.failed ? "true" : "false")
+      << ", flags_preserved=" << (result.flags_preserved ? "true" : "false")
+      << ", value=" << result.value << "}";
+}
+
+// Extracts a `T` from `input` into a copy of `initial`, setting non-default
+// stream formatting flags (`hex | left | scientific`) beforehand to verify
+// `istream_state_saver` flag restoration and optionally imbuing a non-finite
+// `num_get` facet to exercise non-finite parameter validation.
+template <typename T>
+StreamParseResult<T> ParseFromStream(const T& initial, const std::string& input,
+                                     bool use_non_finite_facet = false) {
+  const std::ios_base::fmtflags kInitFlags =
+      std::ios_base::hex | std::ios_base::left | std::ios_base::scientific;
+  T value = initial;
+  std::istringstream is(input);
+  if (use_non_finite_facet) {
+    ImbueNonFiniteLocale(&is);
+  }
+  is.flags(kInitFlags);
+  is >> value;
+  return {is.fail(), is.flags() == kInitFlags, std::move(value), initial};
+}
+
+template <typename T>
+StreamParseResult<T> ParseFromStream(const T& initial,
+                                     const std::wstring& input) {
+  const std::ios_base::fmtflags kInitFlags =
+      std::ios_base::hex | std::ios_base::left | std::ios_base::scientific;
+  T value = initial;
+  std::wistringstream is(input);
+  is.flags(kInitFlags);
+  is >> value;
+  return {is.fail(), is.flags() == kInitFlags, std::move(value), initial};
+}
 
 }  // namespace random_internal
 ABSL_NAMESPACE_END

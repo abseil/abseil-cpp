@@ -19,10 +19,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <ios>
+#include <ostream>
 #include <random>
 #include <sstream>
+#include <string>
 #include <type_traits>
+#include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/internal/explicit_seed_seq.h"
 
@@ -269,6 +274,137 @@ TYPED_TEST(PCGEngineTest, RandenEngineSFINAETest) {
     engine_type engine{std::seed_seq()};
     engine.seed(std::seed_seq());
   }
+}
+
+template <typename Engine>
+std::vector<std::string> SerializeTokens(const Engine& engine) {
+  std::ostringstream oss;
+  oss << engine;
+  std::istringstream iss(oss.str());
+  std::vector<std::string> tokens;
+  std::string token;
+  while (iss >> token) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+std::string JoinTokens(const std::vector<std::string>& tokens) {
+  std::ostringstream oss;
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    if (i > 0) oss << ' ';
+    oss << tokens[i];
+  }
+  return oss.str();
+}
+
+std::string ReplaceToken(std::vector<std::string> tokens, size_t index,
+                         const std::string& value) {
+  tokens[index] = value;
+  return JoinTokens(tokens);
+}
+
+std::string TruncateTokens(std::vector<std::string> tokens, size_t count) {
+  tokens.resize(count);
+  return JoinTokens(tokens);
+}
+
+template <typename Engine>
+struct EngineParseResult {
+  bool failed = false;
+  bool flags_preserved = false;
+  Engine value;
+  Engine initial;
+};
+
+template <typename Engine>
+void PrintTo(const EngineParseResult<Engine>& r, std::ostream* os) {
+  *os << "{failed=" << (r.failed ? "true" : "false")
+      << ", flags_preserved=" << (r.flags_preserved ? "true" : "false")
+      << ", unchanged=" << (r.value == r.initial ? "true" : "false") << "}";
+}
+
+template <typename Engine>
+EngineParseResult<Engine> ParseEngine(const Engine& initial,
+                                      const std::string& input) {
+  const std::ios_base::fmtflags kInitFlags =
+      std::ios_base::hex | std::ios_base::showbase | std::ios_base::skipws;
+  Engine target = initial;
+  std::istringstream iss(input);
+  iss.flags(kInitFlags);
+  iss >> target;
+  return {iss.fail(), iss.flags() == kInitFlags, target, initial};
+}
+
+MATCHER(FailsLeavingUnchanged,
+        "fails extraction while preserving engine state and stream flags") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualToPtr, expected,
+          "succeeds, restores expected engine state, and preserves flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == *expected;
+}
+
+template <typename Engine>
+auto ParsesEqualTo(const Engine& expected) {
+  return ParsesEqualToPtr(&expected);
+}
+
+TYPED_TEST(PCGEngineTest, StreamDeserializationValidation) {
+  using engine_type = TypeParam;
+  engine_type expected(42);
+  expected.discard(3);
+  const engine_type initial(7);
+  ASSERT_FALSE(initial == expected);
+
+  const std::vector<std::string> tokens = SerializeTokens(expected);
+  ASSERT_TRUE(tokens.size() == 3u || tokens.size() == 6u);
+  const std::string valid_stream = JoinTokens(tokens);
+  const size_t n = tokens.size();
+
+  // Valid round-trip succeeds in decimal and restores caller stream flags.
+  EXPECT_THAT(ParseEngine(initial, valid_stream), ParsesEqualTo(expected));
+
+  // Mismatched multiplier and increment fail without modifying engine state.
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "0")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n / 3, "0")),
+              FailsLeavingUnchanged());
+
+  // Negative tokens (including "-0") are rejected at every field position
+  // (covering both 64-bit state_type and both words of 128-bit state_type).
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "-0")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 1, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 2, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 3, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 2, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 1, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 1, "-0")),
+              FailsLeavingUnchanged());
+
+  // Overflow, malformed, empty, and truncated streams fail and preserve flags.
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0,
+                                                "99999999999999999999999999")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 1,
+                                                "99999999999999999999999999")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, n - 1, "abc")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, TruncateTokens(tokens, 1)),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, TruncateTokens(tokens, n - 1)),
+              FailsLeavingUnchanged());
 }
 
 // ------------------------------------------------------------------

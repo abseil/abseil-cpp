@@ -144,18 +144,21 @@ class pcg_engine {
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
       pcg_engine& engine) {                   // NOLINT(runtime/references)
+    auto saver = random_internal::make_istream_state_saver(is);
     random_internal::stream_u128_helper<state_type> helper;
     auto mult = helper.read(is);
     auto inc = helper.read(is);
     auto tmp = helper.read(is);
+    if (is.fail()) {
+      return is;
+    }
     if (mult != pcg_engine::params_type::multiplier() ||
         inc != pcg_engine::params_type::increment()) {
       // signal failure by setting the failbit.
-      is.setstate(is.rdstate() | std::ios_base::failbit);
+      is.setstate(std::ios_base::failbit);
+      return is;
     }
-    if (!is.fail()) {
-      engine.state_ = tmp;
-    }
+    engine.state_ = tmp;
     return is;
   }
 
@@ -165,16 +168,20 @@ class pcg_engine {
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
       pcg_engine& engine) {                   // NOLINT(runtime/references)
+    auto saver = random_internal::make_istream_state_saver(is);
     state_type mult{}, inc{}, tmp{};
-    is >> mult >> inc >> tmp;
+    if (!random_internal::read_integral(is, mult) ||
+        !random_internal::read_integral(is, inc) ||
+        !random_internal::read_integral(is, tmp)) {
+      return is;
+    }
     if (mult != pcg_engine::params_type::multiplier() ||
         inc != pcg_engine::params_type::increment()) {
       // signal failure by setting the failbit.
-      is.setstate(is.rdstate() | std::ios_base::failbit);
+      is.setstate(std::ios_base::failbit);
+      return is;
     }
-    if (!is.fail()) {
-      engine.state_ = tmp;
-    }
+    engine.state_ = tmp;
     return is;
   }
 

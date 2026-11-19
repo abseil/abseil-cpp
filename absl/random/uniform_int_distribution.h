@@ -29,6 +29,7 @@
 #define ABSL_RANDOM_UNIFORM_INT_DISTRIBUTION_H_
 
 #include <cassert>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -176,17 +177,18 @@ std::basic_istream<CharT, Traits>& operator>>(
     uniform_int_distribution<IntType>& x) {
   using param_type = typename uniform_int_distribution<IntType>::param_type;
   using result_type = typename uniform_int_distribution<IntType>::result_type;
-  using stream_type =
-      typename random_internal::stream_format_type<IntType>::type;
-
-  stream_type a;
-  stream_type b;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  is >> a >> b;
-  if (!is.fail()) {
-    x.param(
-        param_type(static_cast<result_type>(a), static_cast<result_type>(b)));
+  result_type a = 0;
+  result_type b = 0;
+  if (!random_internal::read_integral(is, a) ||
+      !random_internal::read_integral(is, b)) {
+    return is;
+  }
+  if (a <= b) {
+    x.param(param_type(a, b));
+  } else {
+    is.setstate(std::ios_base::failbit);
   }
   return is;
 }

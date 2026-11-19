@@ -423,4 +423,50 @@ TEST(ExponentialDistributionTest, AlgorithmBounds) {
   }
 }
 
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(ExponentialDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::exponential_distribution<double> kInitial(2.5);
+  const absl::exponential_distribution<float> kFloatInitial(2.5f);
+
+  // Valid positive and subnormal lambdas.
+  EXPECT_THAT(ParseFromStream(kInitial, "1.0"),
+              ParsesEqualTo(absl::exponential_distribution<double>(1.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1e-320"),
+              ParsesEqualTo(absl::exponential_distribution<double>(1e-320)));
+
+  // Empty, non-positive, overflowing, and non-finite inputs.
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1e400"), FailsLeavingUnchanged());
+
+  // Non-finite values delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(ParseFromStream(kInitial, "nan", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf", /*use_non_finite_facet=*/true),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "nan", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+}
+
 }  // namespace

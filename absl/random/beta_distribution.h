@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -409,14 +410,21 @@ std::basic_istream<CharT, Traits>& operator>>(
     beta_distribution<RealType>& x) {       // NOLINT(runtime/references)
   using result_type = typename beta_distribution<RealType>::result_type;
   using param_type = typename beta_distribution<RealType>::param_type;
-  result_type alpha, beta;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  alpha = random_internal::read_floating_point<result_type>(is);
+  const result_type alpha =
+      random_internal::read_floating_point<result_type>(is);
   if (is.fail()) return is;
-  beta = random_internal::read_floating_point<result_type>(is);
+  const result_type beta =
+      random_internal::read_floating_point<result_type>(is);
   if (!is.fail()) {
-    x.param(param_type(alpha, beta));
+    constexpr result_type kMax = (std::numeric_limits<result_type>::max)();
+    if (alpha >= result_type(0) && beta >= result_type(0) && alpha <= kMax &&
+        beta <= kMax) {
+      x.param(param_type(alpha, beta));
+    } else {
+      is.setstate(std::ios_base::failbit);
+    }
   }
   return is;
 }

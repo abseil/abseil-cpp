@@ -19,11 +19,16 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <ios>
+#include <ostream>
 #include <random>
 #include <sstream>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/explicit_seed_seq.h"
@@ -291,6 +296,165 @@ TYPED_TEST(RandenEngineTypedTest, RandenEngineSFINAETest) {
     randen engine{std::seed_seq()};
     engine.seed(std::seed_seq());
   }
+}
+
+template <typename Engine>
+std::vector<std::string> SerializeTokens(const Engine& engine) {
+  std::ostringstream oss;
+  oss << engine;
+  std::istringstream iss(oss.str());
+  std::vector<std::string> tokens;
+  std::string token;
+  while (iss >> token) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+std::string JoinTokens(const std::vector<std::string>& tokens) {
+  std::ostringstream oss;
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    if (i > 0) oss << ' ';
+    oss << tokens[i];
+  }
+  return oss.str();
+}
+
+std::string ReplaceToken(std::vector<std::string> tokens, size_t index,
+                         const std::string& value) {
+  tokens[index] = value;
+  return JoinTokens(tokens);
+}
+
+std::string TruncateTokens(std::vector<std::string> tokens, size_t count) {
+  tokens.resize(count);
+  return JoinTokens(tokens);
+}
+
+template <typename Engine>
+struct EngineParseResult {
+  bool failed = false;
+  bool flags_preserved = false;
+  Engine value;
+  Engine initial;
+};
+
+template <typename Engine>
+void PrintTo(const EngineParseResult<Engine>& r, std::ostream* os) {
+  *os << "{failed=" << (r.failed ? "true" : "false")
+      << ", flags_preserved=" << (r.flags_preserved ? "true" : "false")
+      << ", unchanged=" << (r.value == r.initial ? "true" : "false") << "}";
+}
+
+template <typename Engine>
+EngineParseResult<Engine> ParseEngine(const Engine& initial,
+                                      const std::string& input) {
+  const std::ios_base::fmtflags kInitFlags =
+      std::ios_base::hex | std::ios_base::showbase | std::ios_base::skipws;
+  Engine target = initial;
+  std::istringstream iss(input);
+  iss.flags(kInitFlags);
+  iss >> target;
+  return {iss.fail(), iss.flags() == kInitFlags, target, initial};
+}
+
+MATCHER(FailsLeavingUnchanged,
+        "fails extraction while preserving engine state and stream flags") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER(ParsesSuccessfully, "succeeds and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved;
+}
+
+MATCHER_P(ParsesEqualToPtr, expected,
+          "succeeds, restores expected engine state, and preserves flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == *expected;
+}
+
+template <typename Engine>
+auto ParsesEqualTo(const Engine& expected) {
+  return ParsesEqualToPtr(&expected);
+}
+
+TYPED_TEST(RandenEngineTypedTest, StreamDeserializationValidation) {
+  using randen = absl::random_internal::randen_engine<TypeParam>;
+  constexpr size_t kStateSizeT = 256 / sizeof(TypeParam);
+  constexpr size_t kCapacityT = 16 / sizeof(TypeParam);
+
+  randen expected(static_cast<TypeParam>(123u));
+  expected.discard(5);
+  const randen initial(static_cast<TypeParam>(99u));
+  ASSERT_FALSE(initial == expected);
+
+  const std::vector<std::string> tokens = SerializeTokens(expected);
+  ASSERT_EQ(tokens.size(), kStateSizeT + 1);
+  const std::string valid_stream = JoinTokens(tokens);
+
+  // Valid round-trip must succeed in decimal and restore caller stream flags.
+  EXPECT_THAT(ParseEngine(initial, valid_stream), ParsesEqualTo(expected));
+
+  // Boundary next values kCapacityT and kStateSizeT are valid.
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT,
+                                                std::to_string(kCapacityT))),
+              ParsesSuccessfully());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT,
+                                                std::to_string(kStateSizeT))),
+              ParsesSuccessfully());
+
+  // Reject next outside [kCapacityT, kStateSizeT], negative, or overflowing.
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT, "0")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseEngine(initial, ReplaceToken(tokens, kStateSizeT,
+                                        std::to_string(kCapacityT - 1))),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseEngine(initial, ReplaceToken(tokens, kStateSizeT,
+                                        std::to_string(kStateSizeT + 1))),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT, "1000")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT, "-0")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT,
+                                                "99999999999999999999999999")),
+              FailsLeavingUnchanged());
+
+  // Reject negative or overflowing state words.
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "-0")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, kStateSizeT - 1, "-1")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0,
+                                                "99999999999999999999999999")),
+              FailsLeavingUnchanged());
+
+  // Reject empty and truncated streams.
+  EXPECT_THAT(ParseEngine(initial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, TruncateTokens(tokens, 1)),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, TruncateTokens(tokens, kStateSizeT)),
+              FailsLeavingUnchanged());
+}
+
+TEST(RandenTest, StreamRejectsInvalidParameters) {
+  using randen_u8 = absl::random_internal::randen_engine<uint8_t>;
+  const randen_u8 expected(7u);
+  const randen_u8 initial(13u);
+  const std::vector<std::string> tokens = SerializeTokens(expected);
+  ASSERT_EQ(tokens.size(), 257u);
+
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "256")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 0, "300")),
+              FailsLeavingUnchanged());
+  EXPECT_THAT(ParseEngine(initial, ReplaceToken(tokens, 255, "256")),
+              FailsLeavingUnchanged());
 }
 
 TEST(RandenTest, VerifyGoldenRanden64Default) {

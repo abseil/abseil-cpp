@@ -268,6 +268,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_distributions
+    absl::random_internal_distribution_test_util
     absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
@@ -1263,6 +1264,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_internal_iostream_state_saver
+    GTest::gmock
     GTest::gtest_main
 )
 

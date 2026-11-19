@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <ios>
 #include <istream>
 #include <limits>
 #include <ostream>
@@ -152,12 +153,16 @@ std::basic_istream<CharT, Traits>& operator>>(
     exponential_distribution<RealType>& x) {  // NOLINT(runtime/references)
   using result_type = typename exponential_distribution<RealType>::result_type;
   using param_type = typename exponential_distribution<RealType>::param_type;
-  result_type lambda;
 
   auto saver = random_internal::make_istream_state_saver(is);
-  lambda = random_internal::read_floating_point<result_type>(is);
+  const result_type lambda =
+      random_internal::read_floating_point<result_type>(is);
   if (!is.fail()) {
-    x.param(param_type(lambda));
+    if (lambda > 0 && lambda <= (std::numeric_limits<result_type>::max)()) {
+      x.param(param_type(lambda));
+    } else {
+      is.setstate(std::ios_base::failbit);
+    }
   }
   return is;
 }

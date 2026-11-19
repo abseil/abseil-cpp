@@ -617,4 +617,67 @@ TEST(BetaDistributionTest, AlgorithmBounds) {
   }
 }
 
+MATCHER(FailsLeavingUnchanged,
+        "fails stream extraction and leaves target and stream flags "
+        "unchanged") {
+  return arg.failed && arg.flags_preserved && arg.value == arg.initial;
+}
+
+MATCHER_P(ParsesEqualTo, expected,
+          "succeeds, updates target, and preserves stream flags") {
+  return !arg.failed && arg.flags_preserved && arg.value == expected;
+}
+
+TEST(BetaDistributionTest, StreamRejectsInvalidParameters) {
+  using absl::random_internal::ParseFromStream;
+  const absl::beta_distribution<double> kInitial(2.0, 3.0);
+  const absl::beta_distribution<float> kFloatInitial(2.0f, 3.0f);
+
+  EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-1.0 2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0 -1.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "nan 2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0 nan"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "inf 2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0 inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "-inf 2.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0 -inf"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "1e500 3.0"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kInitial, "2.0 1e500"), FailsLeavingUnchanged());
+  EXPECT_THAT(ParseFromStream(kFloatInitial, "1e40 1.0"),
+              FailsLeavingUnchanged());
+
+  // Non-finite values delivered with goodbit by a custom num_get facet.
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "nan 2.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2.0 nan", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "inf 2.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2.0 inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "-inf 2.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kInitial, "2.0 -inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "nan 2.0", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kFloatInitial, "2.0 inf", /*use_non_finite_facet=*/true),
+      FailsLeavingUnchanged());
+
+  EXPECT_THAT(ParseFromStream(kInitial, "0.0 0.0"),
+              ParsesEqualTo(absl::beta_distribution<double>(0.0, 0.0)));
+  EXPECT_THAT(ParseFromStream(kInitial, "1.5 2.5"),
+              ParsesEqualTo(absl::beta_distribution<double>(1.5, 2.5)));
+}
+
 }  // namespace

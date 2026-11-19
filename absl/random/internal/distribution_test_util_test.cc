@@ -16,6 +16,9 @@
 
 #include <cmath>
 #include <limits>
+#include <ostream>
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -27,6 +30,7 @@ namespace {
 using absl::random_internal::BetaIncomplete;
 using absl::random_internal::BetaIncompleteInv;
 using absl::random_internal::erfinv;
+using absl::random_internal::ImbueNonFiniteLocale;
 using absl::random_internal::InverseNormalSurvival;
 using absl::random_internal::MaxErrorTolerance;
 using absl::random_internal::RequiredSuccessProbability;
@@ -414,6 +418,96 @@ TEST(TestUtil, InverseErfBoundaries) {
   EXPECT_THAT(erfinv(1.5), IsNan());
   EXPECT_THAT(erfinv(-1.5), IsNan());
   EXPECT_THAT(erfinv(kNan), IsNan());
+}
+
+template <typename T>
+struct ImbuedParseResult {
+  bool failed = false;
+  T value = T{0};
+};
+
+template <typename T>
+void PrintTo(const ImbuedParseResult<T>& r, std::ostream* os) {
+  *os << "{failed=" << (r.failed ? "true" : "false") << ", value=" << r.value
+      << "}";
+}
+
+template <typename T>
+ImbuedParseResult<T> ParseImbued(const std::string& input) {
+  std::istringstream is(input);
+  ImbueNonFiniteLocale(&is);
+  T v = T{42};
+  is >> v;
+  return {is.fail(), v};
+}
+
+MATCHER_P(ParsesFinite, expected, "") {
+  return !arg.failed && arg.value == expected &&
+         std::signbit(arg.value) == std::signbit(expected);
+}
+
+MATCHER(ParsesNan, "") { return !arg.failed && std::isnan(arg.value); }
+
+MATCHER_P(ParsesInf, positive, "") {
+  return !arg.failed && std::isinf(arg.value) &&
+         (positive ? arg.value > 0 : arg.value < 0);
+}
+
+MATCHER(FailsImbuedParse, "") { return arg.failed; }
+
+TEST(ImbueNonFiniteLocale, ParsesNonFiniteAndDelegatesFiniteValues) {
+  EXPECT_THAT(ParseImbued<float>("nan"), ParsesNan());
+  EXPECT_THAT(ParseImbued<float>("inf"), ParsesInf(true));
+  EXPECT_THAT(ParseImbued<float>("-inf"), ParsesInf(false));
+  EXPECT_THAT(ParseImbued<float>("+inf"), ParsesInf(true));
+  EXPECT_THAT(ParseImbued<float>("1.5"), ParsesFinite(1.5f));
+  EXPECT_THAT(ParseImbued<float>("-1.5"), ParsesFinite(-1.5f));
+  EXPECT_THAT(ParseImbued<float>("-0.0"), ParsesFinite(-0.0f));
+  EXPECT_THAT(ParseImbued<float>("-3.402823466e+38"),
+              ParsesFinite(std::numeric_limits<float>::lowest()));
+
+  EXPECT_THAT(ParseImbued<double>("nan"), ParsesNan());
+  EXPECT_THAT(ParseImbued<double>("inf"), ParsesInf(true));
+  EXPECT_THAT(ParseImbued<double>("-inf"), ParsesInf(false));
+  EXPECT_THAT(ParseImbued<double>("1.5"), ParsesFinite(1.5));
+  EXPECT_THAT(ParseImbued<double>("-1.5"), ParsesFinite(-1.5));
+  EXPECT_THAT(ParseImbued<double>("-0.0"), ParsesFinite(-0.0));
+  EXPECT_THAT(ParseImbued<double>("-1.7976931348623157e+308"),
+              ParsesFinite(std::numeric_limits<double>::lowest()));
+
+  EXPECT_THAT(ParseImbued<long double>("nan"), ParsesNan());
+  EXPECT_THAT(ParseImbued<long double>("inf"), ParsesInf(true));
+  EXPECT_THAT(ParseImbued<long double>("-inf"), ParsesInf(false));
+  EXPECT_THAT(ParseImbued<long double>("1.5"), ParsesFinite(1.5L));
+  EXPECT_THAT(ParseImbued<long double>("-1.5"), ParsesFinite(-1.5L));
+
+  // Multi-token extraction preserves stream position across non-finite and
+  // finite tokens, including integral extractions on the same stream.
+  std::istringstream seq("2 nan 1.5 -inf -2.25");
+  ImbueNonFiniteLocale(&seq);
+  int count = 0;
+  double a = 0.0;
+  double b = 0.0;
+  double c = 0.0;
+  double d = 0.0;
+  seq >> count >> a >> b >> c >> d;
+  ASSERT_FALSE(seq.fail());
+  EXPECT_EQ(count, 2);
+  EXPECT_TRUE(std::isnan(a));
+  EXPECT_EQ(b, 1.5);
+  EXPECT_TRUE(std::isinf(c) && c < 0.0);
+  EXPECT_EQ(d, -2.25);
+
+  EXPECT_THAT(ParseImbued<double>(""), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("-"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("+"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("--1.5"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("+-1.5"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("not_a_number"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("infxyz"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("nan1"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("1e400"), FailsImbuedParse());
+  EXPECT_THAT(ParseImbued<double>("-1e400"), FailsImbuedParse());
 }
 
 }  // namespace
