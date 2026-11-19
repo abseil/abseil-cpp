@@ -21,35 +21,24 @@
 
 #include "absl/hash/internal/city.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
-#include "absl/base/internal/unaligned_access.h"
-#include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
-#ifdef ABSL_IS_BIG_ENDIAN
-#define uint32_in_expected_order(x) (absl::gbswap_32(x))
-#define uint64_in_expected_order(x) (absl::gbswap_64(x))
-#else
-#define uint32_in_expected_order(x) (x)
-#define uint64_in_expected_order(x) (x)
-#endif
-
 static uint64_t Fetch64(const char *p) {
-  return uint64_in_expected_order(ABSL_INTERNAL_UNALIGNED_LOAD64(p));
+  return absl::little_endian::Load64(p);
 }
 
 static uint32_t Fetch32(const char *p) {
-  return uint32_in_expected_order(ABSL_INTERNAL_UNALIGNED_LOAD32(p));
+  return absl::little_endian::Load32(p);
 }
 
 // Some primes between 2^63 and 2^64 for various uses.
@@ -70,13 +59,6 @@ static uint32_t fmix(uint32_t h) {
   h ^= h >> 16;
   return h;
 }
-
-#undef PERMUTE3
-#define PERMUTE3(a, b, c) \
-  do {                    \
-    std::swap(a, b);      \
-    std::swap(a, c);      \
-  } while (0)
 
 static uint32_t Mur(uint32_t a, uint32_t h) {
   // Helper from Murmur3 for combining two 32-bit values.
@@ -173,7 +155,8 @@ uint32_t CityHash32(const char *s, size_t len) {
     h += b4 * 5;
     h = absl::gbswap_32(h);
     f += b0;
-    PERMUTE3(f, h, g);
+    std::swap(f, h);
+    std::swap(f, g);
     s += 20;
   } while (--iters != 0);
   g = absl::rotr(g, 11) * c1;
