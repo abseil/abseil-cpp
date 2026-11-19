@@ -57,6 +57,9 @@ int NumCPUs();
 // return types of GetProcessId() and GetThreadId() are both DWORD, an unsigned
 // 32-bit type.
 using pid_t = uint32_t;
+#elif defined(__CYGWIN__)
+// On CYGWIN, this works on both i686 (deprecated) and x64 targets.
+using pid_t = uintptr_t;
 #endif
 pid_t GetTID();
 
