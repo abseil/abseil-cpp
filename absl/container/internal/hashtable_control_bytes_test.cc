@@ -233,26 +233,6 @@ TYPED_TEST(GroupTest, MaskEmptyOrDeleted) {
   }
 }
 
-TYPED_TEST(GroupTest, MaskFullOrSentinel) {
-  using GroupType = TypeParam;
-  if (GroupType::kWidth == 16) {
-    ctrl_t group[] = {
-        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kEmpty,    CtrlT(3),
-        ctrl_t::kDeleted, CtrlT(5),         ctrl_t::kSentinel, ctrl_t::kEmpty,
-        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kDeleted,  ctrl_t::kDeleted,
-        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kDeleted,  ctrl_t::kDeleted,
-    };
-    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 3);
-  } else if (GroupType::kWidth == 8) {
-    ctrl_t group[] = {ctrl_t::kEmpty,   ctrl_t::kDeleted, CtrlT(2),
-                      ctrl_t::kDeleted, CtrlT(2),         ctrl_t::kSentinel,
-                      ctrl_t::kDeleted, ctrl_t::kEmpty};
-    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 2);
-  } else {
-    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
-  }
-}
-
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

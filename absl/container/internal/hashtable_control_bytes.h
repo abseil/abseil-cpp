@@ -86,9 +86,7 @@ class NonIterableBitMask {
   explicit operator bool() const { return mask_ != 0; }
 
   // Returns the index of the lowest *abstract* bit set in `self`.
-  uint32_t LowestBitSet() const {
-    return container_internal::TrailingZeros(mask_) >> Shift;
-  }
+  uint32_t LowestBitSet() const { return TrailingZeros(); }
 
   // Returns the number of trailing zero *abstract* bits.
   uint32_t TrailingZeros() const {
@@ -328,15 +326,6 @@ struct GroupSse2Impl {
         MoveMask(_mm_cmpgt_epi8_fixed(special, ctrl)));
   }
 
-  // Returns a bitmask representing the positions of full or sentinel slots.
-  // Note: for `is_small()` tables group may contain the "same" slot twice:
-  // original and mirrored.
-  NonIterableBitMaskType MaskFullOrSentinel() const {
-    auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel) - 1);
-    return NonIterableBitMaskType(
-        MoveMask(_mm_cmpgt_epi8_fixed(ctrl, special)));
-  }
-
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     // Take advantage of the fact that kEmpty is already the smallest signed
     // char value, and using a saturated subtraction will not affect it.
@@ -416,15 +405,6 @@ struct GroupAArch64Impl {
     return NonIterableBitMaskType(mask);
   }
 
-  NonIterableBitMaskType MaskFullOrSentinel() const {
-    uint64_t mask = vget_lane_u64(
-        vreinterpret_u64_u8(
-            vcgt_s8(vreinterpret_s8_u8(ctrl),
-                    vdup_n_s8(static_cast<int8_t>(ctrl_t::kSentinel) - 1))),
-        0);
-    return NonIterableBitMaskType(mask);
-  }
-
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(ctrl), 0);
     constexpr uint64_t slsbs = 0x0202020202020202ULL;
@@ -485,10 +465,6 @@ struct GroupPortableImpl {
 
   auto MaskEmptyOrDeleted() const {
     return NonIterableBitMaskType((ctrl & ~(ctrl << 7)) & kMsbs8Bytes);
-  }
-
-  auto MaskFullOrSentinel() const {
-    return NonIterableBitMaskType((~ctrl | (ctrl << 7)) & kMsbs8Bytes);
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
