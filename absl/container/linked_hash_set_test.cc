@@ -827,6 +827,11 @@ TEST(LinkedHashSet, ExtractInsert) {
   EXPECT_EQ(node.value(), 9);
   EXPECT_THAT(s, ElementsAre(7, 2, 17));
   EXPECT_FALSE(s.contains(9));
+
+  node.value() = 19;
+  auto it = s.insert(s.begin(), std::move(node));
+  EXPECT_EQ(it, s.find(19));
+  EXPECT_THAT(s, ElementsAre(7, 2, 17, 19));
 }
 
 // Verify that emplacing and extracting nodes results in the same stateful

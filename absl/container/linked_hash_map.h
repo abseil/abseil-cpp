@@ -476,7 +476,7 @@ class linked_hash_map {
   }
 
   iterator insert(const_iterator, node_type&& node) {
-    return insert(std::move(node)).first;
+    return insert(std::move(node)).position;
   }
 
   // The last two template parameters ensure that both arguments are rvalues

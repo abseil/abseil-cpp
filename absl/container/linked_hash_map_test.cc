@@ -795,6 +795,11 @@ TEST(LinkedHashMap, ExtractInsert) {
   EXPECT_EQ(node.key(), 1);
   EXPECT_EQ(node.mapped(), 17);
   EXPECT_THAT(m, ElementsAre(Pair(2, 9)));
+
+  node.mapped() = 19;
+  auto it = m.insert(m.begin(), std::move(node));
+  EXPECT_EQ(it, m.find(1));
+  EXPECT_THAT(m, ElementsAre(Pair(2, 9), Pair(1, 19)));
 }
 
 // Verify that emplacing and extracting nodes results in the same stateful

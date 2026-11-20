@@ -445,7 +445,7 @@ class linked_hash_set {
   }
 
   iterator insert(const_iterator, node_type&& node) {
-    return insert(std::move(node)).first;
+    return insert(std::move(node)).position;
   }
 
   template <typename... Args>
