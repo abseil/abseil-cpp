@@ -212,8 +212,6 @@ absl_cc_library(
     dynamic_annotations
   HDRS
     "dynamic_annotations.h"
-  SRCS
-    "internal/dynamic_annotations.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
