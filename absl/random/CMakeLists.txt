@@ -1104,8 +1104,10 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::flat_hash_map
+    absl::config
+    absl::flat_hash_set
     absl::random_internal_entropy_pool
+    absl::random_seed_gen_exception
     absl::synchronization
     GTest::gtest_main
 )
