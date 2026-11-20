@@ -36,9 +36,11 @@ absl_cc_library(
   HDRS
     "internal/cpu_detect.h"
   SRCS
-    "internal/cpu_detect.cc"
+    "internal/cpu_detect_arm.cc"
+    "internal/cpu_detect_other.cc"
+    "internal/cpu_detect_ppc.cc"
+    "internal/cpu_detect_x86.cc"
   DEPS
-    absl::base
     absl::config
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -662,6 +664,7 @@ absl_cc_test(
   DEPS
     absl::base_cpu_detect
     absl::config
+    GTest::gmock
     GTest::gtest_main
 )
 
