@@ -1036,6 +1036,18 @@ class CommonFieldsGenerationInfoEnabled {
   void reset_reserved_growth(size_t reservation, size_t size) {
     reserved_growth_ = reservation - size;
   }
+  void update_for_reserve(size_t reservation, size_t size) {
+    const size_t current =
+        reserved_growth_ == kReservedGrowthJustRanOut ? 0 : reserved_growth_;
+    if (reservation > size) {
+      reserved_growth_ = (std::max)(current, reservation - size);
+    }
+    reservation_size_ = (std::max)(reservation_size_, reservation);
+  }
+  void clear_reservation() {
+    reserved_growth_ = 0;
+    reservation_size_ = 0;
+  }
   size_t reserved_growth() const { return reserved_growth_; }
   void set_reserved_growth(size_t r) { reserved_growth_ = r; }
   size_t reservation_size() const { return reservation_size_; }
@@ -1079,6 +1091,8 @@ class CommonFieldsGenerationInfoDisabled {
   void maybe_increment_generation_on_insert() {}
   void increment_generation() {}
   void reset_reserved_growth(size_t, size_t) {}
+  void update_for_reserve(size_t, size_t) {}
+  void clear_reservation() {}
   size_t reserved_growth() const { return 0; }
   void set_reserved_growth(size_t) {}
   size_t reservation_size() const { return 0; }
@@ -1506,6 +1520,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
                                           const PolicyFunctions& policy);
   void reset_reserved_growth(size_t reservation) {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
+  }
+  void update_for_reserve(size_t reservation) {
+    CommonFieldsGenerationInfo::update_for_reserve(reservation, size());
   }
 
   // Returns the number of blocked elements in the table.

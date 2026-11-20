@@ -2418,6 +2418,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   const size_t soo_capacity = policy.alloc_policy->soo_capacity();
 
   if (n == 0) {
+    common.clear_reservation();
     if (cap <= soo_capacity) return;
     if (common.empty()) {
       clear_backing_array();
@@ -2555,8 +2556,7 @@ void ReserveTableToFitNewSize(CommonFields& common,
   const AllocPolicy& alloc_policy = *policy.alloc_policy;
   new_size = std::min(new_size,
                       MaxValidSize(alloc_policy.key_size, policy.slot_size));
-  common.reset_reserved_growth(new_size);
-  common.set_reservation_size(new_size);
+  common.update_for_reserve(new_size);
   ABSL_SWISSTABLE_ASSERT(new_size > policy.alloc_policy->soo_capacity());
   const size_t cap = common.capacity();
   if (ABSL_PREDICT_TRUE(common.empty() &&
