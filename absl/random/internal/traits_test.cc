@@ -14,6 +14,7 @@
 
 #include "absl/random/internal/traits.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <type_traits>
@@ -22,8 +23,12 @@
 
 namespace {
 
+using absl::random_internal::HasSeedSeqGenerate;
+using absl::random_internal::HasSeedSeqSize;
 using absl::random_internal::is_urbg;
 using absl::random_internal::is_widening_convertible;
+using absl::random_internal::IsDirectEntropySeedSeq;
+using absl::random_internal::IsValidSeedSeqResultType;
 
 static_assert(is_urbg<std::minstd_rand>::value);
 static_assert(!is_urbg<uint64_t>::value);
@@ -124,5 +129,63 @@ TEST(TraitsTest, IsWideningConvertibleTest) {
   CheckWideningConvertsTo<bool, int>();
   CheckWideningConvertsTo<bool, float>();
 }
+
+enum UnscopedU32Enum : uint32_t { kZero = 0 };
+enum class ScopedU32Enum : uint32_t { kZero = 0 };
+struct EmptyStruct {};
+
+struct NoResultSeedSeq {
+  size_t size() const { return 1; }
+  void generate(uint32_t*, uint32_t*) {}
+};
+
+struct MutableOnlySeedSeq {
+  using result_type = uint32_t;
+  size_t size() { return 1; }
+  void generate(uint32_t*, uint32_t*) {}
+};
+
+struct ConstSeedSeq {
+  using result_type = uint64_t;
+  size_t size() const { return 1; }
+  void generate(uint32_t*, uint32_t*) const {}
+};
+
+static_assert(IsValidSeedSeqResultType<uint32_t>::value);
+static_assert(IsValidSeedSeqResultType<uint64_t>::value);
+static_assert(IsValidSeedSeqResultType<unsigned int>::value);
+static_assert(IsValidSeedSeqResultType<unsigned long>::value);       // NOLINT
+static_assert(IsValidSeedSeqResultType<unsigned long long>::value);  // NOLINT
+static_assert(IsValidSeedSeqResultType<std::seed_seq::result_type>::value);
+
+static_assert(!IsValidSeedSeqResultType<bool>::value);
+static_assert(!IsValidSeedSeqResultType<uint8_t>::value);
+static_assert(!IsValidSeedSeqResultType<uint16_t>::value);
+static_assert(!IsValidSeedSeqResultType<int32_t>::value);
+static_assert(!IsValidSeedSeqResultType<int64_t>::value);
+static_assert(!IsValidSeedSeqResultType<const uint32_t>::value);
+static_assert(!IsValidSeedSeqResultType<volatile uint32_t>::value);
+static_assert(!IsValidSeedSeqResultType<uint32_t&>::value);
+static_assert(!IsValidSeedSeqResultType<uint32_t&&>::value);
+static_assert(!IsValidSeedSeqResultType<float>::value);
+static_assert(!IsValidSeedSeqResultType<double>::value);
+static_assert(!IsValidSeedSeqResultType<void>::value);
+static_assert(!IsValidSeedSeqResultType<UnscopedU32Enum>::value);
+static_assert(!IsValidSeedSeqResultType<ScopedU32Enum>::value);
+static_assert(!IsValidSeedSeqResultType<EmptyStruct>::value);
+
+static_assert(!HasSeedSeqGenerate<NoResultSeedSeq>::value);
+static_assert(HasSeedSeqGenerate<MutableOnlySeedSeq&>::value);
+static_assert(!HasSeedSeqGenerate<const MutableOnlySeedSeq&>::value);
+static_assert(HasSeedSeqGenerate<const ConstSeedSeq&>::value);
+
+static_assert(HasSeedSeqSize<MutableOnlySeedSeq&>::value);
+static_assert(!HasSeedSeqSize<const MutableOnlySeedSeq&>::value);
+static_assert(HasSeedSeqSize<const ConstSeedSeq&>::value);
+static_assert(!HasSeedSeqSize<EmptyStruct>::value);
+
+static_assert(!IsDirectEntropySeedSeq<std::seed_seq>::value);
+static_assert(!IsDirectEntropySeedSeq<ConstSeedSeq>::value);
+static_assert(!IsDirectEntropySeedSeq<EmptyStruct>::value);
 
 }  // namespace

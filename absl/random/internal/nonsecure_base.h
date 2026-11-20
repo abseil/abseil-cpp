@@ -29,10 +29,46 @@
 #include "absl/random/internal/entropy_pool.h"
 #include "absl/random/internal/salted_seed_seq.h"
 #include "absl/random/internal/seed_material.h"
+#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace random_internal {
+
+// True when `Iterator` is a known contiguous mutable iterator over non-bool
+// integral elements (`U*` or `std::vector<U>::iterator`) whose object
+// representation can be filled directly with random bytes. Excludes `bool`
+// (trap representations), non-integral types (arbitrary object layout),
+// `const`/`volatile` pointees, and proxy references, without instantiating
+// `std::iterator_traits<void*>` (ill-formed in C++17) or `std::vector<U>` for
+// non-qualifying `U`.
+template <typename Iterator, bool IsPointer = std::is_pointer_v<Iterator>,
+          typename = void>
+struct IsRandenPoolContiguousIterator : std::false_type {};
+
+template <typename Iterator>
+struct IsRandenPoolContiguousIterator<Iterator, true, void>
+    : std::bool_constant<
+          std::is_same_v<std::remove_pointer_t<Iterator>,
+                         std::remove_cv_t<std::remove_pointer_t<Iterator>>> &&
+          std::is_integral_v<std::remove_pointer_t<Iterator>> &&
+          !std::is_same_v<std::remove_pointer_t<Iterator>, bool>> {};
+
+template <typename Iterator>
+struct IsRandenPoolContiguousIterator<
+    Iterator, false,
+    std::enable_if_t<
+        std::is_same_v<typename std::iterator_traits<Iterator>::value_type,
+                       absl::remove_cvref_t<typename std::iterator_traits<
+                           Iterator>::value_type>> &&
+        std::is_integral_v<
+            typename std::iterator_traits<Iterator>::value_type> &&
+        !std::is_same_v<typename std::iterator_traits<Iterator>::value_type,
+                        bool> &&
+        std::is_same_v<typename std::iterator_traits<Iterator>::reference,
+                       typename std::iterator_traits<Iterator>::value_type&>>>
+    : std::is_same<Iterator, typename std::vector<typename std::iterator_traits<
+                                 Iterator>::value_type>::iterator> {};
 
 // RandenPoolSeedSeq is a custom seed sequence type where generate() fills the
 // provided buffer via the RandenPool entropy source.
@@ -54,16 +90,16 @@ class RandenPoolSeedSeq {
   template <typename RandomAccessIterator>
   void generate_impl(BufferTag, RandomAccessIterator begin,
                      RandomAccessIterator end) {
-    const size_t n = std::distance(begin, end);
+    const size_t n = static_cast<size_t>(std::distance(begin, end));
     absl::InlinedVector<uint32_t, 8> data(n, 0);
-    GetEntropyFromRandenPool(data.begin(), sizeof(data[0]) * n);
+    GetEntropyFromRandenPool(data.data(), sizeof(data[0]) * n);
     std::copy(std::begin(data), std::end(data), begin);
   }
 
  public:
   using result_type = uint32_t;
 
-  size_t size() { return 0; }
+  size_t size() const { return 0; }
 
   template <typename OutIterator>
   void param(OutIterator) const {}
@@ -72,22 +108,78 @@ class RandenPoolSeedSeq {
   void generate(RandomAccessIterator begin, RandomAccessIterator end) {
     // RandomAccessIterator must be assignable from uint32_t
     if (begin != end) {
-      using U = typename std::iterator_traits<RandomAccessIterator>::value_type;
-      // ContiguousTag indicates the common case of a known contiguous buffer,
-      // which allows directly filling the buffer. In C++20,
-      // std::contiguous_iterator_tag provides a mechanism for testing this
-      // capability, however until Abseil's support requirements allow us to
-      // assume C++20, limit checks to a few common cases.
+      // ContiguousTag indicates the common case of a known contiguous buffer of
+      // mutable non-bool integral values, which allows directly filling the
+      // buffer. In C++20, std::contiguous_iterator_tag provides a mechanism for
+      // testing this capability, however until Abseil's support requirements
+      // allow us to assume C++20, limit checks to a few common cases.
       using TagType = std::conditional_t<
-          (std::is_pointer_v<RandomAccessIterator> ||
-           std::is_same_v<RandomAccessIterator,
-                          typename std::vector<U>::iterator>),
+          IsRandenPoolContiguousIterator<RandomAccessIterator>::value,
           ContiguousTag, BufferTag>;
 
       generate_impl(TagType{}, begin, end);
     }
   }
 };
+
+template <>
+struct IsDirectEntropySeedSeq<RandenPoolSeedSeq> : std::true_type {};
+
+// Detects whether `URBG` can be constructed directly from `seq` (if it is
+// already a `SaltedSeedSeq`) or from a stack-scoped non-owning
+// `SaltedSeedSeq<std::remove_reference_t<SSeq>&>`.
+template <typename URBG, typename SSeq, typename = void>
+struct CanDirectlySeedURBG : std::false_type {};
+
+template <typename URBG, typename SSeq>
+struct CanDirectlySeedURBG<URBG, SSeq,
+                           std::enable_if_t<HasSeedSeqGenerate<SSeq>::value>>
+    : std::is_constructible<
+          URBG,
+          std::conditional_t<is_salted_seed_seq<SSeq>::value,
+                             std::remove_reference_t<SSeq>&,
+                             SaltedSeedSeq<std::remove_reference_t<SSeq>&>&>> {
+};
+
+template <typename SSeq, typename ResultType, typename = void>
+struct HasSeedSeqParam : std::false_type {};
+
+template <typename SSeq, typename ResultType>
+struct HasSeedSeqParam<
+    SSeq, ResultType,
+    std::void_t<decltype(std::declval<std::remove_reference_t<SSeq>&>().param(
+        std::back_inserter(
+            std::declval<absl::InlinedVector<ResultType, 8>&>())))>>
+    : std::true_type {};
+
+template <typename URBG, typename SSeq, typename Target, typename ResultType,
+          typename = void>
+struct CanMakeSaltedSeedSeqImpl : std::false_type {};
+
+template <typename URBG, typename SSeq, typename Target, typename ResultType>
+struct CanMakeSaltedSeedSeqImpl<
+    URBG, SSeq, Target, ResultType,
+    std::enable_if_t<std::conjunction_v<
+        std::is_constructible<
+            SaltedSeedSeq<Target>,
+            typename absl::InlinedVector<ResultType, 8>::iterator,
+            typename absl::InlinedVector<ResultType, 8>::iterator>,
+        HasSeedSeqParam<SSeq, ResultType>>>>
+    : std::is_constructible<URBG, SaltedSeedSeq<Target>&> {};
+
+// Detects whether `MakeSaltedSeedSeq(seq)` can construct a mutable owning
+// `SaltedSeedSeq` from `seq` via `seq.param(...)` (e.g. `const std::seed_seq&`
+// or `const absl::SeedSeq&`) that can construct `URBG`.
+template <typename URBG, typename SSeq, typename = void>
+struct CanMakeSaltedSeedSeq : std::false_type {};
+
+template <typename URBG, typename SSeq>
+struct CanMakeSaltedSeedSeq<URBG, SSeq,
+                            std::enable_if_t<HasSeedSeqGenerate<
+                                typename UnwrappedSeedSeq<SSeq>::type>::value>>
+    : CanMakeSaltedSeedSeqImpl<
+          URBG, SSeq, typename UnwrappedSeedSeq<SSeq>::type,
+          typename UnwrappedSeedSeq<SSeq>::type::result_type> {};
 
 // Each instance of NonsecureURBGBase<URBG> will be seeded by variates produced
 // by a thread-unique URBG-instance.
@@ -106,8 +198,14 @@ class NonsecureURBGBase {
   NonsecureURBGBase& operator=(NonsecureURBGBase&&) = default;
 
   // Constructor using a seed
-  template <class SSeq, typename = typename std::enable_if_t<
-                            !std::is_same_v<SSeq, NonsecureURBGBase>>>
+  template <
+      class SSeq,
+      typename = std::enable_if_t<
+          !std::is_same_v<absl::remove_cvref_t<SSeq>, NonsecureURBGBase> &&
+          !std::is_base_of_v<NonsecureURBGBase, absl::remove_cvref_t<SSeq>> &&
+          !std::is_convertible_v<SSeq, result_type>>,
+      typename = std::enable_if_t<std::disjunction_v<
+          CanDirectlySeedURBG<URBG, SSeq>, CanMakeSaltedSeedSeq<URBG, SSeq>>>>
   explicit NonsecureURBGBase(SSeq&& seq)
       : urbg_(ConstructURBG(std::forward<SSeq>(seq))) {}
 
@@ -145,9 +243,17 @@ class NonsecureURBGBase {
 
   template <typename SSeq>
   static URBG ConstructURBG(SSeq&& seq) {  // NOLINT(runtime/references)
-    auto salted_seq =
-        random_internal::MakeSaltedSeedSeq(std::forward<SSeq>(seq));
-    return URBG(salted_seq);
+    if constexpr (CanDirectlySeedURBG<URBG, SSeq>::value) {
+      if constexpr (is_salted_seed_seq<SSeq>::value) {
+        return URBG(seq);
+      } else {
+        SaltedSeedSeq<std::remove_reference_t<SSeq>&> salted_seq(seq);
+        return URBG(salted_seq);
+      }
+    } else {
+      auto salted_seq = random_internal::MakeSaltedSeedSeq(seq);
+      return URBG(salted_seq);
+    }
   }
 
   URBG urbg_;
