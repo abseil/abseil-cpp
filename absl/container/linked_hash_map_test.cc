@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -157,6 +158,15 @@ TEST(LinkedHashMapTest, CanEmplaceMoveOnly) {
   auto found = m.find(2);
   ASSERT_TRUE(found != m.end());
   EXPECT_EQ(234, *found->second);
+}
+
+TEST(LinkedHashMapTest, CanRangeConstructMoveOnly) {
+  std::vector<std::pair<int, std::unique_ptr<int>>> vec;
+  vec.emplace_back(1, std::make_unique<int>(10));
+  vec.emplace_back(2, std::make_unique<int>(20));
+  linked_hash_map<int, std::unique_ptr<int>> ranged(
+      std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
+  EXPECT_THAT(ranged, ElementsAre(Pair(1, Pointee(10)), Pair(2, Pointee(20))));
 }
 
 struct NoCopy {

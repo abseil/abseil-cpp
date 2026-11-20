@@ -181,6 +181,10 @@ TEST(LinkedHashSetTest, CanInsertTransparent) {
   s.insert(absl::string_view("bar"));
   s.insert(absl::string_view("foo"));
   EXPECT_THAT(s, ElementsAre("foo", "bar"));
+
+  std::vector<absl::string_view> svs = {"baz", "qux", "baz"};
+  linked_hash_set<std::string> ranged(svs.begin(), svs.end());
+  EXPECT_THAT(ranged, ElementsAre("baz", "qux"));
 }
 
 // Tests that iteration from begin() to end() works
@@ -832,6 +836,21 @@ TEST(LinkedHashSet, ExtractInsert) {
   auto it = s.insert(s.begin(), std::move(node));
   EXPECT_EQ(it, s.find(19));
   EXPECT_THAT(s, ElementsAre(7, 2, 17, 19));
+}
+
+TEST(LinkedHashSet, NonTransparentRangeConstructorConvertsElementsOnce) {
+  struct PolyHash {
+    size_t operator()(int x) const { return static_cast<size_t>(x) ^ 0x1234; }
+    size_t operator()(double x) const { return static_cast<size_t>(x); }
+  };
+  struct PolyEq {
+    bool operator()(int a, int b) const { return a == b; }
+    bool operator()(double a, double b) const { return a == b; }
+  };
+  std::vector<int> input = {1, 2, 1};
+  linked_hash_set<double, PolyHash, PolyEq> s(input.begin(), input.end());
+  EXPECT_THAT(s, ElementsAre(1.0, 2.0));
+  EXPECT_TRUE(s.contains(2.0));
 }
 
 // Verify that emplacing and extracting nodes results in the same stateful
