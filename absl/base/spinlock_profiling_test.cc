@@ -37,6 +37,13 @@ struct SpinLockProfilingTestPeer {
     return (l.lockword_.load(std::memory_order_relaxed) &
             SpinLock::kWaitTimeMask) != 0;
   }
+
+  static void LockAndUnlockWithWaitStart(SpinLock& l, int64_t wait_start_time) {
+    l.lock();
+    l.lockword_.fetch_or(SpinLock::EncodeWaitStart(wait_start_time),
+                         std::memory_order_relaxed);
+    l.unlock();
+  }
 };
 
 namespace {
@@ -128,6 +135,16 @@ TEST_F(SpinLockProfiling, UncontendedAcquisitionsAreNotReported) {
   profiled_lock = nullptr;
 
   EXPECT_EQ(0, lock_profiler_calls.load(std::memory_order_relaxed));
+  EXPECT_EQ(0, unlock_profiler_calls.load(std::memory_order_relaxed));
+}
+
+TEST_F(SpinLockProfiling, NegativeClockSkewIsNotReported) {
+  SpinLock spinlock(SCHEDULE_KERNEL_ONLY);
+  profiled_lock = &spinlock;
+  SpinLockProfilingTestPeer::LockAndUnlockWithWaitStart(
+      spinlock, CycleClock::Now() + (int64_t{1} << 20));
+  profiled_lock = nullptr;
+
   EXPECT_EQ(0, unlock_profiler_calls.load(std::memory_order_relaxed));
 }
 

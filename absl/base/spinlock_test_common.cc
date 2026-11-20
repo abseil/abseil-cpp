@@ -143,14 +143,16 @@ TEST(SpinLock, StaticNonCooperativeDisablesScheduling) {
 
 TEST(SpinLock, WaitStartEncoding) {
   // These are implementation details not exported by SpinLock.
-  const int kProfileTimestampShift = 7;
+  const int kProfileTimestampShift = 8;
   const int kLockwordReservedShift = 3;
 
   // The encoded timestamp wraps around at 2^kWrapShift cycles, and the lower
-  // kProfileTimestampShift bits are dropped.
+  // kProfileTimestampShift bits are dropped.  Deltas are interpreted as signed,
+  // so positive waits up to 2^(kWrapShift - 1) - step decode as positive and
+  // negative clock skews decode as negative.
   const int kWrapShift = 32 - kLockwordReservedShift + kProfileTimestampShift;
   const int64_t step = (1 << kProfileTimestampShift);
-  const int64_t kMaxCycles = (int64_t{1} << kWrapShift) - step;
+  const int64_t kMaxCycles = (int64_t{1} << (kWrapShift - 1)) - step;
 
   // These bits should be zero after encoding.
   const uint32_t kLockwordReservedMask = (1 << kLockwordReservedShift) - 1;
@@ -195,13 +197,20 @@ TEST(SpinLock, WaitStartEncoding) {
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(lock_value, start_time));
   EXPECT_EQ(step,
             SpinLockTest::DecodeWaitCycles(lock_value, start_time + step));
+  EXPECT_EQ(-step,
+            SpinLockTest::DecodeWaitCycles(lock_value, start_time - step));
   EXPECT_EQ(kMaxCycles, SpinLockTest::DecodeWaitCycles(
                             lock_value, start_time + kMaxCycles));
+  // Past the signed half-range, deltas are treated as negative clock skew.
+  EXPECT_EQ(-kMaxCycles - step,
+            SpinLockTest::DecodeWaitCycles(lock_value,
+                                           start_time + kMaxCycles + step));
   // Once the clock wraps all the way around, the elapsed time wraps to zero.
-  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(lock_value,
-                                              start_time + kMaxCycles + step));
-  EXPECT_EQ(step, SpinLockTest::DecodeWaitCycles(
-                      lock_value, start_time + kMaxCycles + 2 * step));
+  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(
+                   lock_value, start_time + (int64_t{1} << kWrapShift)));
+  EXPECT_EQ(step,
+            SpinLockTest::DecodeWaitCycles(
+                lock_value, start_time + (int64_t{1} << kWrapShift) + step));
 
   // A timestamp whose truncation is zero must not encode as "no waiter", and
   // decoding in the same tick must return zero rather than underflowing.
