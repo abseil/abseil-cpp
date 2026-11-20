@@ -117,8 +117,18 @@ void SetCurrentThreadIdentity(ThreadIdentity* identity,
                       reinterpret_cast<void*>(identity));
   thread_identity_ptr = identity;
 #elif ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_CPP11
+  // `holder`'s destructor intentionally reclaims `identity` on thread exit.
+  // -Wexit-time-destructors was added for Chromium's interests, but this one
+  // doesn't affect the Chromium build, so we disable this warning.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
   thread_local std::unique_ptr<ThreadIdentity, ThreadIdentityReclaimerFunction>
       holder(identity, reclaimer);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   thread_identity_ptr = identity;
 #else
 #error Unimplemented ABSL_THREAD_IDENTITY_MODE

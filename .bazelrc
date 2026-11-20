@@ -46,14 +46,20 @@ build:windows-base --host_per_file_copt=external/.*@/w,/O1
 
 common:windows-msvc --config=windows-base
 
+# Disallow static initializers and exit-time destructors outside of tests,
+# benchmarks, and the allowlisted flag-defining files.
+build:check-static-init --per_file_copt=+^absl/.*\.(cc|h)$,-_test\.(cc|h)$,-_test_[^/]*\.(cc|h)$,-_testing\.h$,-_benchmark\.cc$,-_benchmarks\.cc$,-/benchmarks\.cc$,-^absl/flags/parse\.cc$,-^absl/log/flags\.cc$@-Wglobal-constructors,-Wexit-time-destructors
+
 common:windows-clangcl --config=windows-base
 build:windows-clangcl --compiler=clang-cl
+build:windows-clangcl --config=check-static-init
 build:windows-clangcl --copt=-Wno-microsoft-cast
 build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
 build:windows-clangcl --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
 
 # Configure our macOS Xcode setup.
 build:macos --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build:macos --config=check-static-init
 build:macos --copt=-Werror
 build:macos --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
 build:macos --features=external_include_paths
@@ -62,9 +68,9 @@ build:macos --host_per_file_copt=external/.*@-w
 
 build:gcc --config=linux --platforms=//ci:linux_gcc
 build:gcc-exceptions --config=gcc --copt=-fexceptions
-build:clang --config=linux --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument
+build:clang --config=linux --config=check-static-init --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument
 build:clang-exceptions --config=clang --copt=-fexceptions
-build:clang-arm --config=linux --platforms=//ci:linux_arm_clang --conlyopt=-Wno-unused-command-line-argument
+build:clang-arm --config=linux --config=check-static-init --platforms=//ci:linux_arm_clang --conlyopt=-Wno-unused-command-line-argument
 build:libstdc++ --config=clang --features=libstdc++ --copt=-march=haswell
 
 # Sanitizer configurations.
@@ -81,6 +87,7 @@ test:asan --test_tag_filters=-benchmark,-noasan
 
 build:tsan --config=clang --features=tsan
 build:tsan --copt=-fno-sanitize-blacklist
+build:tsan --per_file_copt=^absl/.*@-Wno-global-constructors,-Wno-exit-time-destructors
 build:tsan --build_tag_filters=-notsan
 test:tsan --test_tag_filters=-benchmark,-notsan
 

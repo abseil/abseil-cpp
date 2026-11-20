@@ -317,6 +317,7 @@ cc_library(
         ":usage_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:no_destructor",
         "//absl/base:raw_logging_internal",
         "//absl/strings:string_view",
         "//absl/synchronization",

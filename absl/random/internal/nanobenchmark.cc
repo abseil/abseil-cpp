@@ -467,7 +467,10 @@ Ticks TimerResolution() {
   return robust_statistics::Mode(repetitions);
 }
 
-static const Ticks timer_resolution = TimerResolution();
+Ticks GetTimerResolution() {
+  static const Ticks timer_resolution = TimerResolution();
+  return timer_resolution;
+}
 
 // Estimates the expected value of "lambda" values with a variable number of
 // samples until the variability "rel_mad" is less than "max_rel_mad".
@@ -494,7 +497,7 @@ Ticks SampleUntilStable(const double max_rel_mad, double* rel_mad,
 
   // Percentage is too strict for tiny differences, so also allow a small
   // absolute "median absolute deviation".
-  const Ticks max_abs_mad = (timer_resolution + 99) / 100;
+  const Ticks max_abs_mad = (GetTimerResolution() + 99) / 100;
   *rel_mad = 0.0;  // ensure initialized
 
   for (size_t eval = 0; eval < p.max_evals; ++eval, samples_per_eval *= 2) {
@@ -569,7 +572,7 @@ size_t NumSkip(const Func func, const void* arg, const InputVec& unique,
     const Ticks total = SampleUntilStable(
         p.target_rel_mad, &rel_mad, p,
         [func, arg, input]() { PreventElision(func(arg, input)); });
-    min_duration = (std::min)(min_duration, total - timer_resolution);
+    min_duration = (std::min)(min_duration, total - GetTimerResolution());
   }
 
   // Number of repetitions required to reach the target resolution.
@@ -579,7 +582,7 @@ size_t NumSkip(const Func func, const void* arg, const InputVec& unique,
       min_duration == 0 ? 0 : (max_skip + min_duration - 1) / min_duration;
   if (p.verbose) {
     ABSL_RAW_LOG(INFO, "res=%u max_skip=%zu min_dur=%u num_skip=%zu\n",
-                 timer_resolution, max_skip, min_duration, num_skip);
+                 GetTimerResolution(), max_skip, min_duration, num_skip);
   }
   return num_skip;
 }

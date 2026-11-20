@@ -14,17 +14,14 @@
 // limitations under the License.
 #include "absl/flags/usage.h"
 
-#include <stdlib.h>
-
 #include <cstdlib>
 #include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/const_init.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/thread_annotations.h"
-#include "absl/flags/internal/usage.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
@@ -32,16 +29,23 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
-ABSL_CONST_INIT absl::Mutex usage_message_guard(absl::kConstInit);
+
+absl::Mutex& UsageMessageMutex() {
+  static absl::NoDestructor<absl::Mutex> mutex;
+  return *mutex;
+}
+
 ABSL_CONST_INIT std::string* program_usage_message
-    ABSL_GUARDED_BY(usage_message_guard) = nullptr;
+    ABSL_GUARDED_BY(UsageMessageMutex())
+        ABSL_PT_GUARDED_BY(UsageMessageMutex()) = nullptr;
+
 }  // namespace
 }  // namespace flags_internal
 
 // --------------------------------------------------------------------
 // Sets the "usage" message to be used by help reporting routines.
 void SetProgramUsageMessage(absl::string_view new_usage_message) {
-  absl::MutexLock l(flags_internal::usage_message_guard);
+  absl::MutexLock l(flags_internal::UsageMessageMutex());
 
   if (flags_internal::program_usage_message != nullptr) {
     ABSL_INTERNAL_LOG(FATAL, "SetProgramUsageMessage() called twice.");
@@ -56,7 +60,7 @@ void SetProgramUsageMessage(absl::string_view new_usage_message) {
 // Note: We able to return string_view here only because calling
 // SetProgramUsageMessage twice is prohibited.
 absl::string_view ProgramUsageMessage() {
-  absl::MutexLock l(flags_internal::usage_message_guard);
+  absl::MutexLock l(flags_internal::UsageMessageMutex());
 
   return flags_internal::program_usage_message != nullptr
              ? absl::string_view(*flags_internal::program_usage_message)
