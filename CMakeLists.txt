@@ -186,6 +186,7 @@ if(ABSL_ENABLE_INSTALL)
   install(EXPORT ${PROJECT_NAME}Targets
     NAMESPACE absl::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+    COMPONENT Development
   )
 
   configure_package_config_file(
@@ -195,6 +196,7 @@ if(ABSL_ENABLE_INSTALL)
   )
   install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+    COMPONENT Development
   )
 
   # Abseil only has a version in LTS releases.  This mechanism is accomplished
@@ -208,12 +210,14 @@ if(ABSL_ENABLE_INSTALL)
 
     install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
       DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+      COMPONENT Development
     )
   endif()  # absl_VERSION
 
   # Install the headers except for "options.h" which is installed separately.
   install(DIRECTORY absl
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT Development
     FILES_MATCHING
       PATTERN "*.inc"
       PATTERN "*.h"
@@ -275,6 +279,7 @@ if(ABSL_ENABLE_INSTALL)
 
   install(FILES "${CMAKE_BINARY_DIR}/options-pinned.h"
          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/absl/base
-         RENAME "options.h")
+         RENAME "options.h"
+         COMPONENT Development)
 
 endif()  # ABSL_ENABLE_INSTALL
