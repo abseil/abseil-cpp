@@ -644,9 +644,7 @@ struct FlatHashMapPolicyBase {
 };
 
 template <class K, class V>
-struct FlatHashMapPolicy : FlatHashMapPolicyBase {
-  using slot_policy = container_internal::map_slot_policy<K, V>;
-  using slot_type = typename slot_policy::slot_type;
+struct FlatHashMapPolicy : FlatHashMapPolicyBase, map_slot_policy<K, V> {
   using key_type = K;
   using mapped_type = V;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
@@ -656,31 +654,12 @@ struct FlatHashMapPolicy : FlatHashMapPolicyBase {
   using DefaultAlloc = std::allocator<std::pair<const K, V>>;
   using SlotEq = SlotEqFn<K, /*kDerefSlot=*/false>;
 
-  template <class Allocator, class... Args>
-  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    slot_policy::construct(alloc, slot, std::forward<Args>(args)...);
-  }
-
-  // Returns std::true_type in case destroy is trivial.
-  template <class Allocator>
-  static auto destroy(Allocator* alloc, slot_type* slot) {
-    return slot_policy::destroy(alloc, slot);
-  }
-
-  template <class Allocator>
-  static auto transfer(Allocator* alloc, slot_type* new_slot,
-                       slot_type* old_slot) {
-    return slot_policy::transfer(alloc, new_slot, old_slot);
-  }
-
   template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     static_assert(memory_internal::OffsetOf<std::pair<const K, V>>::kFirst ==
                   0);
     return GetTypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>();
   }
-
-  static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }
 };
 
 }  // namespace container_internal
