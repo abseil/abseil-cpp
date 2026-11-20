@@ -596,12 +596,18 @@ static void MaybeAppendSeparator(State *state) {
   }
 }
 
-// Cancel the last separator if necessary.
-static void MaybeCancelLastSeparator(State *state) {
-  if (state->parse_state.nest_level >= 1 && state->parse_state.append &&
-      state->parse_state.out_cur_idx >= 2) {
-    state->parse_state.out_cur_idx -= 2;
-    state->out[state->parse_state.out_cur_idx] = '\0';
+// Cancels the separator appended by the last MaybeAppendSeparator, if any, by
+// restoring the output cursor to "out_cur_idx_before", its value just before
+// that call.  Stepping the cursor back by two instead would be wrong once the
+// output buffer has overflowed: the cursor then holds the overflow marker set
+// by Append (out_end_idx + 1), and stepping back over it would make a
+// truncated name look like a successful demangling.
+static void MaybeCancelLastSeparator(State *state, int out_cur_idx_before) {
+  if (state->parse_state.out_cur_idx != out_cur_idx_before) {
+    state->parse_state.out_cur_idx = out_cur_idx_before;
+    if (out_cur_idx_before < state->out_end_idx) {
+      state->out[out_cur_idx_before] = '\0';
+    }
   }
 }
 
@@ -836,6 +842,7 @@ static bool ParsePrefix(State *state) {
   if (guard.IsTooComplex()) return false;
   bool has_something = false;
   while (true) {
+    const int out_cur_idx_before_separator = state->parse_state.out_cur_idx;
     MaybeAppendSeparator(state);
     if (ParseTemplateParam(state) || ParseDecltype(state) ||
         ParseSubstitution(state, /*accept_std=*/true) ||
@@ -850,7 +857,7 @@ static bool ParsePrefix(State *state) {
       MaybeIncreaseNestLevel(state);
       continue;
     }
-    MaybeCancelLastSeparator(state);
+    MaybeCancelLastSeparator(state, out_cur_idx_before_separator);
     if (has_something && ParseTemplateArgs(state)) {
       return ParsePrefix(state);
     } else {
