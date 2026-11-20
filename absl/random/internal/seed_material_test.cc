@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -38,9 +39,9 @@
 namespace {
 
 using testing::Each;
-using testing::ElementsAre;
 using testing::Eq;
 using testing::Ne;
+using testing::Not;
 using testing::Pointwise;
 
 TEST(SeedBitsToBlocks, VerifyCases) {
@@ -65,6 +66,49 @@ TEST(ReadSeedMaterialFromOSEntropy, SuccessiveReadsAreDistinct) {
       absl::Span<uint32_t>(seed_material_2, kSeedMaterialSize)));
 
   EXPECT_THAT(seed_material_1, Pointwise(Ne(), seed_material_2));
+}
+
+TEST(ReadSeedMaterialFromOSEntropy, LargeBufferAcrossChunks) {
+  constexpr size_t kChunkWords = 64;  // 256 bytes (getentropy() chunk size).
+  constexpr size_t kNumChunks = 16;
+  constexpr size_t kSeedMaterialSize = kChunkWords * kNumChunks;
+  constexpr uint32_t kSentinel = 0xAAAAAAAAu;
+  std::vector<uint32_t> seed_material_1(kSeedMaterialSize, kSentinel);
+  std::vector<uint32_t> seed_material_2(kSeedMaterialSize, kSentinel);
+
+  EXPECT_TRUE(absl::random_internal::ReadSeedMaterialFromOSEntropy(
+      absl::MakeSpan(seed_material_1)));
+  EXPECT_TRUE(absl::random_internal::ReadSeedMaterialFromOSEntropy(
+      absl::MakeSpan(seed_material_2)));
+
+  const auto span_1 = absl::MakeConstSpan(seed_material_1);
+  const auto span_2 = absl::MakeConstSpan(seed_material_2);
+  const auto first_chunk_1 = span_1.first(kChunkWords);
+  const auto first_chunk_2 = span_2.first(kChunkWords);
+  for (size_t chunk = 0; chunk < kNumChunks; ++chunk) {
+    SCOPED_TRACE(chunk);
+    const size_t offset = chunk * kChunkWords;
+    const auto chunk_1 = span_1.subspan(offset, kChunkWords);
+    const auto chunk_2 = span_2.subspan(offset, kChunkWords);
+    EXPECT_THAT(chunk_1.first(16), Not(Each(Eq(kSentinel))));
+    EXPECT_THAT(chunk_1.first(16), Not(Each(Eq(0u))));
+    EXPECT_THAT(chunk_1.last(16), Not(Each(Eq(kSentinel))));
+    EXPECT_THAT(chunk_1.last(16), Not(Each(Eq(0u))));
+    EXPECT_THAT(chunk_2.first(16), Not(Each(Eq(kSentinel))));
+    EXPECT_THAT(chunk_2.first(16), Not(Each(Eq(0u))));
+    EXPECT_THAT(chunk_2.last(16), Not(Each(Eq(kSentinel))));
+    EXPECT_THAT(chunk_2.last(16), Not(Each(Eq(0u))));
+    EXPECT_THAT(chunk_1.first(16), Ne(chunk_2.first(16)));
+    EXPECT_THAT(chunk_1.last(16), Ne(chunk_2.last(16)));
+    if (chunk > 0) {
+      EXPECT_THAT(chunk_1, Ne(first_chunk_1));
+      EXPECT_THAT(chunk_2, Ne(first_chunk_2));
+      EXPECT_THAT(chunk_1,
+                  Ne(span_1.subspan(offset - kChunkWords, kChunkWords)));
+      EXPECT_THAT(chunk_2,
+                  Ne(span_2.subspan(offset - kChunkWords, kChunkWords)));
+    }
+  }
 }
 
 TEST(ReadSeedMaterialFromOSEntropy, ReadZeroBytesIsNoOp) {

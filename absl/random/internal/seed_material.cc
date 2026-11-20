@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -48,19 +49,51 @@
 #elif defined(__Fuchsia__)
 #include <zircon/syscalls.h>
 
+#elif defined(__APPLE__)
+#if (!defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) ||   \
+     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 101200) &&  \
+    (!defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) ||  \
+     __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 100000) && \
+    (!defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) ||      \
+     __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ >= 100000) &&     \
+    (!defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) ||   \
+     __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ >= 30000)
+#include <stdlib.h>
+#define ABSL_RANDOM_USE_ARC4RANDOM_BUF 1
 #endif
 
-#if defined(__GLIBC__) && \
-    (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))
-// glibc >= 2.25 has getentropy()
-#define ABSL_RANDOM_USE_GET_ENTROPY 1
+#elif defined(__OpenBSD__) || defined(__NetBSD__) || \
+    (defined(__FreeBSD__) && __FreeBSD__ >= 12)
+#include <stdlib.h>
+#define ABSL_RANDOM_USE_ARC4RANDOM_BUF 1
+
 #endif
 
-#if defined(__EMSCRIPTEN__)
+#if !defined(_WIN32) && !defined(__Fuchsia__) && \
+    !defined(ABSL_RANDOM_USE_ARC4RANDOM_BUF)
+
+#if (defined(__GLIBC__) &&                                            \
+     (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
+    (defined(__ANDROID__) && defined(__ANDROID_API__) &&              \
+     __ANDROID_API__ >= 28)
+// glibc >= 2.25 and Android API >= 28 provide getrandom() in <sys/random.h>.
 #include <sys/random.h>
-// Emscripten has getentropy, but it resides in a different header.
+#define ABSL_RANDOM_USE_GETRANDOM 1
+#elif defined(__linux__)
+#include <sys/syscall.h>
+#if !defined(SYS_getrandom) && defined(__NR_getrandom)
+#define SYS_getrandom __NR_getrandom
+#endif
+#if defined(SYS_getrandom)
+#define ABSL_RANDOM_USE_SYS_GETRANDOM 1
+#endif
+#elif defined(__EMSCRIPTEN__) || defined(__wasi__)
+#include <sys/random.h>
+// Emscripten and WASI provide getentropy() in <sys/random.h>.
 #define ABSL_RANDOM_USE_GET_ENTROPY 1
 #endif
+
+#endif  // !_WIN32 && !__Fuchsia__ && !ABSL_RANDOM_USE_ARC4RANDOM_BUF
 
 #if defined(ABSL_RANDOM_USE_BCRYPT)
 #include <bcrypt.h>
@@ -93,11 +126,19 @@ bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
     ABSL_RAW_LOG(ERROR, "Failed to open crypto provider.");
     return false;
   }
-  ret = BCryptGenRandom(
-      hProvider,                                             // provider
-      reinterpret_cast<UCHAR*>(values.data()),               // buffer
-      static_cast<ULONG>(sizeof(uint32_t) * values.size()),  // bytes
-      0);                                                    // flags
+  auto* buffer = reinterpret_cast<UCHAR*>(values.data());
+  size_t buffer_size = sizeof(uint32_t) * values.size();
+  constexpr size_t kMaxChunk =
+      static_cast<size_t>((std::numeric_limits<ULONG>::max)() & ~ULONG{3});
+  while (buffer_size > 0) {
+    const ULONG chunk = static_cast<ULONG>((std::min)(buffer_size, kMaxChunk));
+    ret = BCryptGenRandom(hProvider, buffer, chunk, 0);
+    if (!(BCRYPT_SUCCESS(ret))) {
+      break;
+    }
+    buffer += chunk;
+    buffer_size -= chunk;
+  }
   BCryptCloseAlgorithmProvider(hProvider, 0);
   return BCRYPT_SUCCESS(ret);
 }
@@ -111,71 +152,126 @@ bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
   return true;
 }
 
+#elif defined(ABSL_RANDOM_USE_ARC4RANDOM_BUF)
+
+bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
+  auto* buffer = reinterpret_cast<uint8_t*>(values.data());
+  size_t buffer_size = sizeof(uint32_t) * values.size();
+  arc4random_buf(buffer, buffer_size);
+  ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(buffer, buffer_size);
+  return true;
+}
+
 #else
 
-#if defined(ABSL_RANDOM_USE_GET_ENTROPY)
-// On *nix, use getentropy() if supported. Note that libc may support
-// getentropy(), but the kernel may not, in which case this function will return
-// false.
-bool ReadSeedMaterialFromGetEntropy(absl::Span<uint32_t> values) {
-  auto buffer = reinterpret_cast<uint8_t*>(values.data());
+constexpr size_t kMaxPosixRead =
+    static_cast<size_t>((std::numeric_limits<int>::max)());
+
+// Fills `values` by repeatedly calling `read_fn(buffer, to_read)` in chunks of
+// at most `max_chunk` bytes. `read_fn` follows the POSIX `read()` contract:
+// returns bytes read (> 0), 0 on EOF/failure, or < 0 with `errno` set
+// (retrying on `EINTR`).
+template <typename ReadFn>
+bool ReadEntropyBytes(absl::Span<uint32_t> values, size_t max_chunk,
+                      ReadFn read_fn) {
+  auto* buffer = reinterpret_cast<uint8_t*>(values.data());
   size_t buffer_size = sizeof(uint32_t) * values.size();
   while (buffer_size > 0) {
-    // getentropy() has a maximum permitted length of 256.
-    size_t to_read = std::min<size_t>(buffer_size, 256);
-    int result = getentropy(buffer, to_read);
-    if (result < 0) {
+    const size_t to_read = (std::min)(buffer_size, max_chunk);
+    const ssize_t bytes_read = read_fn(buffer, to_read);
+    if (bytes_read < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
       return false;
     }
+    if (bytes_read == 0) {
+      return false;
+    }
+    const size_t n = static_cast<size_t>(bytes_read);
     // https://github.com/google/sanitizers/issues/1173
-    // MemorySanitizer can't see through getentropy().
-    ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(buffer, to_read);
-    buffer += to_read;
-    buffer_size -= to_read;
+    // MemorySanitizer cannot always see through getentropy() or raw syscalls.
+    ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(buffer, n);
+    buffer += n;
+    buffer_size -= n;
   }
   return true;
 }
-#endif  // defined(ABSL_RANDOM_GETENTROPY)
+
+#if defined(ABSL_RANDOM_USE_GETRANDOM) || defined(ABSL_RANDOM_USE_SYS_GETRANDOM)
+// On Linux and glibc/Android platforms with getrandom(), read entropy directly
+// without opening /dev/urandom. Note that libc or kernel headers may declare
+// getrandom() / SYS_getrandom while the running kernel or sandbox does not
+// support it (e.g., ENOSYS/EPERM), in which case this function returns false
+// and the caller falls back to /dev/urandom.
+bool ReadSeedMaterialFromGetRandom(absl::Span<uint32_t> values) {
+  auto read_chunk = [](uint8_t* buffer, size_t to_read) -> ssize_t {
+#if defined(ABSL_RANDOM_USE_GETRANDOM)
+    return getrandom(buffer, to_read, 0u);
+#else
+    return static_cast<ssize_t>(syscall(SYS_getrandom, buffer, to_read, 0u));
+#endif
+  };
+  return ReadEntropyBytes(values, kMaxPosixRead, read_chunk);
+}
+#endif  // defined(ABSL_RANDOM_USE_GETRANDOM) ||
+        // defined(ABSL_RANDOM_USE_SYS_GETRANDOM)
+
+#if defined(ABSL_RANDOM_USE_GET_ENTROPY)
+// On *nix platforms without getrandom() (e.g., Emscripten, WASI), use
+// getentropy() if supported. Note that libc may support getentropy(), but the
+// runtime may not, in which case this function will return false.
+bool ReadSeedMaterialFromGetEntropy(absl::Span<uint32_t> values) {
+  // getentropy() has a maximum permitted length of 256.
+  return ReadEntropyBytes(values, /*max_chunk=*/256,
+                          [](uint8_t* buffer, size_t to_read) -> ssize_t {
+                            return getentropy(buffer, to_read) == 0
+                                       ? static_cast<ssize_t>(to_read)
+                                       : -1;
+                          });
+}
+#endif  // defined(ABSL_RANDOM_USE_GET_ENTROPY)
 
 // On *nix, read entropy from /dev/urandom.
 bool ReadSeedMaterialFromDevURandom(absl::Span<uint32_t> values) {
   const char kEntropyFile[] = "/dev/urandom";
 
-  auto buffer = reinterpret_cast<uint8_t*>(values.data());
-  size_t buffer_size = sizeof(uint32_t) * values.size();
-
-  int dev_urandom = open(kEntropyFile, O_RDONLY);
+#ifdef O_CLOEXEC
+  constexpr int kOpenFlags = O_RDONLY | O_CLOEXEC;
+#else
+  constexpr int kOpenFlags = O_RDONLY;
+#endif
+  int dev_urandom;
+  do {
+    dev_urandom = open(kEntropyFile, kOpenFlags);
+  } while (dev_urandom < 0 && errno == EINTR);
   if (dev_urandom < 0) {
     ABSL_RAW_LOG(ERROR, "Failed to open /dev/urandom.");
     return false;
   }
 
-  while (buffer_size > 0) {
-    ssize_t bytes_read = read(dev_urandom, buffer, buffer_size);
-    int read_error = errno;
-    if (bytes_read == -1 && read_error == EINTR) {
-      // Interrupted, try again.
-      continue;
-    } else if (bytes_read <= 0) {
-      // EOF, or error.
-      break;
-    }
-    buffer += bytes_read;
-    buffer_size -= static_cast<size_t>(bytes_read);
-  }
+  const bool success = ReadEntropyBytes(
+      values, kMaxPosixRead,
+      [dev_urandom](uint8_t* buffer, size_t to_read) -> ssize_t {
+        return read(dev_urandom, buffer, to_read);
+      });
 
   close(dev_urandom);
-  return buffer_size == 0;
+  return success;
 }
 
 bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
-#if defined(ABSL_RANDOM_USE_GET_ENTROPY)
+#if defined(ABSL_RANDOM_USE_GETRANDOM) || defined(ABSL_RANDOM_USE_SYS_GETRANDOM)
+  if (ReadSeedMaterialFromGetRandom(values)) {
+    return true;
+  }
+#elif defined(ABSL_RANDOM_USE_GET_ENTROPY)
   if (ReadSeedMaterialFromGetEntropy(values)) {
     return true;
   }
 #endif
-  // Libc may support getentropy, but the kernel may not, so we still have
-  // to fallback to ReadSeedMaterialFromDevURandom().
+  // Libc or the kernel may not support getrandom() or getentropy(), so we still
+  // fall back to ReadSeedMaterialFromDevURandom().
   return ReadSeedMaterialFromDevURandom(values);
 }
 
