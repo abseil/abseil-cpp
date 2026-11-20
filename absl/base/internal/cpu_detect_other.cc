@@ -1,10 +1,10 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2026 The Abseil Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      https://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_
-#define ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_
-
 #include "absl/base/config.h"
+#include "absl/base/internal/cpu_detect.h"
+
+// Fallback for architectures without dedicated SIMD backends (e.g., RISC-V,
+// s390x, LoongArch, MIPS, WebAssembly, or CUDA device compilation).
+#if !defined(ABSL_INTERNAL_CPU_DETECT_X86) && \
+    !defined(ABSL_INTERNAL_CPU_DETECT_ARM) && \
+    !defined(ABSL_INTERNAL_CPU_DETECT_PPC)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-namespace random_internal {
+namespace base_internal {
 
-// Returns whether the current CPU supports RandenHwAes implementation.
-// This typically involves supporting cryptographic extensions on whichever
-// platform is currently running.
-bool CPUSupportsRandenHwAes();
+CpuFeatures GetCpuFeatures() noexcept { return {}; }
 
-}  // namespace random_internal
+}  // namespace base_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_
+#endif

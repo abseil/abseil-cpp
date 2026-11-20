@@ -14,6 +14,9 @@
 
 #include "absl/base/internal/cpu_detect.h"
 
+#include <type_traits>
+
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 
@@ -22,38 +25,126 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 namespace {
 
-TEST(CpuDetectTest, SupportsArmSHA3) {
-#if defined(__aarch64__) || defined(_M_ARM64)
-  (void)SupportsArmSHA3();
+using ::testing::Eq;
+using ::testing::Ge;
+
+static_assert(std::is_trivially_copyable_v<CpuFeatures>);
+static_assert(std::is_trivially_destructible_v<CpuFeatures>);
+static_assert(noexcept(GetCpuFeatures()));
+static_assert(noexcept(GetCpuType()));
+static_assert(noexcept(NumContextsPerCPU()));
+static_assert(noexcept(IsSMTEnabled()));
+static_assert(noexcept(SupportsAvx2()));
+static_assert(noexcept(SupportsBmi2()));
+static_assert(noexcept(SupportsArmCRC32PMULL()));
+static_assert(noexcept(SupportsArmSHA3()));
+static_assert(noexcept(SupportsRandenHwAes()));
+
+TEST(CpuDetectTest, IsDeterministicAndImplicationConsistent) {
+  const CpuFeatures a = GetCpuFeatures();
+  const CpuFeatures b = GetCpuFeatures();
+
+  EXPECT_THAT(a.type, Eq(b.type));
+  EXPECT_THAT(a.type, Eq(GetCpuType()));
+  EXPECT_THAT(a.num_contexts_per_cpu, Eq(b.num_contexts_per_cpu));
+  EXPECT_THAT(a.num_contexts_per_cpu, Eq(NumContextsPerCPU()));
+  EXPECT_THAT(a.num_contexts_per_cpu, Ge(1));
+  EXPECT_THAT(IsSMTEnabled(), Eq(a.num_contexts_per_cpu > 1));
+
+#if defined(ABSL_INTERNAL_CPU_DETECT_X86)
+  EXPECT_THAT(a.has_ssse3, Eq(b.has_ssse3));
+  EXPECT_THAT(a.has_sse4_1, Eq(b.has_sse4_1));
+  EXPECT_THAT(a.has_aes, Eq(b.has_aes));
+  EXPECT_THAT(a.has_avx2, Eq(b.has_avx2));
+  EXPECT_THAT(a.has_bmi2, Eq(b.has_bmi2));
+  EXPECT_THAT(a.has_vaes, Eq(b.has_vaes));
+  EXPECT_THAT(a.has_avx512f, Eq(b.has_avx512f));
+  EXPECT_THAT(a.has_avx512bw, Eq(b.has_avx512bw));
+  EXPECT_THAT(a.has_avx512vl, Eq(b.has_avx512vl));
+
+  EXPECT_THAT(SupportsAvx2(), Eq(a.has_avx2));
+  EXPECT_THAT(SupportsBmi2(), Eq(a.has_bmi2));
+  EXPECT_FALSE(SupportsArmCRC32PMULL());
+  EXPECT_FALSE(SupportsArmSHA3());
+  EXPECT_THAT(SupportsRandenHwAes(), Eq(a.has_aes && a.has_sse4_1));
+
+  if (a.has_sse4_1) EXPECT_TRUE(a.has_ssse3);
+  if (a.has_avx512bw || a.has_avx512vl) EXPECT_TRUE(a.has_avx512f);
+#elif defined(ABSL_INTERNAL_CPU_DETECT_ARM)
+  EXPECT_THAT(a.has_neon, Eq(b.has_neon));
+  EXPECT_THAT(a.has_crc32, Eq(b.has_crc32));
+  EXPECT_THAT(a.has_aes, Eq(b.has_aes));
+  EXPECT_THAT(a.has_pmull, Eq(b.has_pmull));
+  EXPECT_THAT(a.has_sha3, Eq(b.has_sha3));
+  EXPECT_THAT(a.has_sve2, Eq(b.has_sve2));
+
+  EXPECT_FALSE(SupportsAvx2());
+  EXPECT_FALSE(SupportsBmi2());
+  EXPECT_THAT(SupportsRandenHwAes(), Eq(a.has_neon && a.has_aes));
+#if defined(__aarch64__) || defined(__arm64__) || \
+    (defined(_M_ARM64) && !defined(_M_ARM64EC))
+  EXPECT_TRUE(a.has_neon);
+  EXPECT_THAT(SupportsArmCRC32PMULL(), Eq(a.has_crc32 && a.has_pmull));
+  EXPECT_THAT(SupportsArmSHA3(), Eq(a.has_sha3));
+#if defined(__APPLE__)
+  EXPECT_TRUE(a.has_aes);
+  EXPECT_TRUE(a.has_pmull);
+  EXPECT_TRUE(a.has_crc32);
+#endif
 #else
+  EXPECT_FALSE(SupportsArmCRC32PMULL());
   EXPECT_FALSE(SupportsArmSHA3());
 #endif
-}
-
-TEST(CpuDetectTest, SupportsAvx2) {
-#if defined(__x86_64__) || defined(_M_X64)
-#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)
-  EXPECT_EQ(SupportsAvx2(), __builtin_cpu_supports("avx2") != 0);
-#else
-  (void)SupportsAvx2();
-#endif
+  if (a.has_aes || a.has_pmull || a.has_sha3 || a.has_sve2) {
+    EXPECT_TRUE(a.has_neon);
+  }
+#elif defined(ABSL_INTERNAL_CPU_DETECT_PPC)
+  EXPECT_THAT(a.has_vsx, Eq(b.has_vsx));
+  EXPECT_THAT(a.has_vcrypto, Eq(b.has_vcrypto));
+  EXPECT_FALSE(SupportsAvx2());
+  EXPECT_FALSE(SupportsBmi2());
+  EXPECT_FALSE(SupportsArmCRC32PMULL());
+  EXPECT_FALSE(SupportsArmSHA3());
+  EXPECT_THAT(SupportsRandenHwAes(), Eq(a.has_vcrypto));
+  if (a.has_vcrypto) EXPECT_TRUE(a.has_vsx);
 #else
   EXPECT_FALSE(SupportsAvx2());
+  EXPECT_FALSE(SupportsBmi2());
+  EXPECT_FALSE(SupportsArmCRC32PMULL());
+  EXPECT_FALSE(SupportsArmSHA3());
+  EXPECT_FALSE(SupportsRandenHwAes());
 #endif
 }
 
-TEST(CpuDetectTest, SupportsBmi2) {
-#if defined(__x86_64__) || defined(_M_X64)
-#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)
-  EXPECT_EQ(SupportsBmi2(), __builtin_cpu_supports("bmi2") != 0);
-#else
-  // If __builtin_cpu_supports is not available, we just verify it doesn't
-  // crash.
-  (void)SupportsBmi2();
+TEST(CpuDetectTest, MatchesCompilerBuiltinCpuSupportsOnLinuxX86) {
+#if defined(ABSL_INTERNAL_CPU_DETECT_X86) && defined(__linux__) && \
+    (defined(__GNUC__) || ABSL_HAVE_BUILTIN(__builtin_cpu_supports))
+  const CpuFeatures f = GetCpuFeatures();
+  EXPECT_THAT(f.has_ssse3, Eq(__builtin_cpu_supports("ssse3") != 0));
+  EXPECT_THAT(f.has_sse4_1, Eq(__builtin_cpu_supports("sse4.1") != 0));
+  EXPECT_THAT(f.has_aes, Eq(__builtin_cpu_supports("aes") != 0));
+  EXPECT_THAT(SupportsAvx2(), Eq(__builtin_cpu_supports("avx2") != 0));
+  EXPECT_THAT(SupportsBmi2(), Eq(__builtin_cpu_supports("bmi2") != 0));
+  EXPECT_THAT(f.has_avx512f, Eq(__builtin_cpu_supports("avx512f") != 0));
+  EXPECT_THAT(f.has_avx512bw, Eq(__builtin_cpu_supports("avx512bw") != 0));
+  EXPECT_THAT(f.has_avx512vl, Eq(__builtin_cpu_supports("avx512vl") != 0));
 #endif
-#else
-  // On non-x86, SupportsBmi2() must return false.
-  EXPECT_FALSE(SupportsBmi2());
+}
+
+TEST(CpuDetectTest, MatchesCompilerBuiltinCpuSupportsOnLinuxPpc) {
+#if defined(ABSL_INTERNAL_CPU_DETECT_PPC) && defined(__linux__) &&        \
+    defined(__GLIBC__) &&                                                 \
+    (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 23)) &&       \
+    ((defined(__clang__) && ABSL_HAVE_BUILTIN(__builtin_cpu_supports)) || \
+     defined(__PPC_CPU_SUPPORTS__))
+  const CpuFeatures f = GetCpuFeatures();
+  const bool builtin_vsx = __builtin_cpu_supports("vsx") != 0;
+  const bool builtin_vcrypto = builtin_vsx &&
+                               __builtin_cpu_supports("arch_2_07") != 0 &&
+                               __builtin_cpu_supports("vcrypto") != 0;
+  EXPECT_THAT(f.has_vsx, Eq(builtin_vsx));
+  EXPECT_THAT(f.has_vcrypto, Eq(builtin_vcrypto));
+  EXPECT_THAT(SupportsRandenHwAes(), Eq(builtin_vcrypto));
 #endif
 }
 

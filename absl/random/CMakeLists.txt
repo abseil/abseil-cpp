@@ -843,8 +843,10 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::base_cpu_detect
+    absl::config
     absl::random_internal_platform
-    absl::random_internal_randen_hwaes
+    absl::random_internal_randen_hwaes_impl
     absl::random_internal_randen_slow
 )
 
@@ -868,12 +870,11 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
-    random_internal_randen_hwaes
+    random_internal_randen_hwaes_impl
   HDRS
-    "internal/randen_detect.h"
-  SRCS
-    "internal/randen_detect.cc"
     "internal/randen_hwaes.h"
+  SRCS
+    "internal/randen_hwaes.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
     ${ABSL_RANDOM_RANDEN_COPTS}
@@ -882,24 +883,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
-    absl::random_internal_platform
-    absl::random_internal_randen_hwaes_impl
-)
-
-# Internal-only target, do not depend on directly.
-absl_cc_library(
-  NAME
-    random_internal_randen_hwaes_impl
-  SRCS
-    "internal/randen_hwaes.cc"
-    "internal/randen_hwaes.h"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-    ${ABSL_RANDOM_RANDEN_COPTS}
-  LINKOPTS
-    ${ABSL_DEFAULT_LINKOPTS}
-  DEPS
-    absl::config
+    absl::int128
     absl::random_internal_platform
 )
 
@@ -1191,9 +1175,9 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::base_cpu_detect
     absl::log
     absl::random_internal_platform
-    absl::random_internal_randen_hwaes
     absl::random_internal_randen_hwaes_impl
     absl::str_format
     GTest::gmock
