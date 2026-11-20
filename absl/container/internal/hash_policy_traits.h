@@ -51,25 +51,17 @@ template <class Policy, class = void>
 
  private:
   struct ReturnKey {
-    template <class Key,
-              std::enable_if_t<std::is_lvalue_reference_v<Key>, int> = 0>
-    static key_type& Impl(Key&& k, int) {
-      return *std::launder(
-          const_cast<key_type*>(std::addressof(std::forward<Key>(k))));
-    }
-
-    template <class Key>
-    static Key Impl(Key&& k, char) {
-      return std::forward<Key>(k);
-    }
-
     // When Key=T&, we forward the lvalue reference.
-    // When Key=T, we return by value to avoid a dangling reference.
-    // eg, for string_hash_map.
+    // When Key=T, we return by value to avoid a dangling reference
+    // (e.g., for string_hash_map).
     template <class Key, class... Args>
-    auto operator()(Key&& k, const Args&...) const
-        -> decltype(Impl(std::forward<Key>(k), 0)) {
-      return Impl(std::forward<Key>(k), 0);
+    std::conditional_t<std::is_lvalue_reference_v<Key>, key_type&, Key>
+    operator()(Key&& k, const Args&...) const {
+      if constexpr (std::is_lvalue_reference_v<Key>) {
+        return *std::launder(const_cast<key_type*>(std::addressof(k)));
+      } else {
+        return std::forward<Key>(k);
+      }
     }
   };
 
@@ -114,7 +106,6 @@ template <class Policy, class = void>
   using init_type = typename Policy::init_type;
 
   using reference = decltype(Policy::element(std::declval<slot_type*>()));
-  using pointer = std::remove_reference_t<reference>*;
   using value_type = std::remove_reference_t<reference>;
 
   // Policies can set this variable to tell raw_hash_set that all iterators

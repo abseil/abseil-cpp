@@ -74,7 +74,7 @@ struct common_policy_traits {
   //                UNINITIALIZED
   template <class Alloc>
   static void transfer(Alloc* alloc, slot_type* new_slot, slot_type* old_slot) {
-    transfer_impl(alloc, new_slot, old_slot, Rank2{});
+    transfer_impl(alloc, new_slot, old_slot);
   }
 
   // PRECONDITION: `slot` is INITIALIZED
@@ -93,7 +93,7 @@ struct common_policy_traits {
 
   static constexpr bool transfer_uses_memcpy() {
     return std::is_same_v<decltype(transfer_impl<std::allocator<char>>(
-                              nullptr, nullptr, nullptr, Rank2{})),
+                              nullptr, nullptr, nullptr)),
                           std::true_type>;
   }
 
@@ -105,43 +105,37 @@ struct common_policy_traits {
   }
 
  private:
-  // Use go/ranked-overloads for dispatching.
-  struct Rank0 {};
-  struct Rank1 : Rank0 {};
-  struct Rank2 : Rank1 {};
+  template <class Alloc, class P = Policy, class = void>
+  struct HasTransfer : std::false_type {};
 
-  // Use auto -> decltype as an enabler.
-  // P::transfer returns std::true_type if transfer uses memcpy (e.g. in
-  // node_slot_policy).
-  template <class Alloc, class P = Policy>
-  static auto transfer_impl(Alloc* alloc, slot_type* new_slot,
-                            slot_type* old_slot,
-                            Rank2) -> decltype(P::transfer(alloc, new_slot,
-                                                           old_slot)) {
-    return P::transfer(alloc, new_slot, old_slot);
-  }
+  template <class Alloc, class P>
+  struct HasTransfer<Alloc, P,
+                     std::void_t<decltype(P::transfer(
+                         std::declval<Alloc*>(), std::declval<slot_type*>(),
+                         std::declval<slot_type*>()))>> : std::true_type {};
 
-  // This overload returns true_type for the trait below.
-  // The conditional_t is to make the enabler type dependent.
-  template <class Alloc,
-            typename = std::enable_if_t<absl::is_trivially_relocatable<
-                std::conditional_t<false, Alloc, value_type>>::value>>
-  static std::true_type transfer_impl(Alloc*, slot_type* new_slot,
-                                      slot_type* old_slot, Rank1) {
-    // TODO(b/247130232): remove casts after fixing warnings.
-    // TODO(b/251814870): remove casts after fixing warnings.
-    std::memcpy(
-        static_cast<void*>(std::launder(
-            const_cast<std::remove_const_t<value_type>*>(&element(new_slot)))),
-        static_cast<const void*>(&element(old_slot)), sizeof(value_type));
-    return {};
-  }
-
+  // Policy::transfer returns std::true_type if transfer uses memcpy (e.g. in
+  // node_slot_policy). The conditional_t in the else-if branch keeps value_type
+  // dependent on Alloc for incomplete mapped types.
   template <class Alloc>
-  static void transfer_impl(Alloc* alloc, slot_type* new_slot,
-                            slot_type* old_slot, Rank0) {
-    construct(alloc, new_slot, std::move(element(old_slot)));
-    destroy(alloc, old_slot);
+  static auto transfer_impl(Alloc* alloc, slot_type* new_slot,
+                            slot_type* old_slot) {
+    if constexpr (HasTransfer<Alloc>::value) {
+      return Policy::transfer(alloc, new_slot, old_slot);
+    } else if constexpr (absl::is_trivially_relocatable<std::conditional_t<
+                             false, Alloc, value_type>>::value) {
+      // TODO(b/247130232): remove casts after fixing warnings.
+      // TODO(b/251814870): remove casts after fixing warnings.
+      using MutableValue = std::remove_const_t<value_type>;
+      std::memcpy(static_cast<void*>(std::launder(
+                      const_cast<MutableValue*>(&element(new_slot)))),
+                  static_cast<const void*>(&element(old_slot)),
+                  sizeof(value_type));
+      return std::true_type{};
+    } else {
+      construct(alloc, new_slot, std::move(element(old_slot)));
+      destroy(alloc, old_slot);
+    }
   }
 };
 
