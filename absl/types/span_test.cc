@@ -135,7 +135,7 @@ TEST(IntSpan, ContainerCtor) {
 struct ContainerWithShallowConstData {
   std::vector<int> storage;
   int* data() const { return const_cast<int*>(storage.data()); }
-  int size() const { return storage.size(); }
+  size_t size() const { return storage.size(); }
 };
 
 TEST(IntSpan, ShallowConstness) {
@@ -463,8 +463,15 @@ TEST(ConstIntSpan, MakeConstSpanTypes) {
   const int carray[] = {0};
   int* ptr = array;
   const int* cptr = carray;
+  int* ptr_array[] = {ptr};
   std::string s = "";
   std::string cs = "";
+  absl::Span<int> mutable_span(vec);
+  const absl::Span<int> const_mutable_span(vec);
+  absl::Span<const int> const_span(cvec);
+  absl::Span<int*> ptr_span(ptr_array);
+  ContainerWithShallowConstData shallow_container{MakeRamp(3)};
+  const ContainerWithShallowConstData const_shallow_container{MakeRamp(3)};
   CheckType<absl::Span<const int>>(absl::MakeConstSpan(vec));
   CheckType<absl::Span<const int>>(absl::MakeConstSpan(cvec));
   CheckType<absl::Span<const int>>(absl::MakeConstSpan(ptr, ptr + 1));
@@ -475,6 +482,14 @@ TEST(ConstIntSpan, MakeConstSpanTypes) {
   CheckType<absl::Span<const int>>(absl::MakeConstSpan(carray));
   CheckType<absl::Span<const char>>(absl::MakeConstSpan(s));
   CheckType<absl::Span<const char>>(absl::MakeConstSpan(cs));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(mutable_span));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(const_mutable_span));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(const_span));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(absl::Span<int>(array)));
+  CheckType<absl::Span<int* const>>(absl::MakeConstSpan(ptr_span));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(shallow_container));
+  CheckType<absl::Span<const int>>(
+      absl::MakeConstSpan(const_shallow_container));
 }
 
 TEST(IntSpan, Equality) {
@@ -772,6 +787,7 @@ TEST(IntSpan, NoexceptTest) {
   EXPECT_TRUE(noexcept(absl::MakeConstSpan(a, a + 1)));
 
   absl::Span<int> s(v);
+  EXPECT_TRUE(noexcept(absl::MakeConstSpan(s)));
   EXPECT_TRUE(noexcept(s.data()));
   EXPECT_TRUE(noexcept(s.size()));
   EXPECT_TRUE(noexcept(s.length()));
@@ -804,7 +820,7 @@ struct ConstexprTester {};
   } while (0)
 
 struct ContainerWithConstexprMethods {
-  constexpr int size() const { return 1; }
+  constexpr size_t size() const { return 1; }
   constexpr const int* data() const { return &i; }
   const int i;
 };

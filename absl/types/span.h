@@ -791,16 +791,18 @@ Span<const T> MakeConstSpan(T* absl_nullable begin
 
 template <int&... ExplicitArgumentBarrier, typename C>
 constexpr auto MakeConstSpan(const C& c) noexcept
-    -> std::enable_if_t<span_internal::IsView<C>::value,
-                        decltype(MakeSpan(c))> {
-  return MakeSpan(c);
+    -> std::enable_if_t<
+        span_internal::IsView<C>::value,
+        decltype(absl::MakeConstSpan(span_internal::GetData(c), c.size()))> {
+  return MakeConstSpan(span_internal::GetData(c), c.size());
 }
 
 template <int&... ExplicitArgumentBarrier, typename C>
 constexpr auto MakeConstSpan(const C& c ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
-    -> std::enable_if_t<!span_internal::IsView<C>::value,
-                        decltype(MakeSpan(c))> {
-  return MakeSpan(c);
+    -> std::enable_if_t<
+        !span_internal::IsView<C>::value,
+        decltype(absl::MakeConstSpan(span_internal::GetData(c), c.size()))> {
+  return MakeConstSpan(span_internal::GetData(c), c.size());
 }
 
 template <int&... ExplicitArgumentBarrier, typename T, size_t N>
