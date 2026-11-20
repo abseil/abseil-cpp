@@ -64,18 +64,15 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   SpyHashStateImpl& operator=(SpyHashStateImpl&& other) noexcept {
     hash_representation_ = std::move(other.hash_representation_);
     error_ = other.error_;
-    moved_from_ = other.moved_from_;
-    other.moved_from_ = true;
+    moved_from_ = std::exchange(other.moved_from_, true);
     return *this;
   }
 
   template <typename U>
-  SpyHashStateImpl(SpyHashStateImpl<U>&& other) {  // NOLINT
-    hash_representation_ = std::move(other.hash_representation_);
-    error_ = other.error_;
-    moved_from_ = other.moved_from_;
-    other.moved_from_ = true;
-  }
+  SpyHashStateImpl(SpyHashStateImpl<U>&& other)  // NOLINT
+      : hash_representation_(std::move(other.hash_representation_)),
+        error_(other.error_),
+        moved_from_(std::exchange(other.moved_from_, true)) {}
 
   template <typename A, typename... Args>
   static SpyHashStateImpl combine(SpyHashStateImpl s, const A& a,
@@ -156,26 +153,23 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   static SpyHashStateImpl combine_contiguous(SpyHashStateImpl hash_state,
                                              const unsigned char* begin,
                                              size_t size) {
-    if (size == 0) {
-      return SpyHashStateImpl::combine_raw(std::move(hash_state), 0);
-    }
     const size_t large_chunk_stride = PiecewiseChunkSize();
     // Combining a large contiguous buffer must have the same effect as
     // doing it piecewise by the stride length, followed by the (possibly
     // empty) remainder.
     while (size > large_chunk_stride) {
-      hash_state = SpyHashStateImpl::combine_contiguous(
-          std::move(hash_state), begin, large_chunk_stride);
+      hash_state.hash_representation_.emplace_back(
+          reinterpret_cast<const char*>(begin), large_chunk_stride);
+      hash_state = SpyHashStateImpl::combine_raw(std::move(hash_state),
+                                                 large_chunk_stride);
       begin += large_chunk_stride;
       size -= large_chunk_stride;
     }
-
     if (size > 0) {
       hash_state.hash_representation_.emplace_back(
           reinterpret_cast<const char*>(begin), size);
-      hash_state = SpyHashStateImpl::combine_raw(std::move(hash_state), size);
     }
-    return hash_state;
+    return SpyHashStateImpl::combine_raw(std::move(hash_state), size);
   }
 
   static SpyHashStateImpl combine_weakly_mixed_integer(
@@ -188,17 +182,24 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   template <typename CombinerT>
   static SpyHashStateImpl RunCombineUnordered(SpyHashStateImpl state,
                                               CombinerT combiner) {
-    UnorderedCombinerCallback cb;
+    std::vector<std::string> element_hash_representations;
+    std::shared_ptr<std::optional<std::string>> error;
+    combiner(SpyHashStateImpl<void>{}, [&](auto& inner) {
+      element_hash_representations.push_back(
+          absl::StrJoin(inner.hash_representation_, ""));
+      if (inner.error_->has_value()) {
+        error = std::move(inner.error_);
+      }
+      inner = SpyHashStateImpl<void>{};
+    });
 
-    combiner(SpyHashStateImpl<void>{}, std::ref(cb));
-
-    std::sort(cb.element_hash_representations.begin(),
-              cb.element_hash_representations.end());
+    std::sort(element_hash_representations.begin(),
+              element_hash_representations.end());
     state.hash_representation_.insert(state.hash_representation_.end(),
-                                      cb.element_hash_representations.begin(),
-                                      cb.element_hash_representations.end());
-    if (cb.error && cb.error->has_value()) {
-      state.error_ = std::move(cb.error);
+                                      element_hash_representations.begin(),
+                                      element_hash_representations.end());
+    if (error && error->has_value()) {
+      state.error_ = std::move(error);
     }
     return state;
   }
@@ -215,22 +216,6 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   friend class SpyHashStateImpl;
   friend struct CombineRaw;
 
-  struct UnorderedCombinerCallback {
-    std::vector<std::string> element_hash_representations;
-    std::shared_ptr<std::optional<std::string>> error;
-
-    // The inner spy can have a different type.
-    template <typename U>
-    void operator()(SpyHashStateImpl<U>& inner) {
-      element_hash_representations.push_back(
-          absl::StrJoin(inner.hash_representation_, ""));
-      if (inner.error_->has_value()) {
-        error = std::move(inner.error_);
-      }
-      inner = SpyHashStateImpl<void>{};
-    }
-  };
-
   // Combines raw data from e.g. integrals/floats/pointers/etc.
   static SpyHashStateImpl combine_raw(SpyHashStateImpl state, uint64_t value) {
     state.hash_representation_.emplace_back(
@@ -241,7 +226,7 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   // This is true if SpyHashStateImpl<T> has been passed to a call of
   // AbslHashValue with the wrong type. This detects that the user called
   // AbslHashValue directly (because the hash state type does not match).
-  static bool direct_absl_hash_value_error_;
+  inline static bool direct_absl_hash_value_error_ = false;
 
   std::vector<std::string> hash_representation_;
   // This is a shared_ptr because we want all instances of the particular
@@ -250,9 +235,6 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   std::shared_ptr<std::optional<std::string>> error_;
   bool moved_from_ = false;
 };
-
-template <typename T>
-bool SpyHashStateImpl<T>::direct_absl_hash_value_error_;
 
 template <bool& B>
 struct OdrUse {
