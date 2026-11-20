@@ -426,7 +426,20 @@ class HashState : public hash_internal::HashStateBase<HashState> {
                 std::is_base_of_v<hash_internal::HashStateBase<T>, T>, int> = 0>
   static HashState Create(T* state) {
     HashState s;
-    s.Init(state);
+    if constexpr (std::is_same_v<T, HashState>) {
+      // Do not type erase an already type-erased state.
+      s.state_ = state->state_;
+      s.combine_weakly_mixed_integer_ = state->combine_weakly_mixed_integer_;
+      s.combine_contiguous_ = state->combine_contiguous_;
+      s.combine_raw_ = state->combine_raw_;
+      s.run_combine_unordered_ = state->run_combine_unordered_;
+    } else {
+      s.state_ = state;
+      s.combine_weakly_mixed_integer_ = &CombineWeaklyMixedIntegerImpl<T>;
+      s.combine_contiguous_ = &CombineContiguousImpl<T>;
+      s.combine_raw_ = &CombineRawImpl<T>;
+      s.run_combine_unordered_ = &RunCombineUnorderedImpl<T>;
+    }
     return s;
   }
 
@@ -490,36 +503,18 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   }
 
   template <typename T>
-  void Init(T* state) {
-    state_ = state;
-    combine_weakly_mixed_integer_ = &CombineWeaklyMixedIntegerImpl<T>;
-    combine_contiguous_ = &CombineContiguousImpl<T>;
-    combine_raw_ = &CombineRawImpl<T>;
-    run_combine_unordered_ = &RunCombineUnorderedImpl<T>;
-  }
-
-  template <typename HS>
-  struct CombineUnorderedInvoker {
-    template <typename T, typename ConsumerT>
-    void operator()(T inner_state, ConsumerT inner_cb) {
-      f(HashState::Create(&inner_state),
-        [&](HashState& inner_erased) { inner_cb(inner_erased.Real<T>()); });
-    }
-
-    absl::FunctionRef<void(HS, absl::FunctionRef<void(HS&)>)> f;
-  };
-
-  template <typename T>
   static HashState RunCombineUnorderedImpl(
       HashState state,
       absl::FunctionRef<void(HashState, absl::FunctionRef<void(HashState&)>)>
           f) {
-    // Note that this implementation assumes that inner_state and outer_state
-    // are the same type.  This isn't true in the SpyHash case, but SpyHash
-    // types are move-convertible to each other, so this still works.
-    T& real_state = state.Real<T>();
+    T& real_state = *static_cast<T*>(state.state_);
     real_state = T::RunCombineUnordered(
-        std::move(real_state), CombineUnorderedInvoker<HashState>{f});
+        std::move(real_state), [&](auto inner_state, auto inner_cb) {
+          f(HashState::Create(&inner_state), [&](HashState& inner_erased) {
+            inner_cb(
+                *static_cast<decltype(inner_state)*>(inner_erased.state_));
+          });
+        });
     return state;
   }
 
@@ -527,20 +522,6 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   static HashState RunCombineUnordered(HashState state, CombinerT combiner) {
     auto* run = state.run_combine_unordered_;
     return run(std::move(state), std::ref(combiner));
-  }
-
-  // Do not erase an already erased state.
-  void Init(HashState* state) {
-    state_ = state->state_;
-    combine_weakly_mixed_integer_ = state->combine_weakly_mixed_integer_;
-    combine_contiguous_ = state->combine_contiguous_;
-    combine_raw_ = state->combine_raw_;
-    run_combine_unordered_ = state->run_combine_unordered_;
-  }
-
-  template <typename T>
-  T& Real() {
-    return *static_cast<T*>(state_);
   }
 
   void* state_;
