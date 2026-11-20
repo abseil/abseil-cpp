@@ -91,9 +91,16 @@ void RandenPoolEntry::Fill(uint8_t* out, size_t bytes) {
     size_t remaining = available() * sizeof(state_[0]);
     size_t to_copy = std::min(bytes, remaining);
     std::memcpy(out, &state_[next_], to_copy);
+    // Scrub consumed words from the pool buffer so a subsequent memory
+    // disclosure cannot recover previously issued seeds. The compiler cannot
+    // elide this clear because the next `MaybeRefill()` passes `state_` to
+    // `impl_.Generate(state_)`, which reads the entire state as input.
+    const size_t words_consumed =
+        (to_copy + sizeof(state_[0]) - 1) / sizeof(state_[0]);
+    std::fill_n(&state_[next_], words_consumed, 0);
     out += to_copy;
     bytes -= to_copy;
-    next_ += (to_copy + sizeof(state_[0]) - 1) / sizeof(state_[0]);
+    next_ += words_consumed;
   }
 }
 

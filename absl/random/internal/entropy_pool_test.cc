@@ -116,4 +116,17 @@ TEST(EntropyPoolTest, ValidateDistribution) {
   // Zeros values must be rare; 32 / 2^32 is certainly less than 1.
   EXPECT_LE(zero_count, 1);
 }
+
+TEST(EntropyPoolTest, VariousByteSizesAcrossRefills) {
+  for (const int i : {1, 3, 5, 32, 240, 256}) {
+    const size_t bytes = static_cast<size_t>(i);
+    std::vector<uint8_t> first(bytes, 0);
+    std::vector<uint8_t> second(bytes, 0);
+    GetEntropyFromRandenPool(first.data(), first.size());
+    GetEntropyFromRandenPool(second.data(), second.size());
+    if (bytes >= 8) {
+      EXPECT_NE(first, second) << "bytes=" << bytes;
+    }
+  }
+}
 }  // namespace
