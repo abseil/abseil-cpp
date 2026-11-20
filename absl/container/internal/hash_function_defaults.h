@@ -243,17 +243,6 @@ struct AbslContainerEq<
   using type = typename T::absl_container_eq;
 };
 
-template <typename T, typename E = void>
-struct AbslContainerHash {
-  using type = void;
-};
-
-template <typename T>
-struct AbslContainerHash<
-    T, typename std::enable_if_t<HasAbslContainerHash<T>::value>> {
-  using type = typename T::absl_container_hash;
-};
-
 // HashEq specialization for user types that provide `absl_container_hash` and
 // (optionally) `absl_container_eq`. This specialization allows user types to
 // provide heterogeneous lookup without requiring to explicitly specify Hash/Eq
@@ -273,7 +262,7 @@ struct AbslContainerHash<
 // should be an equivalent to the `std::equal_to<T>`.
 template <typename T>
 struct HashEq<T, typename std::enable_if_t<HasAbslContainerHash<T>::value>> {
-  using Hash = typename AbslContainerHash<T>::type;
+  using Hash = typename T::absl_container_hash;
   using Eq = typename AbslContainerEq<T>::type;
   static_assert(IsTransparent<Hash>::value,
                 "absl_container_hash must be transparent. To achieve it add a "

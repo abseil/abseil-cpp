@@ -357,27 +357,6 @@ constexpr bool SwisstableGenerationsOrDebugEnabled() {
   }
 }
 
-template <typename AllocType>
-void SwapAlloc(AllocType& lhs, AllocType& rhs,
-               std::true_type /* propagate_on_container_swap */) {
-  using std::swap;
-  swap(lhs, rhs);
-}
-template <typename AllocType>
-void SwapAlloc([[maybe_unused]] AllocType& lhs, [[maybe_unused]] AllocType& rhs,
-               std::false_type /* propagate_on_container_swap */) {
-  assert(lhs == rhs &&
-         "It's UB to call swap with unequal non-propagating allocators.");
-}
-
-template <typename AllocType>
-void CopyAlloc(AllocType& lhs, AllocType& rhs,
-               std::true_type /* propagate_alloc */) {
-  lhs = rhs;
-}
-template <typename AllocType>
-void CopyAlloc(AllocType&, AllocType&, std::false_type /* propagate_alloc */) {}
-
 template <typename T, template <typename...> class Template>
 struct is_instance_of : std::false_type {};
 template <template <typename...> class Template, typename... Args>
@@ -1044,8 +1023,6 @@ class CommonFieldsGenerationInfoEnabled {
   // 0 after a call to reserve. We also do a rehash with low probability
   // whenever reserved_growth_ is zero.
   bool should_rehash_for_bug_detection_on_insert(size_t capacity) const;
-  // Similar to above, except that we don't depend on reserved_growth_.
-  bool should_rehash_for_bug_detection_on_move(size_t capacity) const;
   void maybe_increment_generation_on_insert() {
     if (reserved_growth_ == kReservedGrowthJustRanOut) reserved_growth_ = 0;
 
@@ -1099,7 +1076,6 @@ class CommonFieldsGenerationInfoDisabled {
       CommonFieldsGenerationInfoDisabled&&) = default;
 
   bool should_rehash_for_bug_detection_on_insert(size_t) const { return false; }
-  bool should_rehash_for_bug_detection_on_move(size_t) const { return false; }
   void maybe_increment_generation_on_insert() {}
   void increment_generation() {}
   void reset_reserved_growth(size_t, size_t) {}
@@ -1523,25 +1499,11 @@ class CommonFields : public CommonFieldsGenerationInfo {
   void set_infoz(HashtablezInfoHandle infoz);
 
   bool should_rehash_for_bug_detection_on_insert() const {
-    if constexpr (!SwisstableGenerationsEnabled()) {
-      return false;
-    }
     return CommonFieldsGenerationInfo::
         should_rehash_for_bug_detection_on_insert(capacity());
   }
-  bool should_rehash_for_bug_detection_on_move() const {
-    return CommonFieldsGenerationInfo::should_rehash_for_bug_detection_on_move(
-        capacity());
-  }
   void annotate_for_bug_detection_on_move(CommonFields& that,
-                                          const PolicyFunctions& policy) {
-    // We only enable moved-from validation when generations are enabled (rather
-    // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
-    // translation units but not in others.
-    if constexpr (SwisstableGenerationsEnabled()) {
-      AnnotateForBugDetectionOnMoveImpl(that, policy);
-    }
-  }
+                                          const PolicyFunctions& policy);
   void reset_reserved_growth(size_t reservation) {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
   }
@@ -1595,12 +1557,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
  private:
-  // We store the has_infoz bit in the lowest bit of size_.
-  static constexpr size_t HasInfozShift() { return 1; }
-  static constexpr size_t HasInfozMask() {
-    return (size_t{1} << HasInfozShift()) - 1;
-  }
-
   void* GrowthInfoOverflowAddress() const {
     return reinterpret_cast<void*>(
         reinterpret_cast<uintptr_t>(control()) -
@@ -1632,8 +1588,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   void AssertInSooModeImpl() const;
   void AssertNotDebugCapacityImpl() const;
-  void AnnotateForBugDetectionOnMoveImpl(CommonFields& that,
-                                         const PolicyFunctions& policy);
 
   HashtableInlineData inline_data_;
 
@@ -2349,11 +2303,6 @@ constexpr size_t MaxValidSize(size_t key_size, size_t slot_size) {
 // I.e. it allows inserting the second element at either index 0 or 2.
 constexpr size_t SooSlotIndex() { return 1; }
 
-// Maximum capacity for the algorithm for small table after SOO.
-// Note that typical size after SOO is 3, but we allow up to 7.
-// Allowing till 16 would require additional store that can be avoided.
-constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
-
 // Type erased version of raw_hash_set::reserve. Requires:
 //   1. `new_size > policy.soo_capacity`.
 //   2. `new_size <= kMaxValidSize`.
@@ -3061,15 +3010,11 @@ class raw_hash_set : public raw_hash_set_base {
                 "`Hash::operator()` should return a `size_t`");
 
   using AllocTraits = std::allocator_traits<allocator_type>;
-  using SlotAlloc = typename std::allocator_traits<
-      allocator_type>::template rebind_alloc<slot_type>;
   // People are often sloppy with the exact type of their allocator (sometimes
   // it has an extra const or is missing the pair, but rebinds made it work
   // anyway).
   using CharAlloc =
       typename std::allocator_traits<Alloc>::template rebind_alloc<char>;
-  using SlotAllocTraits = typename std::allocator_traits<
-      allocator_type>::template rebind_traits<slot_type>;
   constexpr static bool kIsDefaultAlloc =
       std::is_same_v<CharAlloc, std::allocator<char>>;
 
@@ -3089,11 +3034,6 @@ class raw_hash_set : public raw_hash_set_base {
   using EnableElementMoveFrom = std::bool_constant<
       std::is_pointer_v<T*> &&
       !type_traits_internal::IsAllocMoveSameAsCopy<T, Alloc>::value>;
-
-  // RequiresNotInit is a workaround for gcc prior to 7.1.
-  // See https://godbolt.org/g/Y4xsUh.
-  template <class T>
-  using RequiresNotInit = std::enable_if_t<!std::is_same_v<T, init_type>, int>;
 
   template <class... Ts>
   using IsDecomposable = IsDecomposable<void, PolicyTraits, Hash, Eq, Ts...>;
@@ -3334,10 +3274,7 @@ class raw_hash_set : public raw_hash_set_base {
   // the copy constructor is meant to be called.
   //
   //   absl::flat_hash_set<int> a, b{a};
-  //
-  // RequiresNotInit<T> is a workaround for gcc prior to 7.1.
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<T>::value, int> = 0>
+  template <class T, std::enable_if_t<Insertable<T>::value, int> = 0>
   raw_hash_set(std::initializer_list<T> init, size_t reservation_size = 0,
                const hasher& hash = hasher(), const key_equal& eq = key_equal(),
                const allocator_type& alloc = allocator_type())
@@ -3351,8 +3288,7 @@ class raw_hash_set : public raw_hash_set_base {
       : raw_hash_set(init.begin(), init.end(), reservation_size, hash, eq,
                      alloc) {}
 
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<T>::value, int> = 0>
+  template <class T, std::enable_if_t<Insertable<T>::value, int> = 0>
   raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
                const hasher& hash, const allocator_type& alloc)
       : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
@@ -3361,8 +3297,7 @@ class raw_hash_set : public raw_hash_set_base {
                const hasher& hash, const allocator_type& alloc)
       : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
 
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<T>::value, int> = 0>
+  template <class T, std::enable_if_t<Insertable<T>::value, int> = 0>
   raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
                const allocator_type& alloc)
       : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
@@ -3371,8 +3306,7 @@ class raw_hash_set : public raw_hash_set_base {
                const allocator_type& alloc)
       : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
 
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<T>::value, int> = 0>
+  template <class T, std::enable_if_t<Insertable<T>::value, int> = 0>
   raw_hash_set(std::initializer_list<T> init, const allocator_type& alloc)
       : raw_hash_set(init, 0, hasher(), key_equal(), alloc) {}
 
@@ -3449,9 +3383,7 @@ class raw_hash_set : public raw_hash_set_base {
     // TODO(sbenza): We should only use the operations from the noexcept clause
     // to make sure we actually adhere to that contract.
     // NOLINTNEXTLINE: not returning *this for performance.
-    return move_assign(
-        std::move(that),
-        typename AllocTraits::propagate_on_container_move_assignment());
+    return move_assign(std::move(that));
   }
 
   ~raw_hash_set() {
@@ -3623,8 +3555,7 @@ class raw_hash_set : public raw_hash_set_base {
     insert_range(first, last);
   }
 
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<const T&>::value, int> = 0>
+  template <class T, std::enable_if_t<Insertable<const T&>::value, int> = 0>
   void insert(std::initializer_list<T> ilist) {
     insert_range(ilist.begin(), ilist.end());
   }
@@ -3879,8 +3810,12 @@ class raw_hash_set : public raw_hash_set_base {
     swap_common(that);
     swap(hash_ref(), that.hash_ref());
     swap(eq_ref(), that.eq_ref());
-    SwapAlloc(char_alloc_ref(), that.char_alloc_ref(),
-              typename AllocTraits::propagate_on_container_swap{});
+    if constexpr (AllocTraits::propagate_on_container_swap::value) {
+      swap(char_alloc_ref(), that.char_alloc_ref());
+    } else {
+      assert(char_alloc_ref() == that.char_alloc_ref() &&
+             "It's UB to call swap with unequal non-propagating allocators.");
+    }
   }
 
   void rehash(size_t n) {
@@ -3965,9 +3900,7 @@ class raw_hash_set : public raw_hash_set_base {
   template <class K = key_type>
   std::pair<const_iterator, const_iterator> equal_range(
       const_key_arg<K> key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    auto it = find(key);
-    if (!it.unchecked_is_end()) return {it, std::next(it)};
-    return {it, it};
+    return const_cast<raw_hash_set*>(this)->equal_range(key);
   }
 
   hasher hash_function() const { return hash_ref(); }
@@ -4217,8 +4150,10 @@ class raw_hash_set : public raw_hash_set_base {
     }
   }
 
-  // Only references `GetPolicyFunctions()` when generations are enabled, so
-  // that the `PolicyFunctions` instance is not kept alive otherwise.
+  // We only enable moved-from validation when generations are enabled (rather
+  // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
+  // translation units but not in others. Guarding here also avoids referencing
+  // `GetPolicyFunctions()` when generations are disabled.
   void annotate_for_bug_detection_on_move(raw_hash_set& that) {
     if constexpr (SwisstableGenerationsEnabled()) {
       common().annotate_for_bug_detection_on_move(that.common(),
@@ -4240,8 +4175,9 @@ class raw_hash_set : public raw_hash_set_base {
                 std::move(that.common()));
     hash_ref() = that.hash_ref();
     eq_ref() = that.eq_ref();
-    CopyAlloc(char_alloc_ref(), that.char_alloc_ref(),
-              std::bool_constant<propagate_alloc>());
+    if constexpr (propagate_alloc) {
+      char_alloc_ref() = that.char_alloc_ref();
+    }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
@@ -4265,28 +4201,27 @@ class raw_hash_set : public raw_hash_set_base {
     return *this;
   }
 
-  raw_hash_set& move_assign(raw_hash_set&& that,
-                            std::true_type /*propagate_alloc*/) {
-    return assign_impl<true>(std::move(that));
-  }
-  raw_hash_set& move_assign(raw_hash_set&& that,
-                            std::false_type /*propagate_alloc*/) {
-    if (char_alloc_ref() == that.char_alloc_ref()) {
-      return assign_impl<false>(std::move(that));
+  raw_hash_set& move_assign(raw_hash_set&& that) {
+    if constexpr (AllocTraits::propagate_on_container_move_assignment::value) {
+      return assign_impl<true>(std::move(that));
+    } else {
+      if (char_alloc_ref() == that.char_alloc_ref()) {
+        return assign_impl<false>(std::move(that));
+      }
+      // Aliasing can't happen here because allocs would compare equal above.
+      assert(this != &that);
+      destructor_impl();
+      // destructor_impl() leaves common() pointing at the freed backing array
+      // (or at the stale small-table state), so reset it to the default state
+      // before re-inserting elements.
+      common() = CommonFields::CreateDefault<SooEnabled()>();
+      // We can't take over that's memory so we need to move each element.
+      // While moving elements, this should have that's hash/eq so copy hash/eq
+      // before moving elements.
+      hash_ref() = that.hash_ref();
+      eq_ref() = that.eq_ref();
+      return move_elements_allocs_unequal(std::move(that));
     }
-    // Aliasing can't happen here because allocs would compare equal above.
-    assert(this != &that);
-    destructor_impl();
-    // destructor_impl() leaves common() pointing at the freed backing array
-    // (or at the stale small-table state), so reset it to the default state
-    // before re-inserting elements.
-    common() = CommonFields::CreateDefault<SooEnabled()>();
-    // We can't take over that's memory so we need to move each element.
-    // While moving elements, this should have that's hash/eq so copy hash/eq
-    // before moving elements.
-    hash_ref() = that.hash_ref();
-    eq_ref() = that.eq_ref();
-    return move_elements_allocs_unequal(std::move(that));
   }
 
   template <class K>
@@ -4516,10 +4451,6 @@ class raw_hash_set : public raw_hash_set_base {
     ABSL_SWISSTABLE_ASSERT(is_soo());
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(
         static_cast<slot_type*>(common().soo_data()));
-  }
-  const slot_type* soo_slot() const {
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(
-        const_cast<raw_hash_set*>(this)->soo_slot());
   }
   slot_type* single_slot() {
     return to_slot(

@@ -155,11 +155,6 @@ bool CommonFieldsGenerationInfoEnabled::
   return ShouldRehashForBugDetection(capacity);
 }
 
-bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
-    size_t capacity) const {
-  return ShouldRehashForBugDetection(capacity);
-}
-
 namespace {
 
 // Probes an array of control bits using a probe sequence,
@@ -306,11 +301,9 @@ void CommonFields::AssertNotDebugCapacityImpl() const {
   }
 }
 
-void CommonFields::AnnotateForBugDetectionOnMoveImpl(
+void CommonFields::annotate_for_bug_detection_on_move(
     CommonFields& that, const PolicyFunctions& policy) {
-  if (!SwisstableGenerationsEnabled()) {
-    return;
-  }
+  ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
   that.set_capacity(this == &that ? HashtableCapacity::CreateSelfMovedFrom()
                                   : HashtableCapacity::CreateMovedFrom());
   if (!maybe_invalid_capacity().IsValid() ||
@@ -318,7 +311,7 @@ void CommonFields::AnnotateForBugDetectionOnMoveImpl(
     return;
   }
   increment_generation();
-  if (!empty() && should_rehash_for_bug_detection_on_move()) {
+  if (!empty() && ShouldRehashForBugDetection(capacity())) {
     ResizeAllocatedTableWithSeedChange(*this, policy, capacity());
   }
 }
@@ -885,36 +878,6 @@ void DecrementSmallSize(CommonFields& c) {
   }
 }
 
-void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
-                 DeallocBackingArrayFn dealloc, void* alloc) {
-  ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
-  if (c.is_small()) {
-    ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
-    policy.destroy_slot(&c, c.soo_data());
-    return;
-  }
-  if (policy.destroy_slot != nullptr) {
-    DestroySlots(c, policy.slot_size, policy.destroy_slot);
-  }
-  UnregisterAndDeallocBackingArray(c, policy, dealloc, alloc);
-}
-
-void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
-                    DeallocBackingArrayFn dealloc, void* alloc) {
-  ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
-  if (policy.destroy_slot != nullptr) {
-    if (c.is_small()) {
-      if (!c.empty_when_small()) {
-        static_assert(kMaxSmallCapacity == 1);
-        policy.destroy_slot(&c, c.single_non_soo_slot());
-      }
-    } else {
-      DestroySlots(c, policy.slot_size, policy.destroy_slot);
-    }
-  }
-  UnregisterAndDeallocBackingArray(c, policy, dealloc, alloc);
-}
-
 }  // namespace
 
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
@@ -1029,10 +992,26 @@ template <bool kSooEnabled>
 void Destruct(CommonFields& c, const DtorPolicy& __restrict policy,
               DeallocBackingArrayFn dealloc, void* alloc) {
   if constexpr (kSooEnabled) {
-    DestructSoo(c, policy, dealloc, alloc);
+    ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
+    if (c.is_small()) {
+      ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
+      policy.destroy_slot(&c, c.soo_data());
+      return;
+    }
   } else {
-    DestructNonSoo(c, policy, dealloc, alloc);
+    ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
   }
+  if (policy.destroy_slot != nullptr) {
+    if (!kSooEnabled && c.is_small()) {
+      if (!c.empty_when_small()) {
+        static_assert(kMaxSmallCapacity == 1);
+        policy.destroy_slot(&c, c.single_non_soo_slot());
+      }
+    } else {
+      DestroySlots(c, policy.slot_size, policy.destroy_slot);
+    }
+  }
+  UnregisterAndDeallocBackingArray(c, policy, dealloc, alloc);
 }
 template <bool kSooEnabled>
 void Destruct(CommonFields& c, const DtorPolicy& __restrict policy,
