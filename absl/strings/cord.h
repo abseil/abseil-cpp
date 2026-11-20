@@ -949,6 +949,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
     void remove_prefix(size_t n);  // REQUIRES: holding data
     void AppendArray(absl::string_view src, MethodIdentifier method);
     absl::string_view FindFlatStartPiece() const;
+    absl::string_view FindFlatEndPiece() const;
 
     // Creates a CordRepFlat instance from the current inlined data with `extra'
     // bytes of desired additional capacity.
