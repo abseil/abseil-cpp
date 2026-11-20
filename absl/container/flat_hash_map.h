@@ -618,38 +618,6 @@ void swap(flat_hash_map<K, V, H, E, A>& x,
 
 namespace container_internal {
 
-// c_for_each_fast(flat_hash_map<>, Function)
-//
-// Container-based version of the <algorithm> `std::for_each()` function to
-// apply a function to a container's elements.
-// There is no guarantees on the order of the function calls.
-// Erasure and/or insertion of elements in the function is not allowed.
-template <typename K, typename V, typename H, typename E, typename A,
-          typename Function>
-std::decay_t<Function> c_for_each_fast(const flat_hash_map<K, V, H, E, A>& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-template <typename K, typename V, typename H, typename E, typename A,
-          typename Function>
-std::decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-template <typename K, typename V, typename H, typename E, typename A,
-          typename Function>
-std::decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>&& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-
-}  // namespace container_internal
-
-namespace container_internal {
-
 // These members are common to all template instantiations, so we factor them
 // out into this base class to avoid re-instantiating similar templates multiple
 // times, reducing compilation time.

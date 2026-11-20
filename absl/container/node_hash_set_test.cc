@@ -153,39 +153,6 @@ TEST(NodeHashSet, EraseIf) {
   }
 }
 
-TEST(NodeHashSet, CForEach) {
-  using ValueType = std::pair<int, int>;
-  node_hash_set<ValueType> s;
-  std::vector<ValueType> expected;
-  for (int i = 0; i < 100; ++i) {
-    {
-      SCOPED_TRACE("mutable object iteration");
-      std::vector<ValueType> v;
-      absl::container_internal::c_for_each_fast(
-          s, [&v](const ValueType& p) { v.push_back(p); });
-      ASSERT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    {
-      SCOPED_TRACE("const object iteration");
-      std::vector<ValueType> v;
-      const node_hash_set<ValueType>& cs = s;
-      absl::container_internal::c_for_each_fast(
-          cs, [&v](const ValueType& p) { v.push_back(p); });
-      ASSERT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    {
-      SCOPED_TRACE("temporary object iteration");
-      std::vector<ValueType> v;
-      absl::container_internal::c_for_each_fast(
-          node_hash_set<ValueType>(s),
-          [&v](const ValueType& p) { v.push_back(p); });
-      ASSERT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    s.emplace(i, i);
-    expected.emplace_back(i, i);
-  }
-}
-
 #if defined(__cpp_lib_containers_ranges) && \
     __cpp_lib_containers_ranges >= 202202L
 TEST(NodeHashSet, FromRange) {

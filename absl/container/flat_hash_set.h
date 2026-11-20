@@ -524,35 +524,6 @@ void swap(flat_hash_set<T, H, E, A>& x,
 
 namespace container_internal {
 
-// c_for_each_fast(flat_hash_set<>, Function)
-//
-// Container-based version of the <algorithm> `std::for_each()` function to
-// apply a function to a container's elements.
-// There is no guarantees on the order of the function calls.
-// Erasure and/or insertion of elements in the function is not allowed.
-template <typename T, typename H, typename E, typename A, typename Function>
-std::decay_t<Function> c_for_each_fast(const flat_hash_set<T, H, E, A>& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-template <typename T, typename H, typename E, typename A, typename Function>
-std::decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-template <typename T, typename H, typename E, typename A, typename Function>
-std::decay_t<Function> c_for_each_fast(flat_hash_set<T, H, E, A>&& c,
-                                       Function&& f) {
-  container_internal::ForEach(f, &c);
-  return f;
-}
-
-}  // namespace container_internal
-
-namespace container_internal {
-
 template <class T>
 struct FlatHashSetPolicy {
   using slot_type = T;

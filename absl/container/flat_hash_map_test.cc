@@ -308,58 +308,6 @@ TEST(FlatHashMap, EraseIf) {
   }
 }
 
-TEST(FlatHashMap, CForEach) {
-  flat_hash_map<int, int> m;
-  std::vector<std::pair<int, int>> expected;
-  for (int i = 0; i < 100; ++i) {
-    {
-      SCOPED_TRACE("mutable object iteration");
-      std::vector<std::pair<int, int>> v;
-      absl::container_internal::c_for_each_fast(
-          m, [&v](std::pair<const int, int>& p) { v.push_back(p); });
-      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    {
-      SCOPED_TRACE("const object iteration");
-      std::vector<std::pair<int, int>> v;
-      const flat_hash_map<int, int>& cm = m;
-      absl::container_internal::c_for_each_fast(
-          cm, [&v](const std::pair<const int, int>& p) { v.push_back(p); });
-      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    {
-      SCOPED_TRACE("const object iteration");
-      std::vector<std::pair<int, int>> v;
-      absl::container_internal::c_for_each_fast(
-          flat_hash_map<int, int>(m),
-          [&v](std::pair<const int, int>& p) { v.push_back(p); });
-      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
-    }
-    m[i] = i;
-    expected.emplace_back(i, i);
-  }
-}
-
-TEST(FlatHashMap, CForEachMutate) {
-  flat_hash_map<int, int> s;
-  std::vector<std::pair<int, int>> expected;
-  for (int i = 0; i < 100; ++i) {
-    std::vector<std::pair<int, int>> v;
-    absl::container_internal::c_for_each_fast(
-        s, [&v](std::pair<const int, int>& p) {
-          v.push_back(p);
-          p.second++;
-        });
-    EXPECT_THAT(v, UnorderedElementsAreArray(expected));
-    for (auto& p : expected) {
-      p.second++;
-    }
-    EXPECT_THAT(s, UnorderedElementsAreArray(expected));
-    s[i] = i;
-    expected.emplace_back(i, i);
-  }
-}
-
 TEST(FlatHashMap, NodeHandleMutableKeyAccess) {
   flat_hash_map<std::string, std::string> map;
 
