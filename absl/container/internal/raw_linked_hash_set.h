@@ -34,8 +34,61 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-// Shared container implementation backing both `absl::linked_hash_set` and
-// `absl::linked_hash_map`.
+template <typename Derived, typename Policy, bool kIsMap = Policy::kIsMap>
+class LinkedHashNodeHandleAccess {
+ public:
+  using key_type = typename Policy::key_type;
+  using mapped_type = typename Policy::mapped_type;
+
+  const key_type& key() const {
+    return static_cast<const Derived*>(this)->list_.front().first;
+  }
+  mapped_type& mapped() {
+    return static_cast<Derived*>(this)->list_.front().second;
+  }
+};
+
+template <typename Derived, typename Policy>
+class LinkedHashNodeHandleAccess<Derived, Policy, /*kIsMap=*/false> {
+ public:
+  using value_type = typename Policy::value_type;
+
+  value_type& value() { return static_cast<Derived*>(this)->list_.front(); }
+};
+
+// Owning node handle shared by `linked_hash_set` and `linked_hash_map`.
+template <typename Policy, typename Alloc>
+class LinkedHashNodeHandle
+    : public LinkedHashNodeHandleAccess<LinkedHashNodeHandle<Policy, Alloc>,
+                                        Policy> {
+  using ListType = std::list<typename Policy::value_type, Alloc>;
+
+ public:
+  using allocator_type = Alloc;
+
+  constexpr LinkedHashNodeHandle() noexcept = default;
+  LinkedHashNodeHandle(LinkedHashNodeHandle&& nh) noexcept = default;
+  ~LinkedHashNodeHandle() = default;
+  LinkedHashNodeHandle& operator=(LinkedHashNodeHandle&& node) noexcept =
+      default;
+  bool empty() const noexcept { return list_.empty(); }
+  explicit operator bool() const noexcept { return !empty(); }
+  allocator_type get_allocator() const { return list_.get_allocator(); }
+  void swap(LinkedHashNodeHandle& nh) noexcept { list_.swap(nh.list_); }
+  friend void swap(LinkedHashNodeHandle& a, LinkedHashNodeHandle& b) noexcept {
+    a.swap(b);
+  }
+
+ private:
+  friend class LinkedHashNodeHandleAccess<LinkedHashNodeHandle, Policy>;
+  template <typename, typename, typename, typename>
+  friend class raw_linked_hash_set;
+
+  explicit LinkedHashNodeHandle(ListType list) : list_(std::move(list)) {}
+  ListType list_;
+};
+
+// Shared container implementation backing linked hash sets and maps.
 template <typename Policy, typename Hash, typename Eq, typename Alloc>
 class raw_linked_hash_set {
  protected:
@@ -56,49 +109,6 @@ class raw_linked_hash_set {
   using key_arg = typename KeyArgImpl::template Select<K, key_type>;
 
   using ListType = std::list<value_type, allocator_type>;
-
-  template <typename Derived, bool kIsMap = Policy::kIsMap>
-  class NodeHandleAccess {
-   public:
-    using key_type = typename Policy::key_type;
-    using mapped_type = typename Policy::mapped_type;
-
-    const key_type& key() const {
-      return static_cast<const Derived*>(this)->list_.front().first;
-    }
-    mapped_type& mapped() {
-      return static_cast<Derived*>(this)->list_.front().second;
-    }
-  };
-
-  template <typename Derived>
-  class NodeHandleAccess<Derived, /*kIsMap=*/false> {
-   public:
-    using value_type = typename Policy::value_type;
-
-    value_type& value() { return static_cast<Derived*>(this)->list_.front(); }
-  };
-
-  class NodeHandle : public NodeHandleAccess<NodeHandle> {
-   public:
-    using allocator_type = raw_linked_hash_set::allocator_type;
-
-    constexpr NodeHandle() noexcept = default;
-    NodeHandle(NodeHandle&& nh) noexcept = default;
-    ~NodeHandle() = default;
-    NodeHandle& operator=(NodeHandle&& node) noexcept = default;
-    bool empty() const noexcept { return list_.empty(); }
-    explicit operator bool() const noexcept { return !empty(); }
-    allocator_type get_allocator() const { return list_.get_allocator(); }
-    void swap(NodeHandle& nh) noexcept { list_.swap(nh.list_); }
-
-   private:
-    friend class NodeHandleAccess<NodeHandle>;
-    friend raw_linked_hash_set;
-
-    explicit NodeHandle(ListType list) : list_(std::move(list)) {}
-    ListType list_;
-  };
 
   template <class Fn>
   class Wrapped {
@@ -149,7 +159,7 @@ class raw_linked_hash_set {
   using pointer = typename std::allocator_traits<allocator_type>::pointer;
   using const_pointer =
       typename std::allocator_traits<allocator_type>::const_pointer;
-  using node_type = NodeHandle;
+  using node_type = LinkedHashNodeHandle<Policy, allocator_type>;
   using insert_return_type = InsertReturnType<iterator, node_type>;
 
   raw_linked_hash_set() = default;
