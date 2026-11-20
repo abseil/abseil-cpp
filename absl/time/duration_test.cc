@@ -575,6 +575,16 @@ TEST(Duration, InfinityMultiplication) {
   EXPECT_EQ(-inf, any_dur * -dbl_inf);
   EXPECT_EQ(inf, -any_dur * -dbl_inf);
 
+  // A finite factor can still overflow a double while scaling the subsecond
+  // part of a duration, in which case the result saturates.
+  const absl::Duration frac_dur = absl::Milliseconds(1500);
+  for (double huge : {1e300, std::numeric_limits<double>::max()}) {
+    EXPECT_EQ(inf, frac_dur * huge);
+    EXPECT_EQ(-inf, -frac_dur * huge);
+    EXPECT_EQ(-inf, frac_dur * -huge);
+    EXPECT_EQ(inf, -frac_dur * -huge);
+  }
+
   // Fixed-point multiplication will produce a finite value, whereas floating
   // point fuzziness will overflow to inf.
   EXPECT_NE(absl::InfiniteDuration(), absl::Seconds(1) * kint64max);
@@ -627,6 +637,17 @@ TEST(Duration, InfinityDivision) {
   EXPECT_EQ(absl::ZeroDuration(), any_dur / -dbl_inf);
   EXPECT_EQ(absl::ZeroDuration(), -any_dur / dbl_inf);
   EXPECT_EQ(absl::ZeroDuration(), -any_dur / -dbl_inf);
+
+  // A nonzero divisor can still overflow a double while scaling the subsecond
+  // part of a duration, in which case the result saturates.
+  const absl::Duration frac_dur = absl::Milliseconds(1500);
+  for (double tiny : {std::numeric_limits<double>::min(),
+                      std::numeric_limits<double>::denorm_min()}) {
+    EXPECT_EQ(inf, frac_dur / tiny);
+    EXPECT_EQ(-inf, -frac_dur / tiny);
+    EXPECT_EQ(-inf, frac_dur / -tiny);
+    EXPECT_EQ(inf, -frac_dur / -tiny);
+  }
 }
 
 TEST(Duration, InfinityModulus) {
