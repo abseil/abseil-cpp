@@ -15,8 +15,8 @@
 #include "absl/random/internal/randen.h"
 
 #include "absl/base/config.h"
+#include "absl/base/internal/cpu_detect.h"
 #include "absl/random/internal/platform.h"
-#include "absl/random/internal/randen_detect.h"
 #include "absl/random/internal/randen_hwaes.h"
 #include "absl/random/internal/randen_slow.h"
 
@@ -58,7 +58,8 @@ RandenState GetRandenState() {
     RandenState tmp;
 #if ABSL_RANDOM_INTERNAL_AES_DISPATCH
     // HW AES Dispatch.
-    if (HasRandenHwAesImplementation() && CPUSupportsRandenHwAes()) {
+    if (HasRandenHwAesImplementation() &&
+        absl::base_internal::SupportsRandenHwAes()) {
       tmp.has_crypto = true;
       tmp.keys = RandenHwAes::GetKeys();
     } else {

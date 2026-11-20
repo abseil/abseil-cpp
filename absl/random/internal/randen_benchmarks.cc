@@ -16,10 +16,10 @@
 #include <cstdio>
 #include <cstring>
 
+#include "absl/base/internal/cpu_detect.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/random/internal/nanobenchmark.h"
 #include "absl/random/internal/randen.h"
-#include "absl/random/internal/randen_detect.h"
 #include "absl/random/internal/randen_engine.h"
 #include "absl/random/internal/randen_hwaes.h"
 #include "absl/random/internal/randen_slow.h"
@@ -27,7 +27,8 @@
 
 namespace {
 
-using absl::random_internal::CPUSupportsRandenHwAes;
+using absl::base_internal::SupportsRandenHwAes;
+using absl::random_internal::HasRandenHwAesImplementation;
 using absl::random_internal::Randen;
 using absl::random_internal::RandenHwAes;
 using absl::random_internal::RandenSlow;
@@ -151,12 +152,16 @@ void RunAll(const int argc, char* argv[]) {
   const FuncInput unpredictable = (argc != 999);
   static const FuncInput inputs[] = {unpredictable * 100, unpredictable * 1000};
 
-  if (CPUSupportsRandenHwAes()) {
+  // RandenHwAes is a stub that exits when the implementation is not built.
+  const bool measure_hwaes =
+      HasRandenHwAesImplementation() && SupportsRandenHwAes();
+
+  if (measure_hwaes) {
     Measure<AbsorbFn<RandenHwAes>>("Absorb (HwAes)", inputs);
   }
   Measure<AbsorbFn<RandenSlow>>("Absorb (Slow)", inputs);
 
-  if (CPUSupportsRandenHwAes()) {
+  if (measure_hwaes) {
     Measure<GenerateFn<RandenHwAes>>("Generate (HwAes)", inputs);
   }
   Measure<GenerateFn<RandenSlow>>("Generate (Slow)", inputs);

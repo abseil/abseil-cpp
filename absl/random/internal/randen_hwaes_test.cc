@@ -18,9 +18,9 @@
 #include <cstring>
 
 #include "gtest/gtest.h"
+#include "absl/base/internal/cpu_detect.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/platform.h"
-#include "absl/random/internal/randen_detect.h"
 #include "absl/random/internal/randen_traits.h"
 
 namespace {
@@ -28,8 +28,23 @@ namespace {
 using absl::random_internal::RandenHwAes;
 using absl::random_internal::RandenTraits;
 
+// Whether the build is expected to compile the accelerated implementation
+// into randen_hwaes.cc. On these configurations a missing implementation means
+// that the hardware AES compiler flags were lost, so the test must fail rather
+// than be skipped. ILP32 ABIs (such as x32) are excluded because the CMake
+// build does not pass the flags for them.
+#if ABSL_RANDOM_INTERNAL_AES_DISPATCH && !defined(__ILP32__) && \
+    (defined(ABSL_ARCH_X86_64) ||                               \
+     (defined(ABSL_ARCH_AARCH64) && !defined(__ANDROID__))) &&  \
+    (defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER))
+constexpr bool kExpectHwAesImplementation = true;
+#else
+constexpr bool kExpectHwAesImplementation = false;
+#endif
+
 TEST(RandenHwAesTest, Default) {
-  EXPECT_TRUE(absl::random_internal::CPUSupportsRandenHwAes());
+  ASSERT_TRUE(absl::random_internal::HasRandenHwAesImplementation());
+  EXPECT_TRUE(absl::base_internal::SupportsRandenHwAes());
 
   constexpr uint8_t kGolden[] = {
       0xee, 0xd3, 0xe6, 0x0e, 0x09, 0x34, 0x65, 0x6c, 0xc6, 0x33, 0x53, 0x9d,
@@ -89,10 +104,12 @@ int main(int argc, char* argv[]) {
   int x = absl::random_internal::HasRandenHwAesImplementation();
   LOG(INFO) << "HasRandenHwAesImplementation = " << x;
 
-  int y = absl::random_internal::CPUSupportsRandenHwAes();
-  LOG(INFO) << "CPUSupportsRandenHwAes = " << y;
+  int y = absl::base_internal::SupportsRandenHwAes();
+  LOG(INFO) << "SupportsRandenHwAes = " << y;
 
-  if (!x || !y) {
+  // When the implementation is expected, run the tests even if it is missing
+  // so that RandenHwAesTest.Default reports the failure.
+  if (!y || (!x && !kExpectHwAesImplementation)) {
     LOG(INFO) << "Skipping Randen HWAES tests.";
     return 0;
   }
