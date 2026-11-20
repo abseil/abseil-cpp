@@ -554,26 +554,6 @@ struct NodeHashSetPolicy
   using DefaultAlloc = std::allocator<T>;
   using SlotEq = SlotEqFn<T, /*kDerefSlot=*/true>;
 
-  template <class Allocator, class... Args>
-  static T* new_element(Allocator* alloc, Args&&... args) {
-    using ValueAlloc =
-        typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
-    ValueAlloc value_alloc(*alloc);
-    T* res = std::allocator_traits<ValueAlloc>::allocate(value_alloc, 1);
-    std::allocator_traits<ValueAlloc>::construct(value_alloc, res,
-                                                 std::forward<Args>(args)...);
-    return res;
-  }
-
-  template <class Allocator>
-  static void delete_element(Allocator* alloc, T* elem) {
-    using ValueAlloc =
-        typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
-    ValueAlloc value_alloc(*alloc);
-    std::allocator_traits<ValueAlloc>::destroy(value_alloc, elem);
-    std::allocator_traits<ValueAlloc>::deallocate(value_alloc, elem, 1);
-  }
-
   template <class F, class... Args>
   static decltype(absl::container_internal::DecomposeValue(
       std::declval<F>(), std::declval<Args>()...))
@@ -581,8 +561,6 @@ struct NodeHashSetPolicy
     return absl::container_internal::DecomposeValue(
         std::forward<F>(f), std::forward<Args>(args)...);
   }
-
-  static size_t element_space_used(const T*) { return sizeof(T); }
 
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {

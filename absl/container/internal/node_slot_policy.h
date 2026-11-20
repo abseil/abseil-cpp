@@ -14,26 +14,12 @@
 //
 // Adapts a policy for nodes.
 //
-// The node policy should model:
-//
-// struct Policy {
-//   // Returns a new node allocated and constructed using the allocator, using
-//   // the specified arguments.
-//   template <class Alloc, class... Args>
-//   value_type* new_element(Alloc* alloc, Args&&... args) const;
-//
-//   // Destroys and deallocates node using the allocator.
-//   template <class Alloc>
-//   void delete_element(Alloc* alloc, value_type* node) const;
-// };
-//
-// It may also optionally define `value()` and `apply()`. For documentation on
-// these, see hash_policy_traits.h.
+// `Policy` may optionally customize allocation/deallocation and accounting via
+// `new_element()`, `delete_element()`, and `element_space_used()`.
 
 #ifndef ABSL_CONTAINER_INTERNAL_NODE_SLOT_POLICY_H_
 #define ABSL_CONTAINER_INTERNAL_NODE_SLOT_POLICY_H_
 
-#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <type_traits>
@@ -49,7 +35,33 @@ template <class Reference, class Policy>
 struct node_slot_policy {
   static_assert(std::is_lvalue_reference_v<Reference>);
 
-  using slot_type = std::remove_cv_t<std::remove_reference_t<Reference>>*;
+ private:
+  using Elem = std::remove_cv_t<std::remove_reference_t<Reference>>;
+
+ public:
+  using slot_type = Elem*;
+
+  template <class Alloc, class... Args>
+  static slot_type new_element(Alloc* alloc, Args&&... args) {
+    using ElemAlloc =
+        typename std::allocator_traits<Alloc>::template rebind_alloc<Elem>;
+    ElemAlloc elem_alloc(*alloc);
+    slot_type res = std::allocator_traits<ElemAlloc>::allocate(elem_alloc, 1);
+    std::allocator_traits<ElemAlloc>::construct(elem_alloc, res,
+                                                std::forward<Args>(args)...);
+    return res;
+  }
+
+  template <class Alloc>
+  static void delete_element(Alloc* alloc, slot_type elem) {
+    using ElemAlloc =
+        typename std::allocator_traits<Alloc>::template rebind_alloc<Elem>;
+    ElemAlloc elem_alloc(*alloc);
+    std::allocator_traits<ElemAlloc>::destroy(elem_alloc, elem);
+    std::allocator_traits<ElemAlloc>::deallocate(elem_alloc, elem, 1);
+  }
+
+  static size_t element_space_used(const Elem*) { return sizeof(Elem); }
 
   template <class Alloc, class... Args>
   static void construct(Alloc* alloc, slot_type* slot, Args&&... args) {
@@ -75,16 +87,6 @@ struct node_slot_policy {
   }
 
   static Reference element(slot_type* slot) { return **slot; }
-
-  template <class T, class P = Policy>
-  static auto value(T* elem) -> decltype(P::value(elem)) {
-    return P::value(elem);
-  }
-
-  template <class... Ts, class P = Policy>
-  static auto apply(Ts&&... ts) -> decltype(P::apply(std::forward<Ts>(ts)...)) {
-    return P::apply(std::forward<Ts>(ts)...);
-  }
 };
 
 }  // namespace container_internal
