@@ -15,8 +15,10 @@
 
 #include "absl/flags/parse.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -229,6 +231,10 @@ ABSL_FLAG(int, int_flag, 1, "");
 ABSL_FLAG(double, double_flag, 1.1, "");
 ABSL_FLAG(std::string, string_flag, "a", "");
 ABSL_FLAG(bool, bool_flag, false, "");
+ABSL_FLAG(std::vector<int64_t>, int64_vec_flag,
+          std::vector<int64_t>({1, 2}), "");
+ABSL_FLAG(std::vector<double>, double_vec_flag,
+          std::vector<double>({0.5, 1.5}), "");
 ABSL_FLAG(UDT, udt_flag, -1, "");
 ABSL_RETIRED_FLAG(int, legacy_int, 1, "");
 ABSL_RETIRED_FLAG(bool, legacy_bool, false, "");
@@ -1211,6 +1217,100 @@ TEST_F(ParseDeathTest, IsIndirectFlagExpansionEnabledWorks) {
         exit(absl::flags_internal::IsIndirectFlagExpansionEnabled() ? 2 : 0);
       })(),
       testing::ExitedWithCode(0), "");
+}
+
+// --------------------------------------------------------------------
+
+TEST_F(ParseTest, TestValidNumericVectorArg) {
+  EXPECT_EQ(absl::GetFlag(FLAGS_int64_vec_flag),
+            (std::vector<int64_t>{1, 2}));
+  EXPECT_EQ(absl::GetFlag(FLAGS_double_vec_flag),
+            (std::vector<double>{0.5, 1.5}));
+
+  // Overwrites non-empty default, honors hex and leading-zero decimal.
+  const char* in_args1[] = {
+      "testbin",
+      "--int64_vec_flag=10,-20,0x10,010",
+      "--double_vec_flag=0.25, -1.25e-2, inf",
+  };
+  InvokeParse(in_args1);
+  EXPECT_EQ(absl::GetFlag(FLAGS_int64_vec_flag),
+            (std::vector<int64_t>{10, -20, 16, 10}));
+  const std::vector<double> dvec = absl::GetFlag(FLAGS_double_vec_flag);
+  ASSERT_EQ(dvec.size(), 3u);
+  EXPECT_DOUBLE_EQ(dvec[0], 0.25);
+  EXPECT_DOUBLE_EQ(dvec[1], -0.0125);
+  EXPECT_TRUE(std::isinf(dvec[2]) && dvec[2] > 0);
+
+  // Empty value clears vector to {}.
+  const char* in_args2[] = {
+      "testbin",
+      "--int64_vec_flag=",
+      "--double_vec_flag",
+      "",
+  };
+  InvokeParse(in_args2);
+  EXPECT_EQ(absl::GetFlag(FLAGS_int64_vec_flag), std::vector<int64_t>{});
+  EXPECT_EQ(absl::GetFlag(FLAGS_double_vec_flag), std::vector<double>{});
+
+  // Repeated flags overwrite previous values rather than appending.
+  const char* in_args3[] = {
+      "testbin",
+      "--int64_vec_flag=1, 2",
+      "--int64_vec_flag=3",
+  };
+  InvokeParse(in_args3);
+  EXPECT_EQ(absl::GetFlag(FLAGS_int64_vec_flag), std::vector<int64_t>{3});
+
+  // Flagfile with surrounding whitespace and CRLF line endings.
+  std::string flagfile_flag;
+  constexpr const char* const vec_ff_data[] = {
+      "  --int64_vec_flag=7, 8, 9  ",
+  };
+  const char* in_args4[] = {
+      "testbin",
+      GetFlagfileFlag(
+          {{"parse_test.vec_ff", absl::MakeConstSpan(vec_ff_data)}},
+          flagfile_flag, "\r\n"),
+  };
+  InvokeParse(in_args4);
+  EXPECT_EQ(absl::GetFlag(FLAGS_int64_vec_flag),
+            (std::vector<int64_t>{7, 8, 9}));
+}
+
+TEST_F(ParseDeathTest, TestInvalidNumericVectorArg) {
+  const char* in_args1[] = {"testbin", "--int64_vec_flag=   "};
+  EXPECT_DEATH_IF_SUPPORTED(
+      InvokeParse(in_args1),
+      "Illegal value '   ' specified for flag 'int64_vec_flag'");
+
+  const char* in_args2[] = {"testbin", "--int64_vec_flag=1,,2"};
+  EXPECT_DEATH_IF_SUPPORTED(
+      InvokeParse(in_args2),
+      "Illegal value '1,,2' specified for flag 'int64_vec_flag'");
+
+  const char* in_args3[] = {"testbin", "--int64_vec_flag=1,2,"};
+  EXPECT_DEATH_IF_SUPPORTED(
+      InvokeParse(in_args3),
+      "Illegal value '1,2,' specified for flag 'int64_vec_flag'");
+
+  const char* in_args4[] = {"testbin", "--int64_vec_flag=1, ,2"};
+  EXPECT_DEATH_IF_SUPPORTED(
+      InvokeParse(in_args4),
+      "Illegal value '1, ,2' specified for flag 'int64_vec_flag'");
+
+  const char* in_args5[] = {"testbin", "--int64_vec_flag=1,typo,3"};
+  EXPECT_DEATH_IF_SUPPORTED(
+      InvokeParse(in_args5),
+      "Illegal value '1,typo,3' specified for flag 'int64_vec_flag'");
+
+  const char* in_args_check_ok[] = {"testbin", "--only_check_args",
+                                    "--int64_vec_flag=1,2,3"};
+  EXPECT_EXIT(InvokeParse(in_args_check_ok), testing::ExitedWithCode(0), "");
+
+  const char* in_args_check_bad[] = {"testbin", "--only_check_args",
+                                     "--int64_vec_flag=1,typo,3"};
+  EXPECT_EXIT(InvokeParse(in_args_check_bad), testing::ExitedWithCode(1), "");
 }
 
 }  // namespace
