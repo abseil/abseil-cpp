@@ -1091,7 +1091,7 @@ ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
 CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
                                            const unsigned char* first,
                                            size_t len);
-ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
+ABSL_ATTRIBUTE_PURE_FUNCTION ABSL_ATTRIBUTE_NOINLINE uint64_t
 CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
                                             const unsigned char* first,
                                             size_t len);
