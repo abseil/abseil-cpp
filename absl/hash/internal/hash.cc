@@ -17,7 +17,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -46,15 +48,58 @@
 #define ABSL_AES_INTERNAL_HAVE_ARM_SIMD
 #endif  // ABSL_INTERNAL_HAVE_ARM_NEON
 
+#ifdef ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL
+#error ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL cannot be directly set
+#elif defined(__clang__)
+#define ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL \
+  _Pragma("clang loop unroll(disable)")
+#else
+#define ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 namespace {
 
+// Software prefetch lookahead distance (320 bytes on 64-byte cache-line CPUs).
+constexpr size_t kPrefetchBytes = 5 * ABSL_CACHELINE_SIZE;
+static_assert(kPrefetchBytes >= 128 && kPrefetchBytes < PiecewiseChunkSize(),
+              "kPrefetchBytes must lie in [128, PiecewiseChunkSize())");
+
 void PrefetchFutureDataToLocalCache(const uint8_t* ptr) {
-  PrefetchToLocalCache(ptr + 5 * ABSL_CACHELINE_SIZE);
+  PrefetchToLocalCache(ptr + kPrefetchBytes);
 }
+
+template <bool kPrefetch, typename Mix64Fn>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline std::pair<const uint8_t*, size_t>
+Hash64ByteBlocks(const uint8_t* ptr, size_t len, Mix64Fn mix_64_bytes) {
+  assert(len > 64);
+  if constexpr (kPrefetch) {
+    assert(len > kPrefetchBytes);
+    // Stop prefetching once remaining bytes fit within the prefetch distance
+    // so we never read past the end of the buffer.
+    ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL
+    do {
+      PrefetchFutureDataToLocalCache(ptr);
+      mix_64_bytes(ptr);
+      ptr += 64;
+      len -= 64;
+    } while (len > kPrefetchBytes);
+  }
+  // Already 64B/iter and >1 iteration (>128B, ~2.2% in fleetbench) is rare,
+  // so avoid extra unroll bloat (and GPR spills under preserve_most).
+  ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL
+  do {
+    mix_64_bytes(ptr);
+    ptr += 64;
+    len -= 64;
+  } while (len > 64);
+  return {ptr, len};
+}
+
+#undef ABSL_HASH_INTERNAL_DISABLE_LOOP_UNROLL
 
 #if defined(ABSL_AES_INTERNAL_HAVE_X86_SIMD) || \
     defined(ABSL_AES_INTERNAL_HAVE_ARM_SIMD)
@@ -232,8 +277,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
   return Mix4x16Vectors(state0, state1, state2, state3);
 }
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
+template <bool kPrefetch>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHashLenGt64Impl(
+    uint64_t seed, const unsigned char* ptr, size_t len) {
   assert(len > 64);
   const uint8_t* last_32_ptr = ptr + len - 32;
 
@@ -245,22 +291,18 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
   Vector128 state2 = state1;
   Vector128 state3 = state2;
 
-  // Already 64B/iter and >1 iteration (>128B, ~2.2% in fleetbench) is rare,
-  // so avoid extra unroll bloat (and GPR spills under preserve_most).
-#if defined(__clang__)
-#pragma clang loop unroll(disable)
-#endif
-  do {
-    PrefetchFutureDataToLocalCache(ptr);
-    MixAB(ptr, state0, state1);
-    MixCD(ptr + 32, state2, state3);
-
-    ptr += 64;
-    len -= 64;
-  } while (len > 64);
+  std::tie(ptr, len) = Hash64ByteBlocks<kPrefetch>(
+      ptr, len, [&](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+        MixAB(p, state0, state1);
+        MixCD(p + 32, state2, state3);
+      });
 
   // We now have a data `ptr` with at most 64 bytes.
   if (len > 32) {
+    // Note: forcing the loop pointer to stay in its register across this check
+    // avoids recomputing the exit offset from the initial arguments, saving a
+    // few instructions. One way to force this on GCC/Clang is:
+    //   asm("" : "+r"(ptr));
     MixAB(ptr, state0, state1);
   }
   MixCD(last_32_ptr, state2, state3);
@@ -288,8 +330,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
   return Mix32Bytes(last_32_ptr, Mix32Bytes(ptr, current_state));
 }
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
+template <bool kPrefetch>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHashLenGt64Impl(
+    uint64_t seed, const unsigned char* ptr, size_t len) {
   assert(len > 64);
   uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
   const uint8_t* last_32_ptr = ptr + len - 32;
@@ -300,32 +343,26 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
   uint64_t duplicated_state1 = current_state;
   uint64_t duplicated_state2 = current_state;
 
-  // Already 64B/iter and >1 iteration (>128B, ~2.2% in fleetbench) is rare,
-  // so avoid extra unroll bloat (and GPR spills under preserve_most).
-#if defined(__clang__)
-#pragma clang loop unroll(disable)
-#endif
-  do {
-    PrefetchFutureDataToLocalCache(ptr);
+  std::tie(ptr, len) = Hash64ByteBlocks<kPrefetch>(
+      ptr, len, [&](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+        uint64_t a = absl::base_internal::UnalignedLoad64(p);
+        uint64_t b = absl::base_internal::UnalignedLoad64(p + 8);
+        uint64_t c = absl::base_internal::UnalignedLoad64(p + 16);
+        uint64_t d = absl::base_internal::UnalignedLoad64(p + 24);
+        uint64_t e = absl::base_internal::UnalignedLoad64(p + 32);
+        uint64_t f = absl::base_internal::UnalignedLoad64(p + 40);
+        uint64_t g = absl::base_internal::UnalignedLoad64(p + 48);
+        uint64_t h = absl::base_internal::UnalignedLoad64(p + 56);
 
-    uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
-    uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
-    uint64_t c = absl::base_internal::UnalignedLoad64(ptr + 16);
-    uint64_t d = absl::base_internal::UnalignedLoad64(ptr + 24);
-    uint64_t e = absl::base_internal::UnalignedLoad64(ptr + 32);
-    uint64_t f = absl::base_internal::UnalignedLoad64(ptr + 40);
-    uint64_t g = absl::base_internal::UnalignedLoad64(ptr + 48);
-    uint64_t h = absl::base_internal::UnalignedLoad64(ptr + 56);
+        current_state = Mix(a ^ kStaticRandomData[1], b ^ current_state);
+        duplicated_state0 =
+            Mix(c ^ kStaticRandomData[2], d ^ duplicated_state0);
 
-    current_state = Mix(a ^ kStaticRandomData[1], b ^ current_state);
-    duplicated_state0 = Mix(c ^ kStaticRandomData[2], d ^ duplicated_state0);
-
-    duplicated_state1 = Mix(e ^ kStaticRandomData[3], f ^ duplicated_state1);
-    duplicated_state2 = Mix(g ^ kStaticRandomData[4], h ^ duplicated_state2);
-
-    ptr += 64;
-    len -= 64;
-  } while (len > 64);
+        duplicated_state1 =
+            Mix(e ^ kStaticRandomData[3], f ^ duplicated_state1);
+        duplicated_state2 =
+            Mix(g ^ kStaticRandomData[4], h ^ duplicated_state2);
+      });
 
   current_state = (current_state ^ duplicated_state0) ^
                   (duplicated_state1 + duplicated_state2);
@@ -342,41 +379,56 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
 }
 #endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST uint64_t
-LowLevelHashLenGt32(uint64_t seed, const unsigned char* data, size_t len) {
-  assert(len > 32);
-  if (ABSL_PREDICT_FALSE(len > 64)) {
-    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt64(seed, data, len);
+template <int kSizeofSizeT>
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+SplitAndCombine(uint64_t state, const unsigned char* first, size_t len);
+
+// Hashes inputs larger than the prefetch lookahead distance with bounded
+// software prefetching, delegating multi-chunk inputs to chunked hashing.
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashWithPrefetch(uint64_t seed, const unsigned char* data, size_t len) {
+  assert(len > kPrefetchBytes);
+  if (ABSL_PREDICT_FALSE(len > PiecewiseChunkSize())) {
+    ABSL_INTERNAL_MUSTTAIL return SplitAndCombine<8>(seed, data, len);
   }
-  return LowLevelHash33To64(seed, data, len);
+  return LowLevelHashLenGt64Impl</*kPrefetch=*/true>(seed, data, len);
 }
 
-template <int kSizeofSizeT>
-ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
-HashBlock(uint64_t state, const unsigned char* data, size_t len) {
-  if constexpr (kSizeofSizeT == 4) {
-    // TODO(b/417141985): expose and use CityHash32WithSeed.
-    // Note: we can't use PrecombineLengthMix here because len can be up to
-    // 1024.
-    return CombineRawImpl(
-        state + len,
-        hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
-  } else {
-    static_assert(kSizeofSizeT == 8);
-#ifdef ABSL_HAVE_INTRINSIC_INT128
-    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt32(state, data, len);
-#else
-    return hash_internal::CityHash64WithSeed(
-        reinterpret_cast<const char*>(data), len, state);
-#endif
+// Skips software prefetching until inputs exceed the prefetch lookahead
+// distance, avoiding out-of-bounds prefetches on medium inputs.
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashLenGt64(uint64_t seed, const unsigned char* data, size_t len) {
+  assert(len > 64);
+  if (ABSL_PREDICT_FALSE(len > kPrefetchBytes)) {
+    ABSL_INTERNAL_MUSTTAIL return LowLevelHashWithPrefetch(seed, data, len);
   }
+  return LowLevelHashLenGt64Impl</*kPrefetch=*/false>(seed, data, len);
+}
+
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(
+    uint64_t state, const unsigned char* data, size_t len) {
+  // TODO(b/417141985): expose and use CityHash32WithSeed.
+  // Note: we can't use PrecombineLengthMix here because len can be up to 1024.
+  return CombineRawImpl(
+      state + len,
+      hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
 }
 
 template <int kSizeofSizeT>
 ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
 SplitAndCombine(uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = HashBlock<kSizeofSizeT>(state, first, PiecewiseChunkSize());
+    if constexpr (kSizeofSizeT == 4) {
+      state = HashBlockOn32Bit(state, first, PiecewiseChunkSize());
+    } else {
+      static_assert(kSizeofSizeT == 8);
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+      state = LowLevelHashWithPrefetch(state, first, PiecewiseChunkSize());
+#else
+      state = hash_internal::CityHash64WithSeed(
+          reinterpret_cast<const char*>(first), PiecewiseChunkSize(), state);
+#endif
+    }
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }
@@ -395,7 +447,7 @@ uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
   assert(len > 8);
   assert(sizeof(size_t) == 4);  // NOLINT(misc-static-assert)
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return HashBlock<4>(state, first, len);
+    return HashBlockOn32Bit(state, first, len);
   }
   return SplitAndCombine<4>(state, first, len);
 }
@@ -406,10 +458,18 @@ CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
                                             size_t len) {
   assert(len > 32);
   assert(sizeof(size_t) == 8);  // NOLINT(misc-static-assert)
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  if (ABSL_PREDICT_FALSE(len > 64)) {
+    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt64(state, first, len);
+  }
+  return LowLevelHash33To64(state, first, len);
+#else
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    ABSL_INTERNAL_MUSTTAIL return HashBlock<8>(state, first, len);
+    return hash_internal::CityHash64WithSeed(
+        reinterpret_cast<const char*>(first), len, state);
   }
   ABSL_INTERNAL_MUSTTAIL return SplitAndCombine<8>(state, first, len);
+#endif
 }
 
 ABSL_CONST_INIT const void* const MixingHashState::kSeed = &kSeed;
