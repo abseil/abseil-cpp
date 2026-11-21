@@ -134,7 +134,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   //
   // TODO(b/402804213): Remove these macros whenever we have a better mechanism
   // available to handle lifetime analysis.
-#define ABSL_INTERNAL_X(Func, Callee, KQual, VQual, KValue, VValue, Tail, ...) \
+#define ABSL_INTERNAL_X(KQual, VQual, KValue, VValue, Tail, ...)               \
   template <                                                                   \
       typename K = key_type, class V = mapped_type,                            \
       ABSL_INTERNAL_IF_##KValue##_NOR_##VValue(                                \
@@ -147,89 +147,35 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
               int&...,                                                         \
               decltype(EnableIf<LifetimeBoundKV<K, KValue, V, VValue>>()) =    \
                   0))>                                                         \
-  decltype(auto) Func(                                                         \
+  decltype(auto) insert_or_assign(                                             \
       __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(                \
           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS),                           \
       V VQual v ABSL_INTERNAL_IF_##VValue(                                     \
           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS))                           \
       ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
     return ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                            \
-        (this->template Func<K, V, 0>), Callee)(                               \
+        (this->template insert_or_assign<K, V, 0>), insert_or_assign_impl)(    \
         std::forward<decltype(k)>(k), std::forward<decltype(v)>(v)) Tail;      \
   }                                                                            \
   static_assert(true, "This is to force a semicolon.")
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
-                  false, false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
-                  false, true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
+#define ABSL_INTERNAL_X_KV(KQual, VQual, Tail, ...)               \
+  ABSL_INTERNAL_X(KQual, VQual, false, false, Tail, __VA_ARGS__); \
+  ABSL_INTERNAL_X(KQual, VQual, false, true, Tail, __VA_ARGS__);  \
+  ABSL_INTERNAL_X(KQual, VQual, true, false, Tail, __VA_ARGS__);  \
+  ABSL_INTERNAL_X(KQual, VQual, true, true, Tail, __VA_ARGS__)
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
+#define ABSL_INTERNAL_X_ALL(Tail, ...)                   \
+  ABSL_INTERNAL_X_KV(const&, const&, Tail, __VA_ARGS__); \
+  ABSL_INTERNAL_X_KV(const&, &&, Tail, __VA_ARGS__);     \
+  ABSL_INTERNAL_X_KV(&&, const&, Tail, __VA_ARGS__);     \
+  ABSL_INTERNAL_X_KV(&&, &&, Tail, __VA_ARGS__)
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
-                  false, ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
-                  true, ABSL_INTERNAL_SINGLE_ARG());
+  ABSL_INTERNAL_X_ALL(ABSL_INTERNAL_SINGLE_ARG(), ABSL_INTERNAL_SINGLE_ARG());
+  ABSL_INTERNAL_X_ALL(.first, const_iterator, );
 
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, false,
-                  ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, true,
-                  ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, true, false,
-                  ABSL_INTERNAL_SINGLE_ARG());
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, true, true,
-                  ABSL_INTERNAL_SINGLE_ARG());
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
-                  false, false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&,
-                  false, true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, const&, true,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, false,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, const&, &&, true,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, false,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
-                  false, .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, const&, true,
-                  true, .first, const_iterator ABSL_INTERNAL_COMMA);
-
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, false,
-                  .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, false, true,
-                  .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, true, false,
-                  .first, const_iterator ABSL_INTERNAL_COMMA);
-  ABSL_INTERNAL_X(insert_or_assign, insert_or_assign_impl, &&, &&, true, true,
-                  .first, const_iterator ABSL_INTERNAL_COMMA);
+#undef ABSL_INTERNAL_X_ALL
+#undef ABSL_INTERNAL_X_KV
 #undef ABSL_INTERNAL_X
 
   // All `try_emplace()` overloads make the same guarantees regarding rvalue
