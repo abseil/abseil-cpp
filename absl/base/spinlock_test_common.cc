@@ -16,6 +16,8 @@
 // spinlock.  If the spinlock is working properly, all elements of the
 // array should be equal at the end of the test.
 
+#include <algorithm>
+#include <chrono>  // NOLINT(build/c++11)
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -54,6 +56,12 @@ struct SpinLockTest {
   }
 
   static bool IsCooperative(const SpinLock& l) { return l.IsCooperative(); }
+
+  static constexpr int64_t kSpinNanoseconds = SpinLock::kSpinNanoseconds;
+  static uint32_t SpinLoop(SpinLock& l) { return l.SpinLoop(); }
+  static void SetAdaptiveSpinCount(int count) {
+    SpinLock::SetAdaptiveSpinCount(count);
+  }
 };
 
 namespace {
