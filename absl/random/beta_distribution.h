@@ -15,6 +15,7 @@
 #ifndef ABSL_RANDOM_BETA_DISTRIBUTION_H_
 #define ABSL_RANDOM_BETA_DISTRIBUTION_H_
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -26,20 +27,76 @@
 
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
+#include "absl/random/bernoulli_distribution.h"
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+
+// Loop-invariant Cheng parameters precomputed by param_type from
+// (a, b, y, method, inverted); subnormal_a_frac is a / (a + b) < min_normal.
+template <typename CalcType>
+struct BetaChengState {
+  CalcType a;
+  CalcType b;
+  CalcType y;
+  CalcType r;
+  CalcType a_frac;
+  CalcType b_frac;
+  bool use_algorithm_ba;
+  bool inverted;
+  bool subnormal_a_frac;
+};
+
+template <typename CalcType>
+inline BetaChengState<CalcType> MakeBetaChengState(CalcType a, CalcType b,
+                                                   CalcType y,
+                                                   bool use_algorithm_ba,
+                                                   bool inverted) {
+  static constexpr CalcType kMinNormal = (std::numeric_limits<CalcType>::min)();
+  const CalcType r = a / b;
+  const CalcType a_frac = r / (CalcType(1) + r);
+  const CalcType b_frac = CalcType(1) - a_frac;
+  return BetaChengState<CalcType>{a,
+                                  b,
+                                  y,
+                                  r,
+                                  a_frac,
+                                  b_frac,
+                                  use_algorithm_ba,
+                                  inverted,
+                                  a_frac < kMinNormal};
+}
+
+// Evaluates one rejection-sampling step of Joehnk's algorithm for u, v in
+// (0, 1). Returns a variate in [0, 1] on accept or -1 on reject.
+double BetaJoehnkStep(double u, double v, double alpha, double beta,
+                      double inv_alpha, double inv_beta, bool try_direct_pow);
+long double BetaJoehnkStep(double u, double v, long double alpha,
+                           long double beta, long double inv_alpha,
+                           long double inv_beta, bool try_direct_pow);
+
+// Evaluates one rejection-sampling step of Cheng's BA/BB algorithm for u1, u2
+// in (0, 1). Returns a variate in [0, 1] on accept or -1 on reject.
+double BetaChengStep(double u1, double u2, const BetaChengState<double>& state);
+long double BetaChengStep(double u1, double u2,
+                          const BetaChengState<long double>& state);
+
+}  // namespace random_internal
 
 // absl::beta_distribution:
 // Generate a floating-point variate conforming to a Beta distribution:
 //   pdf(x) \propto x^(alpha-1) * (1-x)^(beta-1),
-// where the params alpha and beta are both strictly positive real values.
+// where the params alpha and beta are positive real values; zero is also
+// accepted as a degenerate limit ((0, b) -> 0, (a, 0) -> 1, and
+// (0, 0) -> Bernoulli(0.5)).
 //
-// The support is the open interval (0, 1), but the return value might be equal
-// to 0 or 1, due to numerical errors when alpha and beta are very different.
+// For positive alpha and beta, the support is the open interval (0, 1), but
+// the return value might be equal to 0 or 1, due to numerical errors when
+// alpha and beta are very different (or both very small).
 //
 // Usage note: One usage is that alpha and beta are counts of number of
 // successes and failures. When the total number of trials are large, consider
@@ -56,7 +113,8 @@ class beta_distribution {
    public:
     using distribution_type = beta_distribution;
 
-    explicit param_type(result_type alpha, result_type beta)
+    explicit param_type(result_type alpha = result_type(1),
+                        result_type beta = result_type(1))
         : alpha_(alpha), beta_(beta) {
       assert(alpha >= 0);
       assert(beta >= 0);
@@ -64,59 +122,89 @@ class beta_distribution {
       assert(beta <= (std::numeric_limits<result_type>::max)());
       if (alpha == 0 || beta == 0) {
         method_ = DEGENERATE_SMALL;
-        x_ = (alpha >= beta) ? 1 : 0;
+        if (alpha == beta) {
+          inverted_ = false;
+          x_ = calc_type(0.5);
+        } else {
+          inverted_ = (beta < alpha);
+          x_ = calc_type(0);
+        }
         return;
       }
-      // a_ = min(beta, alpha), b_ = max(beta, alpha).
+      // a = min(beta, alpha), b = max(beta, alpha).
+      calc_type a;
+      calc_type b;
       if (beta < alpha) {
         inverted_ = true;
-        a_ = beta;
-        b_ = alpha;
+        a = static_cast<calc_type>(beta);
+        b = static_cast<calc_type>(alpha);
       } else {
         inverted_ = false;
-        a_ = alpha;
-        b_ = beta;
-      }
-      if (a_ <= 1 && b_ >= ThresholdForLargeA()) {
-        method_ = DEGENERATE_SMALL;
-        x_ = inverted_ ? result_type(1) : result_type(0);
-        return;
+        a = static_cast<calc_type>(alpha);
+        b = static_cast<calc_type>(beta);
       }
       // For threshold values, see also:
       // Evaluation of Beta Generation Algorithms, Ying-Chao Hung, et. al.
       // February, 2009.
-      if ((b_ < 1.0 && a_ + b_ <= 1.2) || a_ <= ThresholdForSmallA()) {
+      if ((b < calc_type(1) && a + b <= calc_type(1.2)) ||
+          a <= static_cast<calc_type>(ThresholdForSmallA())) {
         // Choose Joehnk over Cheng when it's faster or when Cheng encounters
         // numerical issues.
-        method_ = JOEHNK;
-        a_ = result_type(1) / alpha_;
-        b_ = result_type(1) / beta_;
-        if (std::isinf(a_) || std::isinf(b_)) {
+        const calc_type inv_alpha =
+            calc_type(1) / static_cast<calc_type>(alpha_);
+        const calc_type inv_beta = calc_type(1) / static_cast<calc_type>(beta_);
+        if (b < kMinJoehnkB || std::isinf(inv_alpha) || std::isinf(inv_beta)) {
+          // Either max(alpha, beta) < 2^(min_exponent / 2), so log(u) / alpha
+          // and log(v) / beta could both overflow to -inf, or the smaller
+          // parameter is < 1 / max, so its reciprocal overflows to +inf. In
+          // both limits X lies in (min_normal, 1 - epsilon) only with
+          // probability O(min(alpha, beta) * log(max)), so Beta(alpha, beta)
+          // collapses to Bernoulli(alpha / (alpha + beta)) (same mean);
+          // rescale by 2^-exp_b to avoid overflow and subnormal underflow.
           method_ = DEGENERATE_SMALL;
-          x_ = inverted_ ? result_type(1) : result_type(0);
+          int exp_b = 0;
+          std::frexp(b, &exp_b);
+          const calc_type a_s = std::scalbn(a, -exp_b);
+          const calc_type b_s = std::scalbn(b, -exp_b);
+          x_ = a_s / (a_s + b_s);
+          return;
         }
+        method_ = JOEHNK;
+        joehnk_ = JoehnkState{inv_alpha, inv_beta};
         return;
       }
-      if (a_ >= ThresholdForLargeA()) {
+      // If both parameters are at or above ThresholdForLargeA() (since a <= b,
+      // checking a suffices), the relative standard deviation is
+      // <= 1 / sqrt(ThresholdForLargeA()) << ULP, so the variate collapses to
+      // the mean a / (a + b). Rescale by b so a + b never overflows.
+      if (a >= static_cast<calc_type>(ThresholdForLargeA())) {
         method_ = DEGENERATE_LARGE;
         // Note: on PPC for long double, evaluating
         // `std::numeric_limits::max() / ThresholdForLargeA` results in NaN.
-        result_type r = a_ / b_;
-        x_ = (inverted_ ? result_type(1) : r) / (1 + r);
+        const calc_type r = a / b;
+        x_ = (inverted_ ? calc_type(1) : r) / (calc_type(1) + r);
         return;
       }
-      x_ = a_ + b_;
-      log_x_ = std::log(x_);
-      if (a_ <= 1) {
+      calc_type y;
+      if (a <= calc_type(1)) {
         method_ = CHENG_BA;
-        y_ = result_type(1) / a_;
-        gamma_ = a_ + a_;
-        return;
+        y = calc_type(1) / a;
+      } else {
+        method_ = CHENG_BB;
+        // Compute y = sqrt((a + b - 2) / (2ab - a - b)) with positive terms so
+        // a, b -> 1+ cannot cancel, rescaling when 2ab could overflow.
+        if (b < kMaxDirectChengB) {
+          const calc_type am1 = a - calc_type(1);
+          const calc_type bm1 = b - calc_type(1);
+          y = std::sqrt((am1 + bm1) / (am1 * b + a * bm1));
+        } else {
+          const calc_type fa = (a - calc_type(1)) / a;
+          const calc_type fb = (b - calc_type(1)) / b;
+          y = std::sqrt((fa / b + fb / a) / (fa + fb));
+        }
       }
-      method_ = CHENG_BB;
-      result_type r = (a_ - 1) / (b_ - 1);
-      y_ = std::sqrt((1 + r) / (b_ * r * 2 - r + 1));
-      gamma_ = a_ + result_type(1) / y_;
+      cheng_ = random_internal::MakeBetaChengState(a, b, y, method_ == CHENG_BA,
+                                                   inverted_);
     }
 
     result_type alpha() const { return alpha_; }
@@ -133,6 +221,9 @@ class beta_distribution {
    private:
     friend class beta_distribution;
 
+    using calc_type =
+        std::conditional_t<std::is_same_v<RealType, float>, double, RealType>;
+
 #ifdef _MSC_VER
     // MSVC does not have constexpr implementations for std::log and std::exp
     // so they are computed at runtime.
@@ -142,7 +233,7 @@ class beta_distribution {
 #endif
 
     // The threshold for whether std::exp(1/a) is finite.
-    // Note that this value is quite large, and a smaller a_ is NOT abnormal.
+    // Note that this value is quite large, and a smaller a is NOT abnormal.
     static ABSL_RANDOM_INTERNAL_LOG_EXP_CONSTEXPR result_type
     ThresholdForSmallA() {
       return result_type(1) /
@@ -164,6 +255,36 @@ class beta_distribution {
     // template specialization below.
     static constexpr result_type ThresholdPadding() { return 0; }
 
+    // Exact 2^exp for normal radix-2 exponents (std::ldexp is not constexpr
+    // before C++23). Steps by 2^+-32 so large long double exponents fold fast.
+    static constexpr calc_type Pow2(int exp) {
+      constexpr calc_type kTwo32 = calc_type(uint64_t{1} << 32);
+      constexpr calc_type kTwoM32 = calc_type(1) / kTwo32;
+      calc_type x = calc_type(1);
+      while (exp >= 32) {
+        x *= kTwo32;
+        exp -= 32;
+      }
+      while (exp <= -32) {
+        x *= kTwoM32;
+        exp += 32;
+      }
+      while (exp > 0) {
+        x *= calc_type(2);
+        --exp;
+      }
+      while (exp < 0) {
+        x *= calc_type(0.5);
+        ++exp;
+      }
+      return x;
+    }
+
+    static constexpr calc_type kMinJoehnkB =
+        Pow2(std::numeric_limits<calc_type>::min_exponent / 2);
+    static constexpr calc_type kMaxDirectChengB =
+        Pow2(std::numeric_limits<calc_type>::max_exponent / 2 - 1);
+
     enum Method {
       JOEHNK,    // Uses algorithm Joehnk
       CHENG_BA,  // Uses algorithm BA in Cheng
@@ -176,25 +297,31 @@ class beta_distribution {
       //   Zechner, Heinz, and Ernst Stadlober. Generating beta variates via
       //   patchwork rejection. Computing 50.1 (1993): 1-18.
 
-      DEGENERATE_SMALL,  // a_ is abnormally small.
-      DEGENERATE_LARGE,  // a_ is abnormally large.
+      DEGENERATE_SMALL,  // a is abnormally small.
+      DEGENERATE_LARGE,  // a is abnormally large.
+    };
+
+    struct JoehnkState {
+      calc_type inv_alpha;
+      calc_type inv_beta;
     };
 
     result_type alpha_;
     result_type beta_;
-
-    result_type a_{};  // the smaller of {alpha, beta}, or 1.0/alpha_ in JOEHNK
-    result_type b_{};  // the larger of {alpha, beta}, or 1.0/beta_ in JOEHNK
-    result_type x_{};  // alpha + beta, or the result in degenerate cases
-    result_type log_x_{};  // log(x_)
-    result_type y_{};      // "beta" in Cheng
-    result_type gamma_{};  // "gamma" in Cheng
-
     Method method_{};
-
-    // Placing this last for optimal alignment.
-    // Whether alpha_ != a_, i.e. true iff alpha_ > beta_.
+    // Whether alpha_ != min(alpha_, beta_), i.e. true iff alpha_ > beta_.
     bool inverted_{};
+
+    union {
+      // Bernoulli p in DEGENERATE_SMALL, or mean in DEGENERATE_LARGE.
+      calc_type x_{};
+      // 1 / alpha_ and 1 / beta_ in JOEHNK.
+      JoehnkState joehnk_;
+      // Loop-invariant Cheng state (including Cheng's "beta" as cheng_.y) in
+      // CHENG_BA and CHENG_BB, precomputed once so operator() performs no
+      // divisions before sampling.
+      random_internal::BetaChengState<calc_type> cheng_;
+    };
 
     static_assert(std::is_floating_point_v<RealType>,
                   "Class-template absl::beta_distribution<> must be "
@@ -239,6 +366,8 @@ class beta_distribution {
   }
 
  private:
+  using calc_type = typename param_type::calc_type;
+
   template <typename URBG>
   result_type AlgorithmJoehnk(URBG& g,  // NOLINT(runtime/references)
                               const param_type& p);
@@ -250,13 +379,15 @@ class beta_distribution {
   template <typename URBG>
   result_type DegenerateCase(URBG& g,  // NOLINT(runtime/references)
                              const param_type& p) {
-    if (p.method_ == param_type::DEGENERATE_SMALL && p.alpha_ == p.beta_) {
-      // Returns 0 or 1 with equal probability.
-      random_internal::FastUniformBits<uint8_t> fast_u8;
-      return static_cast<result_type>((fast_u8(g) & 0x10) !=
-                                      0);  // pick any single bit.
+    if (p.method_ == param_type::DEGENERATE_SMALL) {
+      const double prob = static_cast<double>(p.x_);
+      if (prob == 0.0) {
+        return p.inverted_ ? result_type(1) : result_type(0);
+      }
+      const bool hit = absl::bernoulli_distribution(prob)(g);
+      return (hit != p.inverted_) ? result_type(1) : result_type(0);
     }
-    return p.x_;
+    return static_cast<result_type>(p.x_);
   }
 
   param_type param_;
@@ -281,53 +412,30 @@ beta_distribution<RealType>::AlgorithmJoehnk(
     const param_type& p) {
   using random_internal::GeneratePositiveTag;
   using random_internal::GenerateRealFromBits;
-  using real_type =
-      std::conditional_t<std::is_same_v<RealType, float>, float, double>;
 
   // Based on Joehnk, M. D. Erzeugung von betaverteilten und gammaverteilten
   // Zufallszahlen. Metrika 8.1 (1964): 5-15.
   // This method is described in Knuth, Vol 2 (Third Edition), pp 134.
+  // For exponents above 500, pow(u, 1 / alpha) is subnormal for u < 0.24
+  // (i.e., on > 24% of draws), which falls back to log space anyway.
+  static constexpr calc_type kMaxDirectPowExponent = calc_type(500);
+  const bool try_direct_pow = !std::is_same_v<float, result_type> &&
+                              p.joehnk_.inv_alpha >= calc_type(1) &&
+                              p.joehnk_.inv_beta >= calc_type(1) &&
+                              p.joehnk_.inv_alpha <= kMaxDirectPowExponent &&
+                              p.joehnk_.inv_beta <= kMaxDirectPowExponent;
 
-  result_type u, v, x, y, z;
   for (;;) {
-    u = GenerateRealFromBits<real_type, GeneratePositiveTag, false>(
-        fast_u64_(g));
-    v = GenerateRealFromBits<real_type, GeneratePositiveTag, false>(
-        fast_u64_(g));
-
-    // Direct method. std::pow is slow for float, so rely on the optimizer to
-    // remove the std::pow() path for that case.
-    if (!std::is_same_v<float, result_type>) {
-      x = std::pow(u, p.a_);
-      y = std::pow(v, p.b_);
-      z = x + y;
-      if (z > 1) {
-        // Reject if and only if `x + y > 1.0`
-        continue;
-      }
-      if (z > 0) {
-        // When both alpha and beta are small, x and y are both close to 0, so
-        // divide by (x+y) directly may result in nan.
-        return x / z;
-      }
+    const double u =
+        GenerateRealFromBits<double, GeneratePositiveTag, false>(fast_u64_(g));
+    const double v =
+        GenerateRealFromBits<double, GeneratePositiveTag, false>(fast_u64_(g));
+    const calc_type res = random_internal::BetaJoehnkStep(
+        u, v, static_cast<calc_type>(p.alpha_), static_cast<calc_type>(p.beta_),
+        p.joehnk_.inv_alpha, p.joehnk_.inv_beta, try_direct_pow);
+    if (res >= calc_type(0)) {
+      return static_cast<result_type>(res);
     }
-
-    // Log transform.
-    // x = log( pow(u, p.a_) ), y = log( pow(v, p.b_) )
-    // since u, v <= 1.0,  x, y < 0.
-    x = std::log(u) * p.a_;
-    y = std::log(v) * p.b_;
-    if (!std::isfinite(x) || !std::isfinite(y)) {
-      continue;
-    }
-    // z = log( pow(u, a) + pow(v, b) )
-    z = x > y ? (x + std::log(1 + std::exp(y - x)))
-              : (y + std::log(1 + std::exp(x - y)));
-    // Reject iff log(x+y) > 0.
-    if (z > 0) {
-      continue;
-    }
-    return std::exp(x - z);
   }
 }
 
@@ -339,43 +447,20 @@ beta_distribution<RealType>::AlgorithmCheng(
     const param_type& p) {
   using random_internal::GeneratePositiveTag;
   using random_internal::GenerateRealFromBits;
-  using real_type =
-      std::conditional_t<std::is_same_v<RealType, float>, float, double>;
 
   // Based on Cheng, Russell CH. Generating beta variates with nonintegral
   // shape parameters. Communications of the ACM 21.4 (1978): 317-322.
   // (https://dl.acm.org/citation.cfm?id=359482).
-  static constexpr result_type kLogFour =
-      result_type(1.3862943611198906188344642429163531361);  // log(4)
-  static constexpr result_type kS =
-      result_type(2.6094379124341003746007593332261876);  // 1+log(5)
-
-  const bool use_algorithm_ba = (p.method_ == param_type::CHENG_BA);
-  result_type u1, u2, v, w, z, r, s, t, bw_inv, lhs;
   for (;;) {
-    u1 = GenerateRealFromBits<real_type, GeneratePositiveTag, false>(
-        fast_u64_(g));
-    u2 = GenerateRealFromBits<real_type, GeneratePositiveTag, false>(
-        fast_u64_(g));
-    v = p.y_ * std::log(u1 / (1 - u1));
-    w = p.a_ * std::exp(v);
-    bw_inv = result_type(1) / (p.b_ + w);
-    r = p.gamma_ * v - kLogFour;
-    s = p.a_ + r - w;
-    z = u1 * u1 * u2;
-    if (!use_algorithm_ba && s + kS >= 5 * z) {
-      break;
-    }
-    t = std::log(z);
-    if (!use_algorithm_ba && s >= t) {
-      break;
-    }
-    lhs = p.x_ * (p.log_x_ + std::log(bw_inv)) + r;
-    if (lhs >= t) {
-      break;
+    const double u1 =
+        GenerateRealFromBits<double, GeneratePositiveTag, false>(fast_u64_(g));
+    const double u2 =
+        GenerateRealFromBits<double, GeneratePositiveTag, false>(fast_u64_(g));
+    const calc_type res = random_internal::BetaChengStep(u1, u2, p.cheng_);
+    if (res >= calc_type(0)) {
+      return (std::min)(static_cast<result_type>(res), result_type(1));
     }
   }
-  return p.inverted_ ? (1 - w * bw_inv) : w * bw_inv;
 }
 
 template <typename RealType>
