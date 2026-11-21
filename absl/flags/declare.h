@@ -34,7 +34,6 @@ namespace flags_internal {
 // absl::Flag<T> represents a flag of type 'T' created by ABSL_FLAG.
 template <typename T>
 class Flag;
-
 }  // namespace flags_internal
 
 // Flag
