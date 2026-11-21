@@ -241,6 +241,9 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
   ABSL_ATTRIBUTE_COLD void SlowLock();
   ABSL_ATTRIBUTE_COLD void SlowUnlock(uint32_t lock_value);
   uint32_t SpinLoop();
+  static uint32_t SpinLockLoop(
+      const std::atomic<uint32_t>* absl_nonnull lockword, int iterations);
+  static void ProbeSpinLockLoop(int steps);
 
   inline bool TryLockImpl() {
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
@@ -328,6 +331,27 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
 
   return lock_value;
 }
+
+// Bounds on calibrated spin iterations on multi-CPU machines.
+inline constexpr int kMinSpinIterations = 1000;
+inline constexpr int kMaxSpinIterations = 12000;
+
+// Steps per calibration probe trial and number of trials taken per probe.
+inline constexpr int kProbeSteps = 4096;
+inline constexpr int kProbeReadings = 4;
+
+// Converts `num_cpus` (> 1) and positive `kProbeSteps`-step latency and
+// spin-loop probe cycle counts into spin iterations. Exposed for testing.
+int ComputeSpinIterations(int num_cpus, int64_t latency_probe_cycles,
+                          int64_t spin_probe_cycles);
+
+// The latency probe CalibrateSpinIterations() times. Exposed for testing.
+void RunLatencyProbe(int steps);
+
+// Returns this host's spin iterations in [kMinSpinIterations,
+// kMaxSpinIterations], timing `spin_probe_fn(steps)` against a latency probe.
+// Returns 1 on single-CPU hosts.
+int CalibrateSpinIterations(void (*absl_nonnull spin_probe_fn)(int steps));
 
 }  // namespace base_internal
 ABSL_NAMESPACE_END
