@@ -186,6 +186,7 @@ absl_cc_library(
   SRCS
     "discrete_distribution.cc"
     "gaussian_distribution.cc"
+    "zipf_distribution.cc"
   HDRS
     "bernoulli_distribution.h"
     "beta_distribution.h"
@@ -508,6 +509,8 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
+    absl::int128
     absl::log
     absl::random_distributions
     absl::random_internal_distribution_test_util

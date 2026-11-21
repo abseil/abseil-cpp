@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <string>
@@ -29,7 +30,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/log/log.h"
+#include "absl/numeric/int128.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/internal/pcg_engine.h"
@@ -37,12 +40,54 @@
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
-#include "absl/strings/strip.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace random_internal {
+
+struct ZipfDistributionTestPeer {
+  template <typename IntType>
+  static double s(const zipf_distribution<IntType>& d) {
+    return d.param().zri_.s();
+  }
+  template <typename IntType>
+  static double d0x5(const zipf_distribution<IntType>& d) {
+    return d.param().zri_.d0x5();
+  }
+  template <typename IntType>
+  static double total_hat(const zipf_distribution<IntType>& d) {
+    return d.param().zri_.total_hat();
+  }
+  template <typename IntType>
+  static double tail_integral(const zipf_distribution<IntType>& d, double x) {
+    return d.param().zri_.TailIntegral(x);
+  }
+  template <typename IntType>
+  static double tail_integral_inv(const zipf_distribution<IntType>& d,
+                                  double u) {
+    return d.param().zri_.TailIntegralInv(u);
+  }
+};
+
+}  // namespace random_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
 
 namespace {
 
 using ::absl::random_internal::kChiSquared;
+using ::absl::random_internal::MaxIntegralDoubleLe;
+using ::absl::random_internal::ZipfDistributionTestPeer;
+using ::absl::random_internal::ZipfParam;
+using ::testing::AllOf;
+using ::testing::DoubleNear;
+using ::testing::Each;
 using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Ge;
+using ::testing::Gt;
+using ::testing::Le;
+using ::testing::Lt;
 
 template <typename IntType>
 class ZipfDistributionTypedTest : public ::testing::Test {};
@@ -58,6 +103,7 @@ TYPED_TEST(ZipfDistributionTypedTest, SerializeTest) {
   absl::InsecureBitGen gen;
   for (const auto& param : {
            param_type(),
+           param_type(0),
            param_type(32),
            param_type(100, 3, 2),
            param_type(std::numeric_limits<TypeParam>::max(), 4, 3),
@@ -91,6 +137,7 @@ TYPED_TEST(ZipfDistributionTypedTest, SerializeTest) {
 
     ss >> after;
 
+    EXPECT_FALSE(ss.fail());
     EXPECT_EQ(before.k(), after.k());
     EXPECT_EQ(before.q(), after.q());
     EXPECT_EQ(before.v(), after.v());
@@ -107,44 +154,49 @@ TYPED_TEST(ZipfDistributionTypedTest, SerializeTest) {
       if (sample > sample_max) sample_max = sample;
       if (sample < sample_min) sample_min = sample;
     }
-    LOG(INFO) << "Range: " << sample_min << ", " << sample_max;
+    LOG(INFO) << "Range: " << +sample_min << ", " << +sample_max;
   }
 }
 
 class ZipfModel {
  public:
-  ZipfModel(size_t k, double q, double v) : k_(k), q_(q), v_(v) {}
+  ZipfModel(uint64_t k, double q, double v) : k_(k), q_(q), v_(v) {}
 
   double mean() const { return mean_; }
 
   // For the other moments of the Zipf distribution, see, for example,
   // http://mathworld.wolfram.com/ZipfDistribution.html
 
-  // PMF(k) = (1 / k^s) / H(N,s)
-  // Returns the probability that any single invocation returns k.
-  double PMF(size_t i) { return i >= hnq_.size() ? 0.0 : hnq_[i] / sum_hnq_; }
+  // PMF(i) = (1 + i / v)^(-q) / Z
+  // Returns the probability that any single invocation returns i.
+  double PMF(uint64_t i) {
+    return i >= weights_.size()
+               ? 0.0
+               : weights_[static_cast<size_t>(i)] / sum_weights_;
+  }
 
-  // CDF = H(k, s) / H(N,s)
-  double CDF(size_t i) {
-    if (i >= hnq_.size()) {
+  // CDF(i) = P(X < i) = sum_{j=0}^{i-1} PMF(j).
+  double CDF(uint64_t i) {
+    if (i == 0) {
+      return 0.0;
+    }
+    if (i > cdf_.size()) {
       return 1.0;
     }
-    auto it = std::begin(hnq_);
-    double h = 0.0;
-    for (const auto end = it; it != end; it++) {
-      h += *it;
+    if (i == cdf_.size() && !truncated_) {
+      return 1.0;
     }
-    return h / sum_hnq_;
+    return cdf_[static_cast<size_t>(i - 1)] / sum_weights_;
   }
 
   // The InverseCDF returns the k values which bound p on the upper and lower
   // bound. Since there is no closed-form solution, this is implemented as a
-  // bisction of the cdf.
-  std::pair<size_t, size_t> InverseCDF(double p) {
-    size_t min = 0;
-    size_t max = hnq_.size();
+  // bisection of the cdf.
+  std::pair<uint64_t, uint64_t> InverseCDF(double p) {
+    uint64_t min = 0;
+    uint64_t max = static_cast<uint64_t>(cdf_.size()) + (truncated_ ? 1 : 0);
     while (max > min + 1) {
-      size_t target = (max + min) >> 1;
+      uint64_t target = (max + min) >> 1;
       double x = CDF(target);
       if (x > p) {
         max = target;
@@ -155,60 +207,58 @@ class ZipfModel {
     return {min, max};
   }
 
-  // Compute the probability totals, which are based on the generalized harmonic
-  // number, H(N,s).
-  //   H(N,s) == SUM(k=1..N, 1 / k^s)
-  //
-  // In the limit, H(N,s) == zetac(s) + 1.
-  //
-  // NOTE: The mean of a zipf distribution could be computed here as well.
-  // Mean :=  H(N, s-1) / H(N,s).
-  // Given the parameter v = 1, this gives the following function:
-  // (Hn(100, 1) - Hn(1,1)) / (Hn(100,2) - Hn(1,2)) = 6.5944
-  //
+  // Compute the unnormalized probability totals based on (1 + i / v)^(-q).
   void Init() {
-    if (!hnq_.empty()) {
+    if (!weights_.empty()) {
       return;
     }
-    hnq_.clear();
-    hnq_.reserve(std::min(k_, size_t{1000}));
+    const size_t reserve_n =
+        (k_ < uint64_t{1000}) ? static_cast<size_t>(k_ + 1) : size_t{1001};
+    weights_.reserve(reserve_n);
+    cdf_.reserve(reserve_n);
 
-    sum_hnq_ = 0;
-    double qm1 = q_ - 1.0;
-    double sum_hnq_m1 = 0;
-    for (size_t i = 0; i < k_; i++) {
-      // Partial n-th generalized harmonic number
-      const double x = v_ + i;
-
-      // H(n, q-1)
-      const double hnqm1 = (q_ == 2.0)   ? (1.0 / x)
-                           : (q_ == 3.0) ? (1.0 / (x * x))
-                                         : std::pow(x, -qm1);
-      sum_hnq_m1 += hnqm1;
-
-      // H(n, q)
-      const double hnq = (q_ == 2.0)   ? (1.0 / (x * x))
-                         : (q_ == 3.0) ? (1.0 / (x * x * x))
-                                       : std::pow(x, -q_);
-      sum_hnq_ += hnq;
-      hnq_.push_back(hnq);
-      if (i > 1000 && hnq <= 1e-10) {
-        // The harmonic number is too small.
+    sum_weights_ = 0.0;
+    double weighted_i_sum = 0.0;
+    truncated_ = false;
+    uint64_t i = 0;
+    for (;; ++i) {
+      const double lp = std::log1p(static_cast<double>(i) / v_);
+      const double weight = std::exp(-q_ * lp);
+      sum_weights_ += weight;
+      weighted_i_sum += static_cast<double>(i) * weight;
+      weights_.push_back(weight);
+      cdf_.push_back(sum_weights_);
+      if (i == k_) {
+        break;
+      }
+      if (i >= 10000 && weight <= 1e-12 * sum_weights_) {
+        truncated_ = true;
         break;
       }
     }
-    assert(sum_hnq_ > 0);
-    mean_ = sum_hnq_m1 / sum_hnq_;
+    if (truncated_) {
+      const double kd = MaxIntegralDoubleLe(k_);
+      const double z_lo =
+          -(q_ - 1.0) * std::log1p((static_cast<double>(i) + 0.5) / v_);
+      const double z_hi = -(q_ - 1.0) * std::log1p((kd + 0.5) / v_);
+      const double tail =
+          v_ * std::exp(z_lo) * (-std::expm1(z_hi - z_lo)) / (q_ - 1.0);
+      sum_weights_ += tail;
+    }
+    assert(sum_weights_ > 0);
+    mean_ = weighted_i_sum / sum_weights_;
   }
 
  private:
-  const size_t k_;
+  const uint64_t k_;
   const double q_;
   const double v_;
 
-  double mean_;
-  std::vector<double> hnq_;
-  double sum_hnq_;
+  double mean_ = 0.0;
+  std::vector<double> weights_;
+  std::vector<double> cdf_;
+  double sum_weights_ = 0.0;
+  bool truncated_ = false;
 };
 
 using zipf_u64 = absl::zipf_distribution<uint64_t>;
@@ -219,7 +269,7 @@ class ZipfTest : public testing::TestWithParam<zipf_u64::param_type>,
   ZipfTest() : ZipfModel(GetParam().k(), GetParam().q(), GetParam().v()) {}
 
   // We use a fixed bit generator for distribution accuracy tests.  This allows
-  // these tests to be deterministic, while still testing the qualify of the
+  // these tests to be deterministic, while still testing the quality of the
   // implementation.
   absl::random_internal::pcg64_2018_engine rng_{0x2B7E151628AED2A6};
 };
@@ -231,7 +281,7 @@ TEST_P(ZipfTest, ChiSquaredTest) {
   size_t trials = 10000;
 
   // Find the split-points for the buckets.
-  std::vector<size_t> points;
+  std::vector<uint64_t> points;
   std::vector<double> expected;
   {
     double last_cdf = 0.0;
@@ -239,32 +289,35 @@ TEST_P(ZipfTest, ChiSquaredTest) {
     for (double p = 0.01; p < 1.0; p += 0.01) {
       auto x = InverseCDF(p);
       if (points.empty() || points.back() < x.second) {
-        const double p = CDF(x.second);
+        const double cdf_at_split = CDF(x.second);
+        if (cdf_at_split <= last_cdf) {
+          continue;
+        }
         points.push_back(x.second);
-        double q = p - last_cdf;
+        double q = cdf_at_split - last_cdf;
         expected.push_back(q);
-        last_cdf = p;
+        last_cdf = cdf_at_split;
         if (q < min_p) {
           min_p = q;
         }
       }
     }
-    if (last_cdf < 0.999) {
-      points.push_back(std::numeric_limits<size_t>::max());
+    if (last_cdf < 0.999 || (points.size() == 1 && last_cdf < 1.0)) {
+      points.push_back(std::numeric_limits<uint64_t>::max());
       double q = 1.0 - last_cdf;
       expected.push_back(q);
       if (q < min_p) {
         min_p = q;
       }
     } else {
-      points.back() = std::numeric_limits<size_t>::max();
+      points.back() = std::numeric_limits<uint64_t>::max();
       expected.back() += (1.0 - last_cdf);
     }
     // The Chi-Squared score is not completely scale-invariant; it works best
     // when the small values are in the small digits.
     trials = static_cast<size_t>(8.0 / min_p);
   }
-  ASSERT_GT(points.size(), 0);
+  ASSERT_GT(points.size(), 1);
 
   // Generate n variates and fill the counts vector with the count of their
   // occurrences.
@@ -277,25 +330,24 @@ TEST_P(ZipfTest, ChiSquaredTest) {
       ASSERT_LE(x, dis.max());
       ASSERT_GE(x, dis.min());
       avg += static_cast<double>(x);
-      auto it = std::upper_bound(std::begin(points), std::end(points),
-                                 static_cast<size_t>(x));
-      buckets[std::distance(std::begin(points), it)]++;
+      auto it = std::upper_bound(points.begin(), points.end() - 1, x);
+      buckets[static_cast<size_t>(std::distance(points.begin(), it))]++;
     }
     avg = avg / static_cast<double>(trials);
   }
 
   // Validate the output using the Chi-Squared test.
   for (auto& e : expected) {
-    e *= trials;
+    e *= static_cast<double>(trials);
   }
 
-  // The null-hypothesis is that the distribution is a poisson distribution with
-  // the provided mean (not estimated from the data).
+  // The null-hypothesis is that the distribution is a Zipf distribution with
+  // the provided k, q, and v (not estimated from the data).
   const int dof = static_cast<int>(expected.size()) - 1;
+  ASSERT_GT(dof, 0);
 
-  // NOTE: This test runs about 15x per invocation, so a value of 0.9995 is
-  // approximately correct for a test suite failure rate of 1 in 100.  In
-  // practice we see failures slightly higher than that.
+  // NOTE: This test runs about 17x per invocation, so a value of 0.9999 gives
+  // a low suite-wide false positive rate.
   const double threshold = absl::random_internal::ChiSquareValue(dof, 0.9999);
 
   const double chi_square = absl::random_internal::ChiSquare(
@@ -315,7 +367,7 @@ TEST_P(ZipfTest, ChiSquaredTest) {
     LOG(INFO) << "mean " << avg << " vs. expected " << mean();
     LOG(INFO) << kChiSquared << "(data, " << dof << ") = " << chi_square << " ("
               << p_actual << ")";
-    LOG(INFO) << kChiSquared << " @ 0.9995 = " << threshold;
+    LOG(INFO) << kChiSquared << " @ 0.9999 = " << threshold;
     FAIL() << kChiSquared << " value of " << chi_square
            << " is above the threshold.";
   }
@@ -336,8 +388,9 @@ std::vector<zipf_u64::param_type> GenParams() {
       param(k2, q, 0.5), param(k2, q, 1.5), param(k2, q, 2.5), param(k2, q, 10),
       // vary Q
       param(k2, 1.5, v), param(k2, 3, v), param(k2, 5, v), param(k2, 10, v),
-      // Vary V & Q
-      param(k2, 1.5, 0.5), param(k2, 3, 1.5), param(k, 10, 10)};
+      // Vary V & Q, including q -> 1+ and large v
+      param(k2, 1.5, 0.5), param(k2, 3, 1.5), param(k, 10, 10),
+      param(100, 1.0 + 1e-15, 10.0), param(100, 2.5, 1e16)};
 }
 
 std::string ParamName(
@@ -423,6 +476,520 @@ TEST(ZipfDistributionTest, AlgorithmBounds) {
     absl::random_internal::sequence_urbg urbg({instance.first});
     EXPECT_EQ(instance.second, dist(urbg));
   }
+}
+
+template <typename IntType>
+IntType SampleFromSeedBits(absl::zipf_distribution<IntType> dist,
+                           uint64_t first_bits) {
+  absl::random_internal::sequence_urbg urbg(
+      {first_bits, 0x8000000000000000ull});
+  return dist(urbg);
+}
+
+template <typename IntType>
+std::vector<IntType> DrawSamples(absl::zipf_distribution<IntType> dist,
+                                 size_t count) {
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ull);
+  std::vector<IntType> samples(count);
+  std::generate(samples.begin(), samples.end(), [&] { return dist(rng); });
+  return samples;
+}
+
+template <typename IntType>
+struct SampleSummary {
+  IntType min_sample;
+  IntType max_sample;
+  double mean;
+};
+
+template <typename IntType>
+void PrintTo(const SampleSummary<IntType>& s, std::ostream* os) {
+  *os << "{min_sample=" << +s.min_sample << ", max_sample=" << +s.max_sample
+      << ", mean=" << s.mean << "}";
+}
+
+template <typename IntType>
+SampleSummary<IntType> SummarizeSamples(absl::zipf_distribution<IntType> dist,
+                                        size_t count) {
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ull);
+  IntType min_s = dist.max();
+  IntType max_s = dist.min();
+  double sum = 0.0;
+  for (size_t i = 0; i < count; ++i) {
+    const IntType s = dist(rng);
+    min_s = (std::min)(min_s, s);
+    max_s = (std::max)(max_s, s);
+    sum += static_cast<double>(s);
+  }
+  return {min_s, max_s, sum / static_cast<double>(count)};
+}
+
+MATCHER_P3(IsWithinBoundsWithMean, max_val, expected_mean, tol, "") {
+  return arg.min_sample >= 0 && arg.max_sample <= max_val &&
+         std::abs(arg.mean - expected_mean) <= tol;
+}
+
+struct TailFractionSummary {
+  uint64_t max_sample;
+  double tail_fraction;
+};
+
+void PrintTo(const TailFractionSummary& s, std::ostream* os) {
+  *os << "{max_sample=" << s.max_sample << ", tail_fraction=" << s.tail_fraction
+      << "}";
+}
+
+TailFractionSummary SummarizeTailFraction(
+    absl::zipf_distribution<uint64_t> dist, uint64_t threshold, size_t count) {
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6ull);
+  uint64_t max_s = 0;
+  size_t hits = 0;
+  for (size_t i = 0; i < count; ++i) {
+    const uint64_t x = dist(rng);
+    max_s = (std::max)(max_s, x);
+    if (x >= threshold) {
+      ++hits;
+    }
+  }
+  return {max_s, static_cast<double>(hits) / static_cast<double>(count)};
+}
+
+MATCHER_P3(HasBoundedTailFraction, max_val, expected_fraction, tol, "") {
+  return arg.max_sample <= max_val &&
+         std::abs(arg.tail_fraction - expected_fraction) <= tol;
+}
+
+double SqueezeThreshold(uint64_t k, double q, double v) {
+  return ZipfDistributionTestPeer::s(
+      absl::zipf_distribution<uint64_t>(k, q, v));
+}
+
+MATCHER_P2(IsSoundSqueezeNear, expected, tol, "") {
+  return arg >= 0.0 && arg < 0.5 && std::abs(arg - expected) <= tol;
+}
+
+double TailIntegralRoundTrip(const absl::zipf_distribution<uint64_t>& dist,
+                             double x) {
+  return ZipfDistributionTestPeer::tail_integral_inv(
+      dist, ZipfDistributionTestPeer::tail_integral(dist, x));
+}
+
+struct ZeroBoundarySummary {
+  int zeros_below_d0x5;
+  double zero_probability;
+  uint64_t first_nonzero_sample;
+};
+
+void PrintTo(const ZeroBoundarySummary& s, std::ostream* os) {
+  *os << "{zeros_below_d0x5=" << s.zeros_below_d0x5
+      << ", zero_probability=" << s.zero_probability
+      << ", first_nonzero_sample=" << s.first_nonzero_sample << "}";
+}
+
+ZeroBoundarySummary ScanTopUniformGrid(absl::zipf_distribution<uint64_t> dist,
+                                       int grid_steps) {
+  const double d0x5 = ZipfDistributionTestPeer::d0x5(dist);
+  const double total_hat = ZipfDistributionTestPeer::total_hat(dist);
+  constexpr double kStep = 1.0 / static_cast<double>(uint64_t{1} << 53);
+  int total_zeros = 0;
+  int zeros_below = 0;
+  uint64_t first_nonzero = 0;
+  for (int m = 1; m <= grid_steps; ++m) {
+    // Top 52-bit mantissas in [0.5, 1.0): w = 1.0 - m * 2^-53.
+    const uint64_t bits = 0xfffffffffffff800ull -
+                          static_cast<uint64_t>(m - 1) * (uint64_t{1} << 11);
+    absl::random_internal::sequence_urbg urbg({bits, 0x0000000000000001ull});
+    const uint64_t sample = dist(urbg);
+    const bool accepted_first = (urbg.invocations() == 1);
+    const double w = 1.0 - static_cast<double>(m) * kStep;
+    const bool below_d0x5 = (w * total_hat < d0x5);
+    if (accepted_first && sample == 0) {
+      ++total_zeros;
+      if (below_d0x5) {
+        ++zeros_below;
+      }
+    } else if (accepted_first && first_nonzero == 0) {
+      first_nonzero = sample;
+    }
+  }
+  return {zeros_below, static_cast<double>(total_zeros) * kStep, first_nonzero};
+}
+
+MATCHER_P2(MatchesZeroMassWithoutDoubleCounting, expected_prob, tol, "") {
+  return arg.zeros_below_d0x5 == 0 &&
+         std::abs(arg.zero_probability - expected_prob) <= tol &&
+         arg.first_nonzero_sample == 1;
+}
+
+TEST(ZipfDistributionTest, Int64AndUint64UpperBoundsAvoidFloatCastOverflow) {
+  constexpr int64_t kRoundsUpInDouble = (int64_t{1} << 62) - 1;
+  constexpr int64_t kNearMaxRoundsUp =
+      std::numeric_limits<int64_t>::max() - 1025;
+  constexpr uint64_t kAbove53Bits = (uint64_t{1} << 53) + 1;
+  constexpr uint64_t kExact53Bits = (uint64_t{1} << 53) - 1;
+
+  // 64-bit k values where static_cast<double>(k) or xm_ = max_kd_ + 0.5 rounds
+  // above k (including INT64_MAX -> 2^63 and x87 excess precision): drawing at
+  // uniform_double == 0.0 must stay <= k without [conv.fpint] overflow.
+  EXPECT_THAT(SampleFromSeedBits(absl::zipf_distribution<int64_t>{}, 0ull),
+              Eq(int64_t{9223372036854774784}));
+  EXPECT_THAT(SampleFromSeedBits(absl::zipf_distribution<int64_t>{}, 1ull),
+              AllOf(Ge(int64_t{0}), Le(std::numeric_limits<int64_t>::max())));
+  EXPECT_THAT(SampleFromSeedBits(
+                  absl::zipf_distribution<int64_t>(kRoundsUpInDouble), 0ull),
+              Eq(int64_t{4611686018427387392}));
+  EXPECT_THAT(SampleFromSeedBits(
+                  absl::zipf_distribution<int64_t>(kNearMaxRoundsUp), 0ull),
+              Eq(int64_t{9223372036854773760}));
+  EXPECT_THAT(
+      SampleFromSeedBits(absl::zipf_distribution<uint64_t>(kAbove53Bits), 0ull),
+      Eq(uint64_t{9007199254740992ull}));
+  EXPECT_THAT(
+      SampleFromSeedBits(absl::zipf_distribution<uint64_t>(kExact53Bits), 0ull),
+      AllOf(Ge(uint64_t{0}), Le(kExact53Bits)));
+  EXPECT_THAT(SampleFromSeedBits(absl::zipf_distribution<uint64_t>{}, 0ull),
+              Eq(uint64_t{18446744073709549568ull}));
+  EXPECT_THAT(SampleFromSeedBits(absl::zipf_distribution<int64_t>(0), 0ull),
+              Eq(0));
+}
+
+TEST(ZipfDistributionTest, ExtremeParametersRemainInBoundsAndTerminate) {
+  // Near q -> 1+: avoids catastrophic cancellation and negative outputs.
+  EXPECT_THAT(
+      DrawSamples(absl::zipf_distribution<int>(100, 1.0 + 1e-15, 10.0), 1000),
+      Each(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(
+                              100, std::nextafter(1.0, 2.0), 0.5),
+                          1000),
+              Each(AllOf(Ge(0), Le(100))));
+
+  // Steep q (v < 1 or v > 1) and tiny v: P(X = 0) == 1 in IEEE-754 double
+  // without pow overflow or infinite rejection loops.
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(100, 1400.0, 0.6), 500),
+              Each(0));
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(100, 800.0, 3.0), 500),
+              Each(0));
+  EXPECT_THAT(DrawSamples(zipf_u64(1000, 1.5, 1e-300), 500), Each(0));
+}
+
+TEST(ZipfDistributionTest, LargeVApproachesUniformSupportMean) {
+  // Large v = 1e16: previously cancelled exp(...) - v; weights (1 + k/v)^(-q)
+  // are nearly uniform over [0, 100] with mean ~50.0.
+  EXPECT_THAT(
+      SummarizeSamples(absl::zipf_distribution<int>(100, 2.0, 1e16), 10000),
+      IsWithinBoundsWithMean(100, 50.0, 1.5));
+}
+
+TEST(ZipfDistributionTest, SqueezeThresholdIsSoundAndBounded) {
+  constexpr uint64_t kLargeK = 1000000000000000000ull;  // 10^18
+
+  // Previously cancelled against xm_ (s_ = +1.0, false accept) or disabled the
+  // squeeze (s_ = -1.0, tail bias).
+  EXPECT_THAT(SqueezeThreshold(kLargeK, 2.0, 1e16),
+              IsSoundSqueezeNear(0.5, 1e-12));
+  EXPECT_THAT(SqueezeThreshold(kLargeK, 1.05, 1e10),
+              IsSoundSqueezeNear(0.5, 1e-12));
+  EXPECT_THAT(SqueezeThreshold(1000, 1.5, 1e-300),
+              IsSoundSqueezeNear(0.423020306144, 1e-11));
+  EXPECT_THAT(SqueezeThreshold(1000, 1.0 + 1e-12, 1e-300),
+              IsSoundSqueezeNear(0.448180838243, 1e-11));
+  EXPECT_THAT(SqueezeThreshold(1000, 1000.0, 1.0),
+              IsSoundSqueezeNear(0.012401048681, 1e-11));
+  EXPECT_THAT(SqueezeThreshold(1000, 1e10, 1e100),
+              IsSoundSqueezeNear(0.5, 1e-12));
+  EXPECT_THAT(SqueezeThreshold(0, 2.0, 1.0), AllOf(Ge(0.0), Lt(0.5)));
+}
+
+TEST(ZipfDistributionTest, TailProbabilityAccurateAboveTwoToTheFiftyThree) {
+  constexpr uint64_t kLargeK = 1000000000000000000ull;  // 10^18
+
+  // With s_ = +1.0 or s_ = -1.0, k >= 2^53 either falsely accepted everything
+  // or rejected ~50% of valid tail draws because k + 0.5 == k in double.
+  EXPECT_THAT(SummarizeTailFraction(zipf_u64(kLargeK, 2.0, 1e16),
+                                    uint64_t{10000000000000000ull}, 50000),
+              HasBoundedTailFraction(kLargeK, 0.495, 0.008));
+  EXPECT_THAT(SummarizeTailFraction(zipf_u64(kLargeK, 1.05, 1e10),
+                                    uint64_t{1} << 58, 100000),
+              HasBoundedTailFraction(kLargeK, 0.04245, 0.003));
+}
+
+TEST(ZipfDistributionTest, TailIntegralInversionPreservesPrecisionNearZero) {
+  constexpr uint64_t kLargeK = 1000000000000000000ull;  // 10^18
+  const double q_min = std::nextafter(1.0, 2.0);
+  const double v_max = (std::numeric_limits<double>::max)();
+
+  // zm_ < -0.5 with x << v << xm_: previously inverted x = 0.5 to ~0.3701.
+  const zipf_u64 dist_zm_mid(kLargeK, 2.5, 1e15);
+  // zm_ >= -0.5 with d close to D(0).
+  const zipf_u64 dist_zm_high(kLargeK, 1.05, 1e15);
+  // zm_ < -708 with d close to D(0).
+  const zipf_u64 dist_zm_low(kLargeK, 100.0, 1e10);
+  // Linear limit (q * log_xm <= 1e-40) where zm or (q - 1) / v * delta would
+  // otherwise underflow to zero or a few-bit subnormal.
+  const zipf_u64 dist_linear_small(100, q_min, v_max);
+  const zipf_u64 dist_linear_large(1000000000000000ull, 1.0 + 5e-15, v_max);
+
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_mid, 0.5), DoubleNear(0.5, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_mid, 1.0), DoubleNear(1.0, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_mid, 1.5), DoubleNear(1.5, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_mid, 2.0), DoubleNear(2.0, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_mid, 10.0), DoubleNear(10.0, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_high, 10.0),
+              DoubleNear(10.0, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_high, 100.0),
+              DoubleNear(100.0, 1e-9));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_low, 0.5), DoubleNear(0.5, 1e-6));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_zm_low, 1.5), DoubleNear(1.5, 1e-6));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_linear_small, 50.5),
+              DoubleNear(50.5, 1e-12));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_linear_large, 0.5),
+              DoubleNear(0.5, 1e-12));
+  EXPECT_THAT(TailIntegralRoundTrip(dist_linear_large, 100.0),
+              DoubleNear(100.0, 1e-12));
+}
+
+TEST(ZipfDistributionTest, ZeroMassIsNotDoubleCountedBelowD0x5) {
+  constexpr uint64_t kLargeK = 1000000000000000000ull;  // 10^18
+
+  // Exact P(X == 0) ~ 1.500047e-15 (~13.51 ULPs of w below 1.0). Previously,
+  // rounding x < 0.5 on the d < d0x5_ branch double-counted k = 0 (+12.5%).
+  EXPECT_THAT(ScanTopUniformGrid(zipf_u64(kLargeK, 2.5, 1e15), 64),
+              MatchesZeroMassWithoutDoubleCounting(1.500047364598e-15, 7e-17));
+  // For q = 2.0, d0_ - d0x5_ rounds to 0.375, so d = d0x5_ - 0.125 inverts to
+  // x = 0.5 (rint(0.5) == 0); clamping k < 1 prevents double-counting k = 0.
+  EXPECT_THAT(ScanTopUniformGrid(zipf_u64(kLargeK, 2.0, 1e15), 64),
+              MatchesZeroMassWithoutDoubleCounting(1.000999999999e-15, 7e-17));
+}
+
+TEST(ZipfDistributionTest, SubnormalZmUsesLinearLimit) {
+  const double q_min = std::nextafter(1.0, 2.0);
+  const double v_max = (std::numeric_limits<double>::max)();
+
+  // Without the linear limit, (1, nextafter(1, 2), DBL_MAX) underflows zm to
+  // -0.0 and returns 0 unconditionally instead of uniform {0, 1}, while
+  // (100, nextafter(1, 2), DBL_MAX) quantizes zm to a 6-bit subnormal and
+  // distorts midpoint draws from 50 to 48.
+  EXPECT_THAT(
+      SummarizeSamples(absl::zipf_distribution<int>(1, q_min, v_max), 5000),
+      IsWithinBoundsWithMean(1, 0.5, 0.04));
+  EXPECT_THAT(
+      SummarizeSamples(absl::zipf_distribution<int>(100, q_min, v_max), 5000),
+      IsWithinBoundsWithMean(100, 50.0, 2.0));
+  EXPECT_THAT(
+      SampleFromSeedBits(absl::zipf_distribution<int>(100, q_min, v_max),
+                         0x8000000000000000ull),
+      Eq(50));
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(0, q_min, v_max), 50),
+              Each(0));
+}
+
+MATCHER_P2(IsRelativelyNear, expected, rel_tol, "") {
+  return std::abs(arg - expected) <= rel_tol * std::abs(expected);
+}
+
+double ZipfParamRoundTrip(const ZipfParam& p, double x) {
+  return p.TailIntegralInv(p.TailIntegral(x));
+}
+
+TEST(ZipfParamTest, MaxIntegralDoubleLeMasksBitsBelowDoublePrecision) {
+  // Types and values that fit the 53-bit double significand are exact.
+  EXPECT_THAT(MaxIntegralDoubleLe(std::numeric_limits<int32_t>::max()),
+              Eq(2147483647.0));
+  EXPECT_THAT(MaxIntegralDoubleLe(uint64_t{0}), Eq(0.0));
+  EXPECT_THAT(MaxIntegralDoubleLe((uint64_t{1} << 53) - 1),
+              Eq(9007199254740991.0));
+  // Wider values truncate toward zero rather than rounding to nearest, which
+  // would otherwise yield 2^63, 2^64, and 2^128.
+  EXPECT_THAT(MaxIntegralDoubleLe((uint64_t{1} << 53) + 1),
+              Eq(9007199254740992.0));
+  EXPECT_THAT(MaxIntegralDoubleLe(std::numeric_limits<int64_t>::max()),
+              Eq(9223372036854774784.0));
+  EXPECT_THAT(MaxIntegralDoubleLe(std::numeric_limits<uint64_t>::max()),
+              Eq(18446744073709549568.0));
+  EXPECT_THAT(MaxIntegralDoubleLe(absl::Uint128Max()),
+              Eq(std::ldexp(9007199254740991.0, 75)));
+}
+
+TEST(ZipfParamTest, QuadraticTailIntegralMatchesClosedFormAtZero) {
+  // q == 2: D(0) = v * xm / (v + xm).
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e-300).TailIntegral(0.0),
+              IsRelativelyNear(1e-300, 1e-13));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 0.5).TailIntegral(0.0),
+              IsRelativelyNear(0.49975024975024973, 1e-13));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1.0).TailIntegral(0.0),
+              IsRelativelyNear(0.99900149775337, 1e-13));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e16).TailIntegral(0.0),
+              IsRelativelyNear(1000.4999999999, 1e-13));
+}
+
+TEST(ZipfParamTest, QuadraticInversionReturnsZeroExactlyFromDZero) {
+  constexpr double kLargeK = 1e18;
+
+  // TailIntegralInv(d) == 0 iff d >= D(0). For v = 1e-300 and xm ~ 1e18,
+  // v / (v + xm) is a 17-bit subnormal, so D(0) must not be derived from it.
+  EXPECT_THAT(
+      ZipfParam(kLargeK, 2.0, 1e-300).TailIntegralInv(1e-300 * (1.0 + 1e-9)),
+      Eq(0.0));
+  EXPECT_THAT(
+      ZipfParam(kLargeK, 2.0, 1e-300).TailIntegralInv(1e-300 * (1.0 - 1e-9)),
+      Gt(0.0));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 0.5)
+                  .TailIntegralInv(0.49975024975024973 * (1.0 + 1e-9)),
+              Eq(0.0));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 0.5)
+                  .TailIntegralInv(0.49975024975024973 * (1.0 - 1e-9)),
+              Gt(0.0));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e16)
+                  .TailIntegralInv(1000.4999999999 * (1.0 + 1e-9)),
+              Eq(0.0));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e16)
+                  .TailIntegralInv(1000.4999999999 * (1.0 - 1e-9)),
+              Gt(0.0));
+}
+
+TEST(ZipfParamTest, QuadraticInversionMatchesClosedForm) {
+  constexpr double kLargeK = 1e18;
+  const double v_max = (std::numeric_limits<double>::max)();
+
+  // q == 2: x = 1 / (d / v^2 + 1 / (v + xm)) - v, evaluated to 700 digits.
+  // Covers v whose reciprocal is inexact (3, 0.1, 7), huge (1e-300), and
+  // subnormal (DBL_MAX).
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 3.0).TailIntegralInv(0.1),
+              IsRelativelyNear(79.5925925925926, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 3.0).TailIntegralInv(1.0),
+              IsRelativelyNear(5.92, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 3.0).TailIntegralInv(2.9),
+              IsRelativelyNear(0.09388006782796371, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 0.1).TailIntegralInv(0.01),
+              IsRelativelyNear(0.8990015974440896, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 0.1).TailIntegralInv(0.09),
+              IsRelativelyNear(0.011098774205009782, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e-300).TailIntegralInv(5e-301),
+              IsRelativelyNear(1e-300, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 1e300).TailIntegralInv(500.0),
+              IsRelativelyNear(500.5, 1e-12));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, v_max).TailIntegralInv(250.25),
+              IsRelativelyNear(750.25, 1e-12));
+  EXPECT_THAT(ZipfParam(kLargeK, 2.0, 7.0).TailIntegralInv(1e-12),
+              IsRelativelyNear(48997599117636.234, 1e-12));
+  EXPECT_THAT(ZipfParam(kLargeK, 2.0, 7.0).TailIntegralInv(3.5),
+              IsRelativelyNear(7.0, 1e-12));
+}
+
+TEST(ZipfParamTest, QuadraticInversionWithSubnormalV) {
+  // v = 1e-310 is subnormal and 1 / v overflows to +inf, so the inversion
+  // must divide by v rather than scale by a precomputed reciprocal, which
+  // would return 0 (or NaN at d == 0). P(X == 0) == 1 in double.
+  const ZipfParam subnormal_v(1000.0, 2.0, 1e-310);
+  EXPECT_THAT(subnormal_v.TailIntegralInv(5e-311),
+              IsRelativelyNear(1e-310, 1e-9));
+  EXPECT_THAT(subnormal_v.TailIntegralInv(5e-324),
+              IsRelativelyNear(2.0240225330729937e-297, 1e-9));
+  EXPECT_THAT(subnormal_v.TailIntegralInv(0.0), Eq(1000.5));
+  EXPECT_THAT(DrawSamples(zipf_u64(1000, 2.0, 1e-310), 500), Each(0));
+}
+
+TEST(ZipfDistributionTest, QuadraticSamplingWithDegenerateParameters) {
+  // k == 0 and P(X == 0) == 1 in double: every draw returns 0.
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(0, 2.0, 1.0), 200),
+              Each(0));
+  EXPECT_THAT(DrawSamples(absl::zipf_distribution<int>(1, 2.0, 1e-300), 200),
+              Each(0));
+  // Near-uniform over [0, 127]: 0 is rarely returned.
+  EXPECT_THAT(
+      DrawSamples(absl::zipf_distribution<int8_t>(127, 2.0, 1e300), 2000),
+      Each(AllOf(Ge(0), Le(127))));
+}
+
+TEST(ZipfParamTest, QuadraticTailIntegralRoundTrips) {
+  const ZipfParam tiny_v(1000.0, 2.0, 1e-300);
+  const ZipfParam small_v(1000.0, 2.0, 0.5);
+  const ZipfParam unit_v(1000.0, 2.0, 1.0);
+  const ZipfParam large_v(1000.0, 2.0, 1e16);
+
+  EXPECT_THAT(ZipfParamRoundTrip(tiny_v, 1e-300),
+              IsRelativelyNear(1e-300, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(tiny_v, 1e-295),
+              IsRelativelyNear(1e-295, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(small_v, 0.5), IsRelativelyNear(0.5, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(small_v, 10.0), IsRelativelyNear(10.0, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(small_v, 500.0),
+              IsRelativelyNear(500.0, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(unit_v, 0.5), IsRelativelyNear(0.5, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(unit_v, 10.0), IsRelativelyNear(10.0, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(unit_v, 500.0), IsRelativelyNear(500.0, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(large_v, 0.5), IsRelativelyNear(0.5, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(large_v, 10.0), IsRelativelyNear(10.0, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(large_v, 500.0),
+              IsRelativelyNear(500.0, 1e-9));
+}
+
+TEST(ZipfParamTest, GeneralTailIntegralMatchesClosedFormForSmallV) {
+  // D(x) = v / (q - 1) * ((1 + x / v)^(1 - q) - (1 + xm / v)^(1 - q)),
+  // evaluated to 80 digits.
+  const ZipfParam small_v(1000.0, 3.5, 1e-3);
+  EXPECT_THAT(small_v.TailIntegral(0.0),
+              IsRelativelyNear(0.0003999999999999996, 1e-10));
+  EXPECT_THAT(small_v.TailIntegral(0.5),
+              IsRelativelyNear(7.11976524558709e-11, 1e-10));
+  EXPECT_THAT(small_v.TailIntegral(2.0),
+              IsRelativelyNear(2.2332749368948122e-12, 1e-10));
+  EXPECT_THAT(small_v.TailIntegral(999.0),
+              IsRelativelyNear(1.5013102006029483e-21, 1e-10));
+  EXPECT_THAT(small_v.TailIntegral(1000.5), Eq(0.0));
+
+  // v * (1 + x / v)^(1 - q) ~ 8.7e-309 is subnormal while D(x) is not.
+  EXPECT_THAT(ZipfParam(1e18, 1.01, 1e-305).TailIntegral(10.0),
+              IsRelativelyNear(2.8211993460048987e-307, 1e-10));
+}
+
+TEST(ZipfParamTest, GeneralInversionRoundTripsWhenExpZmUnderflows) {
+  // zm ~ -1823 < -708 and d < D(0) / 2: log(exp(zm) + b) is evaluated in log
+  // space.
+  const ZipfParam steep(1e18, 100.0, 1e10);
+  EXPECT_THAT(ZipfParamRoundTrip(steep, 1e9), IsRelativelyNear(1e9, 1e-9));
+  EXPECT_THAT(ZipfParamRoundTrip(steep, 1e12), IsRelativelyNear(1e12, 1e-9));
+}
+
+TEST(ZipfParamTest, AcceptsHatSqueezeMissMatchesExactThreshold) {
+  // Accepts iff d <= D(k + 0.5) + f(k), with f(k) = (1 + k / v)^(-q).
+  // q == 2, v == 1, k == 1: (1 / 2.5 - 1 / 11.5) + 1 / 4.
+  const ZipfParam quadratic(10.0, 2.0, 1.0);
+  EXPECT_THAT(
+      quadratic.AcceptsHatSqueezeMiss(1.0, 0.5630434782608695 * (1.0 - 1e-9)),
+      Eq(true));
+  EXPECT_THAT(
+      quadratic.AcceptsHatSqueezeMiss(1.0, 0.5630434782608695 * (1.0 + 1e-9)),
+      Eq(false));
+  // k == max_kd: D(k + 0.5) == 0, leaving f(10) = 1 / 121.
+  EXPECT_THAT(quadratic.AcceptsHatSqueezeMiss(
+                  10.0, 0.008264462809917356 * (1.0 - 1e-9)),
+              Eq(true));
+  EXPECT_THAT(quadratic.AcceptsHatSqueezeMiss(
+                  10.0, 0.008264462809917356 * (1.0 + 1e-9)),
+              Eq(false));
+  // q == 3, v == 0.5, k == 3: 0.25 * (1 / 64 - 1 / 484) + 1 / 343.
+  const ZipfParam cubic(10.0, 3.0, 0.5);
+  EXPECT_THAT(
+      cubic.AcceptsHatSqueezeMiss(3.0, 0.0063051729694238974 * (1.0 - 1e-9)),
+      Eq(true));
+  EXPECT_THAT(
+      cubic.AcceptsHatSqueezeMiss(3.0, 0.0063051729694238974 * (1.0 + 1e-9)),
+      Eq(false));
+}
+
+TEST(ZipfParamTest, TailIntegralInvStaysWithinDomainForTinyD) {
+  constexpr double kMinPos = std::numeric_limits<double>::denorm_min();
+  // Exercises all TailIntegralInv paths where rounding at d -> 0+ can
+  // otherwise exceed xm = max_kd + 0.5 by a few ULPs.
+  EXPECT_THAT(ZipfParam(10.0, 10.0, 100.0).TailIntegralInv(kMinPos),
+              AllOf(Ge(0.0), Le(10.5)));
+  EXPECT_THAT(ZipfParam(100.0, 1.5, 0.1).TailIntegralInv(kMinPos),
+              AllOf(Ge(0.0), Le(100.5)));
+  EXPECT_THAT(ZipfParam(1000.0, 2.0, 200.0).TailIntegralInv(kMinPos),
+              AllOf(Ge(0.0), Le(1000.5)));
+  EXPECT_THAT(ZipfParam(1e12, 100.0, 1e4).TailIntegralInv(kMinPos),
+              Eq(1e12 + 0.5));
 }
 
 MATCHER(FailsLeavingUnchanged,
