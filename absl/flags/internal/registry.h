@@ -43,6 +43,15 @@ bool RegisterCommandLineFlag(CommandLineFlag&, const char* filename);
 void FinalizeRegistry();
 
 //-----------------------------------------------------------------------------
+
+// A flag may return nullptr from SaveState() while it is unmodified.  Such a
+// flag calls this when it is first modified, after SaveState() has stopped
+// returning nullptr.  A FlagSaver that has not saved the flag's state then
+// restores the flag by calling `restore_initial_state(flag)`.
+void RegisterFirstFlagModification(
+    CommandLineFlag& flag, void (*restore_initial_state)(CommandLineFlag&));
+
+//-----------------------------------------------------------------------------
 // Retired registrations:
 //
 // Retired flag registrations are treated specially. A 'retired' flag is

@@ -40,6 +40,10 @@ ABSL_RETIRED_FLAG(bool, bool_retired_flag, false, "bool_retired_flag help");
 ABSL_FLAG(int, int_flag2, 201, "");
 ABSL_FLAG(std::string, string_flag2, "dflt", "");
 
+// These are only modified under a FlagSaver.
+ABSL_FLAG(int, int_flag3, 301, "");
+ABSL_FLAG(std::string, string_flag3, "dflt", "");
+
 using CustomIntAlias = int;
 using CustomStringListAlias = std::vector<std::string>;
 
@@ -311,6 +315,32 @@ TEST(CommandLineFlagStrippedTest, TestStrippedTypeName) {
                 absl::GetFlagReflectionHandle(FLAGS_custom_udt_flag)),
             "");
 #endif
+}
+
+// Checks that FlagSaver restores flags that were unmodified when it was
+// created and whose default value has been changed since.
+TEST_F(CommandLineFlagTest, TestFlagSaverRestoresChangedDefault) {
+  absl::CommandLineFlag* int_flag = absl::FindCommandLineFlag("int_flag3");
+  absl::CommandLineFlag* string_flag =
+      absl::FindCommandLineFlag("string_flag3");
+  ASSERT_NE(int_flag, nullptr);
+  ASSERT_NE(string_flag, nullptr);
+
+  {
+    absl::FlagSaver saver;
+    std::string err;
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *int_flag, "302", flags::SET_FLAGS_DEFAULT, flags::kProgrammaticChange,
+        err));
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *string_flag, "changed", flags::SET_FLAGS_DEFAULT,
+        flags::kProgrammaticChange, err));
+    EXPECT_EQ(absl::GetFlag(FLAGS_int_flag3), 302);
+    EXPECT_EQ(absl::GetFlag(FLAGS_string_flag3), "changed");
+  }
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_int_flag3), 301);
+  EXPECT_EQ(absl::GetFlag(FLAGS_string_flag3), "dflt");
 }
 
 }  // namespace
