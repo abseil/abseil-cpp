@@ -452,6 +452,35 @@ TEST(Uint128, DivideAndModRandomInputs) {
     const absl::uint128 q = a / b;
     const absl::uint128 r = a % b;
     ASSERT_EQ(a, b * q + r);
+    ASSERT_LE(q, absl::Uint128Max() / b);
+    ASSERT_LE(b * q, a);
+    ASSERT_LT(r, b);
+  }
+}
+
+TEST(Uint128, DivideAndModRandomInputsWithRandomBitCount) {
+  const int kNumIters = 1 << 18;
+  std::minstd_rand random(testing::UnitTest::GetInstance()->random_seed());
+  std::uniform_int_distribution<int> uniform_bits(1, 127);
+  std::uniform_int_distribution<uint64_t> uniform_uint64;
+  for (int i = 0; i < kNumIters; ++i) {
+    int shift_a = uniform_bits(random);
+    int shift_b = uniform_bits(random);
+    absl::uint128 a =
+        absl::MakeUint128(uniform_uint64(random), uniform_uint64(random));
+    absl::uint128 b =
+        absl::MakeUint128(uniform_uint64(random), uniform_uint64(random));
+    a >>= shift_a;
+    b >>= shift_b;
+    if (b == 0) {
+      continue;
+    }
+    const absl::uint128 q = a / b;
+    const absl::uint128 r = a % b;
+    ASSERT_EQ(a, b * q + r);
+    ASSERT_LE(q, absl::Uint128Max() / b);
+    ASSERT_LE(b * q, a);
+    ASSERT_LT(r, b);
   }
 }
 
