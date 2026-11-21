@@ -51,11 +51,6 @@ ABSL_CONST_INIT std::atomic<bool> g_hashtablez_enabled{
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_sample_parameter{1 << 10};
 std::atomic<HashtablezConfigListener> g_hashtablez_config_listener{nullptr};
 
-#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-ABSL_PER_THREAD_TLS_KEYWORD absl::profiling_internal::ExponentialBiased
-    g_exponential_biased_generator;
-#endif
-
 void TriggerHashtablezConfigListener() {
   auto* listener = g_hashtablez_config_listener.load(std::memory_order_acquire);
   if (listener != nullptr) listener();
@@ -88,7 +83,7 @@ void LeaveSooCapacity(HashtablezInfo* info) {
 }  // namespace
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-ABSL_PER_THREAD_TLS_KEYWORD SamplingState global_next_sample = {0, 0};
+ABSL_PER_THREAD_TLS_KEYWORD ExponentialSampler global_next_sample;
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 HashtablezSampler& GlobalHashtablezSampler() {
@@ -128,6 +123,7 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   soo_capacity = soo_capacity_value;
 }
 
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 static bool ShouldForceSampling() {
   enum ForceState {
     kDontForce,
@@ -148,7 +144,6 @@ static bool ShouldForceSampling() {
   return state == kForce;
 }
 
-#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info) {
   if (!info.is_hashtablez_enabled) return HashtablezInfoHandle(nullptr);
   return HashtablezInfoHandle(
@@ -156,63 +151,44 @@ HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info) {
                  info.value_size, info.soo_capacity()));
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {
-  global_next_sample.next_sample =
+  const int32_t rate =
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed);
-  global_next_sample.sample_stride = global_next_sample.next_sample;
+  global_next_sample.SetStateForTesting(rate, rate);
+}
+
+HashtablezInfo* SampleSlow(ExponentialSampler& next_sample,
+                           size_t inline_element_size, size_t key_size,
+                           size_t value_size, uint16_t soo_capacity) {
+  // Override `enabled` and `rate` when link-time force-sampling
+  // (`AbslContainerInternalSampleEverything`) is active.
+  const bool force = ABSL_PREDICT_FALSE(ShouldForceSampling());
+  const int32_t rate =
+      force ? 1
+            : g_hashtablez_sample_parameter.load(std::memory_order_relaxed);
+  const bool enabled =
+      force || g_hashtablez_enabled.load(std::memory_order_relaxed);
+  // g_hashtablez_enabled can be dynamically flipped, we need to set a threshold
+  // low enough that we will start sampling in a reasonable time, so we just use
+  // the configured sampling rate.
+  const int64_t weight = next_sample.SampleSlow(
+      enabled ? rate : 0, /*step=*/1,
+      /*disabled_stride=*/rate > 0 ? rate : (1 << 10));
+  if (weight <= 0) return nullptr;
+  return GlobalHashtablezSampler().Register(weight, inline_element_size,
+                                            key_size, value_size, soo_capacity);
 }
 #else
 HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo&) {
   return HashtablezInfoHandle{nullptr};
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {}
-#endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
-
-HashtablezInfo* SampleSlow(SamplingState& next_sample,
-                           size_t inline_element_size, size_t key_size,
-                           size_t value_size, uint16_t soo_capacity) {
-  if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
-    next_sample.next_sample = 1;
-    const int64_t old_stride = std::exchange(next_sample.sample_stride, 1);
-    HashtablezInfo* result = GlobalHashtablezSampler().Register(
-        old_stride, inline_element_size, key_size, value_size, soo_capacity);
-    return result;
-  }
-
-#if !defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-  next_sample = {
-      std::numeric_limits<int64_t>::max(),
-      std::numeric_limits<int64_t>::max(),
-  };
+HashtablezInfo* SampleSlow(ExponentialSampler& next_sample,
+                           size_t /*inline_element_size*/, size_t /*key_size*/,
+                           size_t /*value_size*/, uint16_t /*soo_capacity*/) {
+  next_sample.DisablePermanently();
   return nullptr;
-#else
-  bool first = next_sample.next_sample < 0;
-
-  const int64_t next_stride = g_exponential_biased_generator.GetStride(
-      g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
-
-  next_sample.next_sample = next_stride;
-  const int64_t old_stride =
-      std::exchange(next_sample.sample_stride, next_stride);
-  // Small values of interval are equivalent to just sampling next time.
-  ABSL_ASSERT(next_stride >= 1);
-
-  // g_hashtablez_enabled can be dynamically flipped, we need to set a threshold
-  // low enough that we will start sampling in a reasonable time, so we just use
-  // the default sampling rate.
-  if (!g_hashtablez_enabled.load(std::memory_order_relaxed)) return nullptr;
-
-  // We will only be negative on our first count, so we should just retry in
-  // that case.
-  if (first) {
-    if (ABSL_PREDICT_TRUE(--next_sample.next_sample > 0)) return nullptr;
-    return SampleSlow(next_sample, inline_element_size, key_size, value_size,
-                      soo_capacity);
-  }
-
-  return GlobalHashtablezSampler().Register(old_stride, inline_element_size,
-                                            key_size, value_size, soo_capacity);
-#endif
 }
+#endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
 
 void UnsampleSlow(HashtablezInfo* info) {
   GlobalHashtablezSampler().Unregister(info);

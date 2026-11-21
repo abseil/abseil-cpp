@@ -14,20 +14,12 @@
 
 #include "absl/profiling/internal/exponential_biased.h"
 
-#include <stddef.h>
-
-#include <algorithm>
-#include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <string>
-#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/strings/str_cat.h"
 
 using ::testing::Ge;
 
@@ -36,197 +28,104 @@ ABSL_NAMESPACE_BEGIN
 namespace profiling_internal {
 namespace {
 
-MATCHER_P2(IsBetween, a, b,
-           absl::StrCat(std::string(negation ? "isn't" : "is"), " between ", a,
-                        " and ", b)) {
-  return a <= arg && arg <= b;
-}
-
-// Tests of the quality of the random numbers generated
-// This uses the Anderson Darling test for uniformity.
-// See "Evaluating the Anderson-Darling Distribution" by Marsaglia
-// for details.
-
-// Short cut version of ADinf(z), z>0 (from Marsaglia)
-// This returns the p-value for Anderson Darling statistic in
-// the limit as n-> infinity. For finite n, apply the error fix below.
-double AndersonDarlingInf(double z) {
-  if (z < 2) {
-    return exp(-1.2337141 / z) / sqrt(z) *
-           (2.00012 +
-            (0.247105 -
-             (0.0649821 - (0.0347962 - (0.011672 - 0.00168691 * z) * z) * z) *
-                 z) *
-                z);
-  }
-  return exp(
-      -exp(1.0776 -
-           (2.30695 -
-            (0.43424 - (0.082433 - (0.008056 - 0.0003146 * z) * z) * z) * z) *
-               z));
-}
-
-// Corrects the approximation error in AndersonDarlingInf for small values of n
-// Add this to AndersonDarlingInf to get a better approximation
-// (from Marsaglia)
-double AndersonDarlingErrFix(int n, double x) {
-  if (x > 0.8) {
-    return (-130.2137 +
-            (745.2337 -
-             (1705.091 - (1950.646 - (1116.360 - 255.7844 * x) * x) * x) * x) *
-                x) /
-           n;
-  }
-  double cutoff = 0.01265 + 0.1757 / n;
-  if (x < cutoff) {
-    double t = x / cutoff;
-    t = sqrt(t) * (1 - t) * (49 * t - 102);
-    return t * (0.0037 / (n * n) + 0.00078 / n + 0.00006) / n;
-  } else {
-    double t = (x - cutoff) / (0.8 - cutoff);
-    t = -0.00022633 +
-        (6.54034 - (14.6538 - (14.458 - (8.259 - 1.91864 * t) * t) * t) * t) *
-            t;
-    return t * (0.04213 + 0.01365 / n) / n;
-  }
-}
-
-// Returns the AndersonDarling p-value given n and the value of the statistic
-double AndersonDarlingPValue(int n, double z) {
-  double ad = AndersonDarlingInf(z);
-  double errfix = AndersonDarlingErrFix(n, ad);
-  return ad + errfix;
-}
-
-double AndersonDarlingStatistic(const std::vector<double>& random_sample) {
-  size_t n = random_sample.size();
-  double ad_sum = 0;
-  for (size_t i = 0; i < n; i++) {
-    ad_sum += (2 * i + 1) *
-              std::log(random_sample[i] * (1 - random_sample[n - 1 - i]));
-  }
-  const auto n_as_double = static_cast<double>(n);
-  double ad_statistic = -n_as_double - 1 / n_as_double * ad_sum;
-  return ad_statistic;
-}
-
-// Tests if the array of doubles is uniformly distributed.
-// Returns the p-value of the Anderson Darling Statistic
-// for the given set of sorted random doubles
-// See "Evaluating the Anderson-Darling Distribution" by
-// Marsaglia and Marsaglia for details.
-double AndersonDarlingTest(const std::vector<double>& random_sample) {
-  double ad_statistic = AndersonDarlingStatistic(random_sample);
-  double p = AndersonDarlingPValue(static_cast<int>(random_sample.size()),
-                                   ad_statistic);
-  return p;
-}
-
-TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
+// Non-positive arguments must return the minimum valid skip (0) or stride (1),
+// and extreme arguments must clamp without signed integer overflow.
+TEST(ExponentialBiasedTest, NonPositiveParametersAndClamp) {
   ExponentialBiased eb;
-  for (int runs = 0; runs < 10; ++runs) {
-    for (int64_t flips = eb.GetSkipCount(1); flips > 0; --flips) {
-      printf("head...");
-    }
-    printf("tail\n");
-  }
-  int heads = 0;
-  for (int i = 0; i < 10000000; i += 1 + eb.GetSkipCount(1)) {
-    ++heads;
-  }
-  printf("Heads = %d (%f%%)\n", heads, 100.0 * heads / 10000000);
+  EXPECT_EQ(eb.GetSkipCount(0), 0);
+  EXPECT_EQ(eb.GetSkipCount(-5), 0);
+  EXPECT_EQ(eb.GetStride(1), 1);
+  EXPECT_EQ(eb.GetStride(0), 1);
+  EXPECT_EQ(eb.GetStride(-5), 1);
+  EXPECT_GE(eb.GetStride(int64_t{1} << 62), 1);
 }
 
-// In simplified idealized world, `GetSkipCount(m) == 0` translates to
-// `-log(X) * m + B <= 1/2`, where X is a uniform random number in (0, 1],
-// and B is uniform random number in [-0.5, 0.5). Let U = 0.5 - B, that makes
-// U a uniform random number in (0, 1]. After exponentiation we get
-// `X >= exp(-U / m)`. Probability of this is `1 - exp(-U / m)`, so we have to
-// integrate for all possible values of U: `1 - m * (1 - exp(-1 / m))`. For
-// simplicity take just two terms of Taylor series expansion:
-// `1/(2*m) - 1/(6*m^2)`. Reciprocal of that is `2*m + 2/3 + O(1/m)`. If we use
-// more math tricks we can get "exact" approximation, but result will still be
-// `2*m + 2/3 + O(1/m)`.
-TEST(ExponentialBiasedTest, OnePerNDemoWithGetSkipCount) {
+// Empirical mean skip count must match the requested mean across scales.
+TEST(ExponentialBiasedTest, MeanMatchesRequestedValue) {
   ExponentialBiased eb;
-  int n = 22;
-  int rounds = 220000;
-  int hits = 0;
-  for (int i = 0; i < rounds; i++) {
-    if (eb.GetSkipCount(n / 2) == 0) ++hits;
+  constexpr int kDraws = 100000;
+  for (int64_t mean :
+       {int64_t{10}, int64_t{100}, int64_t{1000}, int64_t{1} << 20}) {
+    double sum = 0;
+    for (int i = 0; i < kDraws; ++i) {
+      sum += static_cast<double>(eb.GetSkipCount(mean));
+    }
+    EXPECT_NEAR(sum / kDraws, static_cast<double>(mean), 0.05 * mean);
   }
-  double inverse_hit_rate = rounds / static_cast<double>(hits);
-  printf("N = %d, rounds = %d, inverse hit rate = %f (should be ~= N + 0.67)\n",
-         n, rounds, inverse_hit_rate);
 }
 
-// Large requested mean flattens density function near zero, making it almost
-// linear.
-TEST(ExponentialBiasedTest, OneOfNDemoWithGetSkipCount) {
+// Stride frequencies must match the geometric PMF
+// `P(S = s) = p * (1 - p)^(s - 1)` across individual buckets, including
+// `s = 1`.
+TEST(ExponentialBiasedTest, StrideFollowsGeometricDistribution) {
   ExponentialBiased eb;
-  int n = 6;
-  int large_mean = 10000000;
-  int rounds = n * 10000;
-  std::vector<int> hits(static_cast<size_t>(n), 0);
-  for (int i = 0; i < rounds; i++) {
-    int64_t v = eb.GetSkipCount(large_mean);
-    int64_t a = v % n;
-    ++hits[static_cast<size_t>(a)];
+  constexpr int64_t kPeriod = 10;
+  constexpr double kP = 1.0 / kPeriod;
+  constexpr int kDraws = 200000;
+
+  int counts[11] = {};
+  for (int i = 0; i < kDraws; ++i) {
+    int64_t s = eb.GetStride(kPeriod);
+    if (s <= 10) ++counts[s];
   }
-  printf("N = %d, rounds = %d, mean = %d\n", n, rounds, large_mean);
-  for (int i = 0; i < n; i++) {
-    printf("  inverse hit rate for %d: %f (should be ~= N)\n", i,
-           rounds / static_cast<double>(hits[static_cast<size_t>(i)]));
+
+  double expected_prob = kP;
+  for (int s = 1; s <= 10; ++s) {
+    EXPECT_NEAR(static_cast<double>(counts[s]) / kDraws, expected_prob, 0.006)
+        << "stride = " << s;
+    expected_prob *= (1.0 - kP);
   }
 }
 
-TEST(ExponentialBiasedTest, SampleDemoWithStride) {
+TEST(ExponentialBiasedTest, FirstAndConsecutiveDrawsAreUnbiased) {
+  constexpr int64_t kPeriod = 10;
+  constexpr double kExpectedProb = 1.0 / kPeriod;
+  constexpr int kTrials = 200000;
+
+  // The very first draw on a new thread/generator must sample immediately
+  // (`stride == 1`) with probability `1 / kPeriod`.
+  int first_draw_ones = 0;
+  for (int i = 0; i < kTrials; ++i) {
+    ExponentialBiased fresh;
+    if (fresh.GetStride(kPeriod) == 1) ++first_draw_ones;
+  }
+  EXPECT_NEAR(static_cast<double>(first_draw_ones) / kTrials, kExpectedProb,
+              0.01);
+
+  // Because a geometric process is memoryless, the draw immediately following
+  // `stride == 1` must still hit `stride == 1` with probability `1 / kPeriod`
+  // (no post-sample refractory dip from stateful rounding).
   ExponentialBiased eb;
-  int64_t stride = eb.GetStride(10);
-  int samples = 0;
-  for (int i = 0; i < 10000000; ++i) {
-    if (--stride == 0) {
-      ++samples;
-      stride = eb.GetStride(10);
-    }
+  int ones = 0;
+  int ones_after_one = 0;
+  bool prev_was_one = false;
+  for (int i = 0; i < kTrials; ++i) {
+    bool is_one = (eb.GetStride(kPeriod) == 1);
+    if (prev_was_one && is_one) ++ones_after_one;
+    if (prev_was_one) ++ones;
+    prev_was_one = is_one;
   }
-  printf("Samples = %d (%f%%)\n", samples, 100.0 * samples / 10000000);
+  EXPECT_NEAR(static_cast<double>(ones_after_one) / ones, kExpectedProb, 0.02);
 }
 
+// `NextRandom` outputs must stay within 48 bits and distribute uniformly across
+// high-bit buckets, which drive the geometric inverse-CDF transform.
+TEST(ExponentialBiasedTest, NextRandomIsUniform) {
+  uint64_t x = 1;
+  for (int i = 0; i < 20; ++i) {
+    x = ExponentialBiased::NextRandom(x);
+  }
 
-// Testing that NextRandom generates uniform random numbers. Applies the
-// Anderson-Darling test for uniformity
-TEST(ExponentialBiasedTest, TestNextRandom) {
-  for (auto n : std::vector<size_t>({
-           10,  // Check short-range correlation
-           100, 1000,
-           10000  // Make sure there's no systemic error
-       })) {
-    uint64_t x = 1;
-    // This assumes that the prng returns 48 bit numbers
-    uint64_t max_prng_value = static_cast<uint64_t>(1) << 48;
-    // Initialize.
-    for (int i = 1; i <= 20; i++) {
-      x = ExponentialBiased::NextRandom(x);
-    }
-    std::vector<uint64_t> int_random_sample(n);
-    // Collect samples
-    for (size_t i = 0; i < n; i++) {
-      int_random_sample[i] = x;
-      x = ExponentialBiased::NextRandom(x);
-    }
-    // First sort them...
-    std::sort(int_random_sample.begin(), int_random_sample.end());
-    std::vector<double> random_sample(n);
-    // Convert them to uniform randoms (in the range [0,1])
-    for (size_t i = 0; i < n; i++) {
-      random_sample[i] =
-          static_cast<double>(int_random_sample[i]) / max_prng_value;
-    }
-    // Now compute the Anderson-Darling statistic
-    double ad_pvalue = AndersonDarlingTest(random_sample);
-    EXPECT_GT(std::min(ad_pvalue, 1 - ad_pvalue), 0.0001)
-        << "prng is not uniform: n = " << n << " p = " << ad_pvalue;
+  constexpr int kBuckets = 16;
+  constexpr int kDraws = 160000;
+  int counts[kBuckets] = {};
+  for (int i = 0; i < kDraws; ++i) {
+    x = ExponentialBiased::NextRandom(x);
+    ASSERT_EQ(x >> ExponentialBiased::kPrngNumBits, 0u);
+    ++counts[x >> (ExponentialBiased::kPrngNumBits - 4)];
+  }
+  for (int count : counts) {
+    EXPECT_NEAR(static_cast<double>(count) / kDraws, 1.0 / kBuckets, 0.005);
   }
 }
 
@@ -243,6 +142,129 @@ TEST(ExponentialBiasedTest, InitializationModes) {
 
   ExponentialBiased eb_stack;
   EXPECT_THAT(eb_stack.GetSkipCount(2), Ge(0));
+}
+
+TEST(ExponentialSamplerTest, InitializationModes) {
+  ABSL_CONST_INIT static ExponentialSampler static_sampler;
+  EXPECT_EQ(static_sampler.next_sample(), 0);
+  EXPECT_EQ(static_sampler.sample_period(), 0);
+
+#ifdef ABSL_HAVE_THREAD_LOCAL
+  ABSL_CONST_INIT thread_local ExponentialSampler thread_sampler;
+  EXPECT_EQ(thread_sampler.next_sample(), 0);
+  EXPECT_EQ(thread_sampler.sample_period(), 0);
+#endif
+}
+
+TEST(ExponentialSamplerTest, DisabledAndAlwaysOn) {
+  ExponentialSampler sampler;
+
+  ASSERT_TRUE(sampler.ShouldSampleNext(/*step=*/1));
+  EXPECT_EQ(sampler.SampleSlow(/*period=*/0, /*step=*/1,
+                               /*disabled_stride=*/1234),
+            0);
+  EXPECT_EQ(sampler.next_sample(), 1234);
+  EXPECT_EQ(sampler.sample_period(), 0);
+
+  // Period 1 samples every event with weight == step, including event #1.
+  sampler.SetStateForTesting(0, 0);
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_TRUE(sampler.ShouldSampleNext(/*step=*/1));
+    EXPECT_EQ(sampler.SampleSlow(/*period=*/1, /*step=*/1,
+                                 /*disabled_stride=*/1 << 16),
+              1);
+  }
+
+  sampler.SetStateForTesting(0, 0);
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_TRUE(sampler.ShouldSampleNext(/*step=*/65));
+    EXPECT_EQ(sampler.SampleSlow(/*period=*/1, /*step=*/65,
+                                 /*disabled_stride=*/1 << 16),
+              65);
+  }
+
+  sampler.DisablePermanently();
+  EXPECT_FALSE(sampler.ShouldSampleNext(/*step=*/1));
+  EXPECT_EQ(sampler.sample_period(), 0);
+}
+
+TEST(ExponentialSamplerTest, UnitStepConstantWeightAndUnbiasedFirstItem) {
+  constexpr int64_t kPeriod = 16;
+  constexpr int64_t kDisabledStride = 1 << 16;
+  constexpr int kTrials = 100000;
+
+  // Item #1 on a fresh thread must be sampled with probability `1 / kPeriod`
+  // and receive weight `kPeriod` (never 1).
+  int64_t first_item_weight_sum = 0;
+  for (int i = 0; i < kTrials; ++i) {
+    ExponentialSampler fresh;
+    ASSERT_TRUE(fresh.ShouldSampleNext(/*step=*/1));
+    const int64_t w = fresh.SampleSlow(kPeriod, /*step=*/1, kDisabledStride);
+    if (w > 0) {
+      ASSERT_EQ(w, kPeriod);
+      first_item_weight_sum += w;
+    }
+  }
+  EXPECT_NEAR(static_cast<double>(first_item_weight_sum), kTrials,
+              0.10 * kTrials);
+
+  // Steady-state sequential items must also carry constant weight
+  // `kSteadyPeriod`.
+  constexpr int64_t kSteadyPeriod = 32;
+  constexpr int kEvents = 200000;
+  ExponentialSampler sampler;
+  int64_t steady_weight_sum = 0;
+  for (int i = 0; i < kEvents; ++i) {
+    if (sampler.ShouldSampleNext(/*step=*/1)) {
+      const int64_t w =
+          sampler.SampleSlow(kSteadyPeriod, /*step=*/1, kDisabledStride);
+      if (w > 0) {
+        ASSERT_EQ(w, kSteadyPeriod);
+        steady_weight_sum += w;
+      }
+    }
+  }
+  EXPECT_NEAR(static_cast<double>(steady_weight_sum), kEvents, 0.10 * kEvents);
+}
+
+TEST(ExponentialSamplerTest, PreservesInFlightPeriodAcrossRateChange) {
+  ExponentialSampler sampler;
+  sampler.SetStateForTesting(/*next_sample=*/0, /*sample_period=*/100);
+
+  // Completed stride ran under period 100; new stride runs under period 500.
+  EXPECT_EQ(sampler.SampleSlow(/*period=*/500, /*step=*/1,
+                               /*disabled_stride=*/1 << 16),
+            100);
+  EXPECT_EQ(sampler.sample_period(), 500);
+  EXPECT_GT(sampler.next_sample(), 0);
+
+  sampler.SetStateForTesting(/*next_sample=*/0, sampler.sample_period());
+  EXPECT_EQ(sampler.SampleSlow(/*period=*/500, /*step=*/1,
+                               /*disabled_stride=*/1 << 16),
+            500);
+}
+
+TEST(ExponentialSamplerTest, WeightedStepOvershootUnbiased) {
+  constexpr int64_t kPeriod = 4096;
+  // 2x period: exercises multi-period overshoot.
+  constexpr int64_t kSize = 8192;
+  constexpr int64_t kStep = kSize + 1;
+  constexpr int64_t kDisabledStride = 1 << 20;
+  constexpr int kAllocs = 100000;
+
+  ExponentialSampler sampler;
+  double estimated_bytes = 0;
+  for (int i = 0; i < kAllocs; ++i) {
+    if (sampler.ShouldSampleNext(kStep)) {
+      const int64_t w = sampler.SampleSlow(kPeriod, kStep, kDisabledStride);
+      if (w > 0) {
+        EXPECT_GE(w, kPeriod);
+        estimated_bytes += static_cast<double>(w) * kSize / kStep;
+      }
+    }
+  }
+  const double exact_bytes = static_cast<double>(kAllocs) * kSize;
+  EXPECT_NEAR(estimated_bytes, exact_bytes, 0.05 * exact_bytes);
 }
 
 }  // namespace
