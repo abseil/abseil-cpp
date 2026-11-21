@@ -312,6 +312,19 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_EXCEPTIONS 1
 #endif
 
+// ABSL_INTERNAL_HAVE_STD_OSTREAM
+//
+// Checks whether the C++ standard library provides `std::ostream`. libc++ omits
+// `std::ostream` from `<ostream>` when built without localization support:
+// LLVM < 20 defines `_LIBCPP_HAS_NO_LOCALIZATION` only when disabled, whereas
+// LLVM >= 20 always defines `_LIBCPP_HAS_LOCALIZATION` to `0` or `1`.
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
+#error ABSL_INTERNAL_HAVE_STD_OSTREAM cannot be directly set
+#elif defined(__cplusplus) && !defined(_LIBCPP_HAS_NO_LOCALIZATION) && \
+    (!defined(_LIBCPP_HAS_LOCALIZATION) || _LIBCPP_HAS_LOCALIZATION != 0)
+#define ABSL_INTERNAL_HAVE_STD_OSTREAM 1
+#endif
+
 // -----------------------------------------------------------------------------
 // Platform Feature Checks
 // -----------------------------------------------------------------------------

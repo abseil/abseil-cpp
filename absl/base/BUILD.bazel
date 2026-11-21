@@ -907,6 +907,34 @@ cc_test(
 )
 
 cc_test(
+    name = "log_severity_no_ostream_test",
+    size = "small",
+    srcs = [
+        "log_severity.cc",
+        "log_severity.h",
+        "log_severity_no_ostream_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    # Predefine standard library <ostream> include guards so hosted #include
+    # <ostream> is empty (matching _LIBCPP_HAS_LOCALIZATION == 0) and unguarded
+    # std::ostream references fail at compile time.
+    local_defines = [
+        "_GLIBCXX_OSTREAM",
+        "_LIBCPP_HAS_NO_LOCALIZATION",
+        "_LIBCPP_OSTREAM",
+        "_OSTREAM_",
+    ],
+    tags = [
+        "no_test_wasm",
+    ],
+    deps = [
+        ":config",
+        ":core_headers",
+    ],
+)
+
+cc_test(
     name = "log_severity_test",
     size = "small",
     srcs = ["log_severity_test.cc"],
