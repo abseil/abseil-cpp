@@ -60,6 +60,12 @@
 #elif defined(_WIN32)
 #include <Windows.h>
 #include <tchar.h>
+#elif defined(__FreeBSD__)
+// clang-format off
+// This order does actually matter =(.
+#include <sys/types.h>
+#include <sys/sysctl.h>
+// clang-format on
 #endif
 
 // Set a flag that controls whether we actually execute fatal statements, but
@@ -239,6 +245,27 @@ class StrippingTest : public ::testing::Test {
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
         _tfopen(path.c_str(), _T("rb")), [](FILE* fp) { fclose(fp); });
     if (!fp) absl::FPrintF(stderr, "Failed to open executable\n");
+    return fp;
+#elif defined(__FreeBSD__)
+    int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+    size_t size = 0;
+    if (sysctl(mib, 4, nullptr, &size, nullptr, 0) != 0) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "Failed to get executable path size: %s\n", err);
+      return nullptr;
+    }
+    std::string path(size, '\0');
+    if (sysctl(mib, 4, &path[0], &size, nullptr, 0) != 0) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "Failed to get executable path: %s\n", err);
+      return nullptr;
+    }
+    std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
+        fopen(path.c_str(), "rb"), [](FILE* fp) { fclose(fp); });
+    if (!fp) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "Failed to open executable at %s: %s\n", path, err);
+    }
     return fp;
 #else
     absl::FPrintF(stderr,
