@@ -44,7 +44,9 @@
 
 #include <windows.h>
 #define ABSL_RANDOM_USE_BCRYPT 1
+#ifdef _MSC_VER
 #pragma comment(lib, "bcrypt.lib")
+#endif
 
 #elif defined(__Fuchsia__)
 #include <zircon/syscalls.h>
