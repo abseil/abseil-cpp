@@ -149,7 +149,14 @@
 //    the generated machine code.
 // 3) Prefer applying this attribute to individual variables. Avoid
 //    applying it to types. This tends to localize the effect.
-#define ABSL_CACHELINE_ALIGNED alignas(ABSL_CACHELINE_SIZE)
+// TODO(b/588013491): Migrate OSS to use alignas()
+#if defined(__clang__) || defined(__GNUC__)
+#define ABSL_CACHELINE_ALIGNED __attribute__((aligned(ABSL_CACHELINE_SIZE)))
+#elif defined(_MSC_VER)
+#define ABSL_CACHELINE_ALIGNED __declspec(align(ABSL_CACHELINE_SIZE))
+#else
+#define ABSL_CACHELINE_ALIGNED
+#endif
 
 // ABSL_PREDICT_TRUE, ABSL_PREDICT_FALSE
 //
