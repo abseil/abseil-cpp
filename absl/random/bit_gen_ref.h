@@ -64,18 +64,21 @@ ABSL_NAMESPACE_BEGIN
 //    }
 //
 class BitGenRef {
-  template <template <class...> class Trait, class AlwaysVoid, class... Args>
-  struct detector : std::false_type {};
-  template <template <class...> class Trait, class... Args>
-  struct detector<Trait, std::void_t<Trait<Args...>>, Args...>
+  // True when `T` names a conversion function to `BitGenRef`, such as
+  // `operator BitGenRef() &`.
+  //
+  // The expression is written directly in the partial specialization rather
+  // than through an intermediate alias template. MSVC does not substitute a
+  // conversion function call carried by an alias template, so routing the
+  // expression through one makes this detection report "no conversion
+  // operator" there, and every type with `operator BitGenRef()` is wrapped as
+  // a plain URBG instead.
+  template <typename T, typename = void>
+  struct HasConversionOperator : std::false_type {};
+  template <typename T>
+  struct HasConversionOperator<
+      T, std::void_t<decltype(std::declval<T>().operator BitGenRef())>>
       : std::true_type {};
-
-  template <typename T>
-  using has_conversion_operator_t =
-      decltype(std::declval<T>().operator BitGenRef());
-
-  template <typename T>
-  using HasConversionOperator = detector<has_conversion_operator_t, void, T>;
 
   // True when BitGenRef binds directly to a URBG, rather than copying
   // (BitGenRef and derived types) or converting (types which provide
