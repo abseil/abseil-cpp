@@ -433,8 +433,13 @@
 // whatever section its caller is placed into.
 //
 #ifndef ABSL_ATTRIBUTE_SECTION
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::section) && \
+    ABSL_HAVE_CPP_ATTRIBUTE(gnu::noinline)
+#define ABSL_ATTRIBUTE_SECTION(name) [[gnu::section(#name)]] [[gnu::noinline]]
+#else
 #define ABSL_ATTRIBUTE_SECTION(name) \
   __attribute__((section(#name))) __attribute__((noinline))
+#endif
 #endif
 
 // ABSL_ATTRIBUTE_SECTION_VARIABLE
