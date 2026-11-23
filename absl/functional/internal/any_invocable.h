@@ -204,33 +204,102 @@ template <bool SigIsNoexcept, class ReturnType, class... P>
 using InvokerType = ReturnType(
     TypeErasedState*, ForwardedParameterType<P>...) noexcept(SigIsNoexcept);
 
-// The manager that is used when AnyInvocable is empty
-inline void EmptyManager(FunctionToCall /*operation*/,
-                         TypeErasedState* /*from*/,
-                         TypeErasedState* /*to*/) noexcept {}
+// The manager that is used when AnyInvocable is empty or holds an empty
+// trivially copyable target object in local storage.
+inline void EmptyManager(FunctionToCall operation, TypeErasedState* /*from*/,
+                         TypeErasedState* const to) noexcept {
+  switch (operation) {
+    case FunctionToCall::relocate_from_to:
+    case FunctionToCall::relocate_from_to_and_query_rust:
+      // Begin the lifetime of `to->storage` so relocating an empty trivially
+      // copyable target object implicitly creates it in `to->storage` per P0593
+      // ([intro.object]). Compiles to a no-op.
+      ::new (static_cast<void*>(&to->storage)) unsigned char[kStorageSize];
+      return;
+    case FunctionToCall::dispose:
+      return;
+  }
+}
 
-// The manager that is used when a target function is in local storage and is
-// a trivially copyable type.
-inline void LocalManagerTrivial(FunctionToCall /*operation*/,
+// The manager that is used when a non-empty trivially copyable target function
+// fits in a single pointer-sized word of local storage.
+inline void LocalManagerTrivialSingleWord(FunctionToCall operation,
+                                          TypeErasedState* const from,
+                                          TypeErasedState* const to) noexcept {
+  switch (operation) {
+    case FunctionToCall::relocate_from_to:
+    case FunctionToCall::relocate_from_to_and_query_rust: {
+      // Note: Correctness here relies on http://wg21.link/p0593
+      // ([intro.object], [basic.types.general]). Placement-new of
+      // `unsigned char[kStorageSize]` activates `to->storage` and implicitly
+      // creates the target object within it; `memmove` then copies its single
+      // pointer-sized word without touching the unused second word.
+      unsigned char* dst =
+          ::new (static_cast<void*>(&to->storage)) unsigned char[kStorageSize];
+      // Suppress GCC false-positive uninitialized warnings when copying raw
+      // storage words that may include uninitialized padding bytes of the
+      // stored callable.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+      std::memmove(dst, from->storage, sizeof(void*));
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+      return;
+    }
+    case FunctionToCall::dispose:
+      return;
+  }
+}
+
+// The manager that is used when a target function is in local storage, is a
+// trivially copyable type, and spans more than one pointer-sized word.
+inline void LocalManagerTrivial(FunctionToCall operation,
                                 TypeErasedState* const from,
                                 TypeErasedState* const to) noexcept {
-  // This single statement without branching handles both possible operations.
-  //
-  // For FunctionToCall::dispose, "from" and "to" point to the same state, and
-  // so this assignment logically would do nothing.
-  //
-  // Note: Correctness here relies on http://wg21.link/p0593, which has only
-  // become standard in C++20, though implementations do not break it in
-  // practice for earlier versions of C++.
-  //
-  // The correct way to do this without that paper is to first placement-new a
-  // default-constructed T in "to->storage" prior to the memmove, but doing so
-  // requires a different function to be created for each T that is stored
-  // locally, which can cause unnecessary bloat and be less cache friendly.
-  *to = *from;
-
-  // Note: Because the type is trivially copyable, the destructor does not need
-  // to be called ("trivially copyable" requires a trivial destructor).
+  switch (operation) {
+    case FunctionToCall::relocate_from_to:
+    case FunctionToCall::relocate_from_to_and_query_rust: {
+      // Note: Correctness here relies on http://wg21.link/p0593, which has only
+      // become standard in C++20, though implementations do not break it in
+      // practice for earlier versions of C++.
+      //
+      // The correct way to do this without that paper is to first placement-new
+      // a default-constructed T in "to->storage" prior to the memmove, but
+      // doing so requires a different function to be created for each T that is
+      // stored locally, which can cause unnecessary bloat and be less cache
+      // friendly.
+      unsigned char* dst =
+          ::new (static_cast<void*>(&to->storage)) unsigned char[kStorageSize];
+      // Copy as two pointer-sized words rather than a single 2-word copy so
+      // compilers emit word-sized scalar loads/stores instead of a 2-word SIMD
+      // load/store (avoiding store-to-load forwarding stalls with scalar writes
+      // before relocation and scalar reads in `LocalInvoker`).
+      constexpr std::size_t kWordSize = sizeof(void*);
+      static_assert(kStorageSize == 2 * kWordSize);
+      // Suppress GCC false-positive uninitialized warnings when copying raw
+      // storage words that may consist entirely of uninitialized padding bytes
+      // (e.g. an over-aligned callable whose second word is tail padding).
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+      std::memmove(dst, from->storage, kWordSize);
+      std::memmove(dst + kWordSize, from->storage + kWordSize, kWordSize);
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+      return;
+    }
+    case FunctionToCall::dispose:
+      // Note: Because the type is trivially copyable, the destructor does not
+      // need to be called ("trivially copyable" requires a trivial destructor).
+      return;
+  }
 }
 
 // The manager that is used when a target function is in local storage and is
@@ -285,7 +354,13 @@ inline void RemoteManagerTrivial(FunctionToCall operation,
     case FunctionToCall::relocate_from_to:
     case FunctionToCall::relocate_from_to_and_query_rust:
       // NOTE: Requires that the left-hand operand is already empty.
-      to->remote = from->remote;
+      // Copy `target` and `size` field-by-field rather than via whole-struct
+      // assignment (`to->remote = from->remote`) so compilers emit scalar
+      // pointer-sized loads/stores instead of a 2-word SIMD load/store,
+      // avoiding store-to-load forwarding stalls with scalar accesses in
+      // `InitializeRemoteManager`, `RemoteInvoker`, and `dispose`.
+      to->remote.target = from->remote.target;
+      to->remote.size = from->remote.size;
       return;
     case FunctionToCall::dispose:
 #if defined(__cpp_sized_deallocation)
@@ -510,15 +585,51 @@ class CoreImpl {
   void InitializeStorage(Args&&... args) {
     using RawT = RemoveCVRef<QualTRef>;
     if constexpr (IsStoredLocally<RawT>()) {
-      ::new (static_cast<void*>(&state_.storage))
-          RawT(std::forward<Args>(args)...);
-      invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
       // We can simplify our manager if we know the type is trivially copyable.
       if constexpr (std::is_trivially_copyable_v<RawT>) {
-        manager_ = LocalManagerTrivial;
+        if constexpr (std::is_empty_v<RawT>) {
+          ::new (static_cast<void*>(&state_.storage))
+              RawT(std::forward<Args>(args)...);
+          manager_ = EmptyManager;
+        } else {
+          // Stage non-empty trivially copyable callables through a zeroed
+          // word-multiple buffer into `state_.storage` so narrow sub-word
+          // stores do not stall word-sized loads in `LocalManagerTrivial*`.
+          constexpr std::size_t kWordSize = sizeof(void*);
+          constexpr std::size_t kBufSize =
+              sizeof(RawT) <= kWordSize ? kWordSize : kStorageSize;
+          alignas(void*) alignas(RawT) unsigned char buf[kBufSize] = {};
+          // GCC can warn `-Wuninitialized` when SRA lowers the trivial
+          // copy/move into `buf` plus word-wise `memcpy` into separate
+          // pointer-sized loads and a word of `RawT` is all tail padding (e.g.
+          // `alignas(16)` with only a 4-byte member).
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+          ::new (static_cast<void*>(buf)) RawT(std::forward<Args>(args)...);
+          unsigned char* dst = ::new (
+              static_cast<void*>(&state_.storage)) unsigned char[kStorageSize];
+          std::memcpy(dst, buf, kWordSize);
+          if constexpr (sizeof(RawT) <= kWordSize) {
+            manager_ = LocalManagerTrivialSingleWord;
+          } else {
+            std::memcpy(dst + kWordSize, buf + kWordSize, kWordSize);
+            manager_ = LocalManagerTrivial;
+          }
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+        }
       } else {
+        ::new (static_cast<void*>(&state_.storage))
+            RawT(std::forward<Args>(args)...);
         manager_ = LocalManagerNontrivial<RawT>;
       }
+      // This is set after everything else in case an exception is thrown in an
+      // earlier step of the initialization.
+      invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
     } else {
       InitializeRemoteManager<RawT>(std::forward<Args>(args)...);
       // This is set after everything else in case an exception is thrown in an
