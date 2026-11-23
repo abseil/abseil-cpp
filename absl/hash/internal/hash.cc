@@ -195,25 +195,41 @@ uint64_t Mix4x16Vectors(Vector128 a, Vector128 b, Vector128 c, Vector128 d) {
 
 #endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
+// Mixing two 128-bit vectors at a time with corresponding states.
+// All variables are mixed slightly differently to avoid hash collision
+// due to trivial byte rotation.
+// We combine state and data with _mm_add_epi64/_mm_sub_epi64 before applying
+// AES encryption to make the hash function dependent on the order of blocks.
+ABSL_ATTRIBUTE_ALWAYS_INLINE void MixAB(const uint8_t* p, Vector128& state0,
+                                        Vector128& state1) {
+  Vector128 a = Load128(p);
+  Vector128 b = Load128(p + 16);
+  state0 = MixA(a, state0);
+  state1 = MixB(b, state1);
+}
+
+ABSL_ATTRIBUTE_ALWAYS_INLINE void MixCD(const uint8_t* p, Vector128& state2,
+                                        Vector128& state3) {
+  Vector128 c = Load128(p);
+  Vector128 d = Load128(p + 16);
+  state2 = MixC(c, state2);
+  state3 = MixD(d, state3);
+}
+
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
     uint64_t seed, const uint8_t* ptr, size_t len) {
   assert(len > 32);
   assert(len <= 64);
-  Vector128 state = Set128(seed, len);
-  Vector128 a = Load128(ptr);
-  Vector128 b = Load128(ptr + 16);
-  auto* last32_ptr = ptr + len - 32;
-  Vector128 c = Load128(last32_ptr);
-  Vector128 d = Load128(last32_ptr + 16);
+  Vector128 state0 = Set128(seed, len);
+  Vector128 state1 = state0;
+  Vector128 state2 = state0;
+  Vector128 state3 = state0;
+  MixAB(ptr, state0, state1);
+  MixCD(ptr + len - 32, state2, state3);
 
-  Vector128 na = MixA(a, state);
-  Vector128 nb = MixB(b, state);
-  Vector128 nc = MixC(c, state);
-  Vector128 nd = MixD(d, state);
-
-  // We perform another round of encryption to mix bits between two halves of
-  // the input.
-  return Mix4x16Vectors(na, nb, nc, nd);
+  // Perform another round of encryption to mix bits between two halves of the
+  // input.
+  return Mix4x16Vectors(state0, state1, state2, state3);
 }
 
 [[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
@@ -229,34 +245,6 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
   Vector128 state2 = state1;
   Vector128 state3 = state2;
 
-  // Mixing two 128-bit vectors at a time with corresponding states.
-  // All variables are mixed slightly differently to avoid hash collision
-  // due to trivial byte rotation.
-  // We combine state and data with _mm_add_epi64/_mm_sub_epi64 before applying
-  // AES encryption to make hash function dependent on the order of the blocks.
-  // See comments in LowLevelHash33To64 for more considerations.
-  struct MixerAB {
-    Vector128& state0;
-    Vector128& state1;
-    ABSL_ATTRIBUTE_ALWAYS_INLINE auto operator()(const uint8_t* p) const {
-      Vector128 a = Load128(p);
-      Vector128 b = Load128(p + 16);
-      state0 = MixA(a, state0);
-      state1 = MixB(b, state1);
-    }
-  };
-  MixerAB mix_ab = {state0, state1};
-  struct MixerCD {
-    Vector128& state2;
-    Vector128& state3;
-    ABSL_ATTRIBUTE_ALWAYS_INLINE auto operator()(const uint8_t* p) const {
-      Vector128 c = Load128(p);
-      Vector128 d = Load128(p + 16);
-      state2 = MixC(c, state2);
-      state3 = MixD(d, state3);
-    }
-  };
-  MixerCD mix_cd = {state2, state3};
   // Already 64B/iter and >1 iteration (>128B, ~2.2% in fleetbench) is rare,
   // so avoid extra unroll bloat (and GPR spills under preserve_most).
 #if defined(__clang__)
@@ -264,8 +252,8 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
 #endif
   do {
     PrefetchFutureDataToLocalCache(ptr);
-    mix_ab(ptr);
-    mix_cd(ptr + 32);
+    MixAB(ptr, state0, state1);
+    MixCD(ptr + 32, state2, state3);
 
     ptr += 64;
     len -= 64;
@@ -273,9 +261,9 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
 
   // We now have a data `ptr` with at most 64 bytes.
   if (len > 32) {
-    mix_ab(ptr);
+    MixAB(ptr, state0, state1);
   }
-  mix_cd(last_32_ptr);
+  MixCD(last_32_ptr, state2, state3);
 
   return Mix4x16Vectors(state0, state1, state2, state3);
 }
@@ -363,57 +351,40 @@ LowLevelHashLenGt32(uint64_t seed, const unsigned char* data, size_t len) {
   return LowLevelHash33To64(seed, data, len);
 }
 
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(
-    uint64_t state, const unsigned char* data, size_t len) {
-  // TODO(b/417141985): expose and use CityHash32WithSeed.
-  // Note: we can't use PrecombineLengthMix here because len can be up to 1024.
-  return CombineRawImpl(
-      state + len,
-      hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
-}
-
-ABSL_ATTRIBUTE_NOINLINE uint64_t
-SplitAndCombineOn32Bit(uint64_t state, const unsigned char* first, size_t len) {
-  while (len >= PiecewiseChunkSize()) {
-    state = HashBlockOn32Bit(state, first, PiecewiseChunkSize());
-    len -= PiecewiseChunkSize();
-    first += PiecewiseChunkSize();
-  }
-  // Do not call CombineContiguousImpl for empty range since it is modifying
-  // state.
-  if (len == 0) {
-    return state;
-  }
-  // Handle the remainder.
-  return CombineContiguousImpl(state, first, len,
-                               std::integral_constant<int, 4>{});
-}
-
+template <int kSizeofSizeT>
 ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
-HashBlockOn64Bit(uint64_t state, const unsigned char* data, size_t len) {
+HashBlock(uint64_t state, const unsigned char* data, size_t len) {
+  if constexpr (kSizeofSizeT == 4) {
+    // TODO(b/417141985): expose and use CityHash32WithSeed.
+    // Note: we can't use PrecombineLengthMix here because len can be up to
+    // 1024.
+    return CombineRawImpl(
+        state + len,
+        hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
+  } else {
+    static_assert(kSizeofSizeT == 8);
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-  ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt32(state, data, len);
+    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt32(state, data, len);
 #else
-  return hash_internal::CityHash64WithSeed(reinterpret_cast<const char*>(data),
-                                           len, state);
+    return hash_internal::CityHash64WithSeed(
+        reinterpret_cast<const char*>(data), len, state);
 #endif
+  }
 }
 
+template <int kSizeofSizeT>
 ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
-SplitAndCombineOn64Bit(uint64_t state, const unsigned char* first, size_t len) {
+SplitAndCombine(uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = HashBlockOn64Bit(state, first, PiecewiseChunkSize());
+    state = HashBlock<kSizeofSizeT>(state, first, PiecewiseChunkSize());
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }
-  // Do not call CombineContiguousImpl for empty range since it is modifying
-  // state.
+  // Do not call CombineContiguousImpl for empty range since it modifies state.
   if (len == 0) {
     return state;
   }
-  // Handle the remainder.
-  return CombineContiguousImpl(state, first, len,
-                               std::integral_constant<int, 8>{});
+  return CombineContiguousImpl<kSizeofSizeT>(state, first, len);
 }
 
 }  // namespace
@@ -424,9 +395,9 @@ uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
   assert(len > 8);
   assert(sizeof(size_t) == 4);  // NOLINT(misc-static-assert)
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return HashBlockOn32Bit(state, first, len);
+    return HashBlock<4>(state, first, len);
   }
-  return SplitAndCombineOn32Bit(state, first, len);
+  return SplitAndCombine<4>(state, first, len);
 }
 
 ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
@@ -436,9 +407,9 @@ CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
   assert(len > 32);
   assert(sizeof(size_t) == 8);  // NOLINT(misc-static-assert)
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    ABSL_INTERNAL_MUSTTAIL return HashBlockOn64Bit(state, first, len);
+    ABSL_INTERNAL_MUSTTAIL return HashBlock<8>(state, first, len);
   }
-  ABSL_INTERNAL_MUSTTAIL return SplitAndCombineOn64Bit(state, first, len);
+  ABSL_INTERNAL_MUSTTAIL return SplitAndCombine<8>(state, first, len);
 }
 
 ABSL_CONST_INIT const void* const MixingHashState::kSeed = &kSeed;

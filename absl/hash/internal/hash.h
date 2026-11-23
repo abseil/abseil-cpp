@@ -923,14 +923,6 @@ inline uint64_t Read8(const unsigned char* p) {
 #pragma GCC diagnostic pop
 #endif
 
-// Reads 9 to 16 bytes from p.
-// The first 8 bytes are in .first, and the rest of the bytes are in .second
-// along with duplicated bytes from .first if len<16.
-inline std::pair<uint64_t, uint64_t> Read9To16(const unsigned char* p,
-                                               size_t len) {
-  return {Read8(p), Read8(p + len - 8)};
-}
-
 // Reads 4 to 8 bytes from p.
 // Bytes are permuted and some input bytes may be duplicated in output.
 inline uint64_t Read4To8(const unsigned char* p, size_t len) {
@@ -1050,8 +1042,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineContiguousImpl9to16(
   // 2^64 values for each side that achieve this, and only when the size is
   // exactly 16 -- for smaller sizes there is an overlapping byte that makes
   // this impossible unless the seed is *also* incredibly unlucky.
-  auto p = Read9To16(first, len);
-  return Mix(state ^ p.first, kMul ^ p.second);
+  return Mix(state ^ Read8(first), kMul ^ Read8(first + len - 8));
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineContiguousImpl17to32(
@@ -1071,11 +1062,14 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineContiguousImpl17to32(
 
 // Implementation of the base case for combine_contiguous where we actually
 // mix the bytes into the state.
-// Dispatch to different implementations of combine_contiguous depending
-// on the value of `sizeof(size_t)`.
-inline uint64_t CombineContiguousImpl(
-    uint64_t state, const unsigned char* first, size_t len,
-    std::integral_constant<int, 4> /* sizeof_size_t */) {
+template <int kSizeofSizeT = sizeof(size_t)>
+inline uint64_t CombineContiguousImpl(uint64_t state,
+                                      const unsigned char* first, size_t len);
+
+template <>
+inline uint64_t CombineContiguousImpl<4>(uint64_t state,
+                                         const unsigned char* first,
+                                         size_t len) {
   // For large values we use CityHash, for small ones we use custom low latency
   // hash.
   if (len <= 8) {
@@ -1085,10 +1079,11 @@ inline uint64_t CombineContiguousImpl(
   return CombineLargeContiguousImplOn32BitLengthGt8(state, first, len);
 }
 
+template <>
+inline uint64_t CombineContiguousImpl<8>(uint64_t state,
+                                         const unsigned char* first,
+                                         size_t len) {
 #ifdef ABSL_HASH_INTERNAL_HAS_CRC32
-inline uint64_t CombineContiguousImpl(
-    uint64_t state, const unsigned char* first, size_t len,
-    std::integral_constant<int, 8> /* sizeof_size_t */) {
   if (ABSL_PREDICT_FALSE(len > 32)) {
     return CombineLargeContiguousImplOn64BitLengthGt32(state, first, len);
   }
@@ -1133,39 +1128,33 @@ inline uint64_t CombineContiguousImpl(
       crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first + len - 16)),
               ABSL_HASH_INTERNAL_CRC32_U64(crcs.second, Read8(first + 8))};
     }
-  } else {
-    if (len >= 4) {
-      // We use CRC for 4 bytes to benefit from the fused instruction and better
-      // hash quality.
-      // Using `xor` or `add` may reduce latency for this case, but would
-      // require more registers, more instructions and will have worse hash
-      // quality.
-      crcs = {ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.first),
-                                           Read4(first)),
-              ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.second),
-                                           Read4(first + len - 4))};
-    } else if (len >= 1) {
-      // We mix three bytes all into different output registers.
-      // This way, we do not need shifting of these bytes (so they don't overlap
-      // with each other).
-      crcs = {ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.first),
-                                          first[0]),
-              ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.second),
-                                          first[len - 1])};
-      // Middle byte is mixed weaker. It is a new byte only for len == 3.
-      // Mixing is independent from CRC operations so it is scheduled ASAP.
-      mul += first[len / 2];
-    }
+  } else if (len >= 4) {
+    // We use CRC for 4 bytes to benefit from the fused instruction and better
+    // hash quality.
+    // Using `xor` or `add` may reduce latency for this case, but would
+    // require more registers, more instructions and will have worse hash
+    // quality.
+    crcs = {ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.first),
+                                         Read4(first)),
+            ABSL_HASH_INTERNAL_CRC32_U32(static_cast<uint32_t>(crcs.second),
+                                         Read4(first + len - 4))};
+  } else if (len >= 1) {
+    // We mix three bytes all into different output registers.
+    // This way, we do not need shifting of these bytes (so they don't overlap
+    // with each other).
+    crcs = {ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.first),
+                                        first[0]),
+            ABSL_HASH_INTERNAL_CRC32_U8(static_cast<uint32_t>(crcs.second),
+                                        first[len - 1])};
+    // Middle byte is mixed weaker. It is a new byte only for len == 3.
+    // Mixing is independent from CRC operations so it is scheduled ASAP.
+    mul += first[len / 2];
   }
   // `mul` is mixed into both sides of `Mix` to guarantee non-zero values for
   // both multiplicands. Using Mix instead of just multiplication here improves
   // hash quality, especially for short strings.
   return Mix(mul - crcs.first, crcs.second - mul);
-}
 #else
-inline uint64_t CombineContiguousImpl(
-    uint64_t state, const unsigned char* first, size_t len,
-    std::integral_constant<int, 8> /* sizeof_size_t */) {
   // For large values we use LowLevelHash or CityHash depending on the platform,
   // for small ones we use custom low latency hash.
   if (len <= 8) {
@@ -1184,8 +1173,8 @@ inline uint64_t CombineContiguousImpl(
   // CombineContiguousImpl twice with PiecewiseChunkSize() must be equivalent
   // to calling CombineLargeContiguousImpl once with 2 * PiecewiseChunkSize().
   return CombineLargeContiguousImplOn64BitLengthGt32(state, first, len);
-}
 #endif  // ABSL_HASH_INTERNAL_HAS_CRC32
+}
 
 #if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE)
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 1
@@ -1289,8 +1278,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
                                             const unsigned char* first,
                                             size_t size) {
     return MixingHashState(
-        CombineContiguousImpl(hash_state.state_, first, size,
-                              std::integral_constant<int, sizeof(size_t)>{}));
+        CombineContiguousImpl(hash_state.state_, first, size));
   }
   using MixingHashState::HashStateBase::combine_contiguous;
 
