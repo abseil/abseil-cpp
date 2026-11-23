@@ -6048,6 +6048,74 @@ TEST(Table, GrowthWithSharedPolicyFunctions) {
   test(absl::flat_hash_set<int32_t, ZeroHash>());
 }
 
+TEST(Table, SmallerReservePreservesPriorReservationAndDoesNotUnderflow) {
+  {
+    // A smaller reserve(M) after reserve(N) (with size <= M < N) must not
+    // shrink reserved_growth_ or reservation_size_ below the active N-element
+    // guarantee.
+    IntTable t;
+    t.reserve(20);
+    t.insert(0);
+    t.insert(1);
+    const int64_t* p0 = &*t.find(0);
+    t.reserve(5);
+    for (int i = 2; i < 20; ++i) {
+      t.insert(i);
+    }
+    EXPECT_EQ(&*t.find(0), p0);
+
+    // erase(begin(), end()) must restore reserved_growth_ to 20, not 5.
+    t.erase(t.begin(), t.end());
+    t.insert(0);
+    p0 = &*t.find(0);
+    for (int i = 1; i < 20; ++i) {
+      t.insert(i);
+    }
+    EXPECT_EQ(&*t.find(0), p0);
+  }
+  {
+    // reserve(size - 1) must not underflow reserved_growth_ to
+    // kReservedGrowthJustRanOut and force a spurious rehash on the next insert.
+    IntTable t;
+    t.reserve(20);
+    for (int i = 0; i < 10; ++i) {
+      t.insert(i);
+    }
+    const int64_t* p0 = &*t.find(0);
+    t.reserve(9);
+    t.insert(10);
+    EXPECT_EQ(&*t.find(0), p0);
+  }
+  if (SwisstableGenerationsEnabled()) {
+    // reserve(size - 2) on an unreserved table must not wrap reserved_growth_
+    // to ~size_t{0} - 1 and suppress iterator-invalidation generation checks.
+    IntTable t;
+    for (int i = 0; i < 4; ++i) {
+      t.insert(i);
+    }
+    t.reserve(2);
+    auto it = t.begin();
+    t.insert(4);
+    EXPECT_DEATH_IF_SUPPORTED((void)*it, InvalidIteratorMatcher());
+  }
+}
+
+TEST(Table, RehashZeroClearsStaleReservation) {
+  if (!SwisstableGenerationsEnabled()) {
+    GTEST_SKIP() << "Generations disabled.";
+  }
+  IntTable t;
+  t.reserve(50);
+  t.insert(1);
+  t.insert(2);
+  t.rehash(0);
+  // After shrinking via rehash(0), subsequent insertions are no longer covered
+  // by the old reserve(50) guarantee and must advance the generation counter.
+  auto it = t.begin();
+  t.insert(3);
+  EXPECT_DEATH_IF_SUPPORTED((void)*it, InvalidIteratorMatcher());
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
