@@ -403,15 +403,6 @@ char* absl_nonnull numbers_internal::FastIntToBuffer(
   return buffer;
 }
 
-// Although DBL_DIG is typically 15, DBL_MAX is normally represented with 17
-// digits of precision. When converted to a string value with fewer digits
-// of precision using strtod(), the result can be bigger than DBL_MAX due to
-// a rounding error. Converting this value back to a double will produce an
-// Inf which will trigger a SIGFPE if FP exceptions are enabled. We skip
-// the precision check for sufficiently large values to avoid the SIGFPE.
-static constexpr double kDoublePrecisionCheckMax =
-    std::numeric_limits<double>::max() / 1.000000000000001;
-
 // __cpp_lib_to_chars is defined only when both integer and floating-point
 // <charconv> overloads are available. libc++ 14+ provides floating-point
 // std::to_chars for double, but leaves __cpp_lib_to_chars undefined because
@@ -454,35 +445,27 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
   }
 
 #if ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT
-  // std::to_chars is locale-independent, rounding-mode-independent (matching
-  // absl::SimpleAtod), and substantially faster than the snprintf/strtod
-  // fallback below.
-  auto to_chars = [buffer, d](int precision) {
-    std::to_chars_result result =
-        std::to_chars(buffer, buffer + numbers_internal::kFastToBufferSize - 1,
-                      d, std::chars_format::general, precision);
-    ABSL_ASSERT(result.ec == std::errc());
-    *result.ptr = '\0';
-    return result.ptr;
-  };
-
-  bool full_precision_needed = true;
-  if (std::abs(d) <= kDoublePrecisionCheckMax) {
-    char* end = to_chars(std::numeric_limits<double>::digits10);
-    double parsed_value = 0;
-    absl::from_chars_result parse_result =
-        absl::from_chars(buffer, end, parsed_value);
-    full_precision_needed = parse_result.ec != std::errc() ||
-                            parse_result.ptr != end || parsed_value != d;
-  }
-
-  if (full_precision_needed) {
-    to_chars(std::numeric_limits<double>::digits10 + 2);
-  }
+  // std::to_chars with no format or precision produces the shortest
+  // representation that round-trips, is locale- and rounding-mode-independent
+  // (matching absl::SimpleAtod), and is substantially faster than the
+  // snprintf/strtod fallback below.
+  std::to_chars_result result = std::to_chars(
+      buffer, buffer + numbers_internal::kFastToBufferSize - 1, d);
+  ABSL_ASSERT(result.ec == std::errc());
+  *result.ptr = '\0';
   return buffer;
 #else
   // TODO(b/526633099) - Once all supported standard libraries ship
   // std::to_chars with floating-point support, remove this fallback.
+  //
+  // Although DBL_DIG is typically 15, DBL_MAX is normally represented with 17
+  // digits of precision. When converted to a string value with fewer digits
+  // of precision using strtod(), the result can be bigger than DBL_MAX due to
+  // a rounding error. Converting this value back to a double will produce an
+  // Inf which will trigger a SIGFPE if FP exceptions are enabled. We skip
+  // the precision check for sufficiently large values to avoid the SIGFPE.
+  constexpr double kDoublePrecisionCheckMax =
+      std::numeric_limits<double>::max() / 1.000000000000001;
   bool full_precision_needed = true;
   if (std::abs(d) <= kDoublePrecisionCheckMax) {
     int snprintf_result =
