@@ -142,4 +142,31 @@ TEST(Attributes, StackedNoSanitizeMemberFunctions) {
 #endif
 }
 
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE void
+PreserveMostVoidCallee(int* out, int x) {
+  *out = x + 2;
+}
+
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE void
+PreserveMostVoidCaller(int* out, int x) {
+  ABSL_INTERNAL_MUSTTAIL return PreserveMostVoidCallee(out, x);
+}
+
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_PURE_FUNCTION ABSL_ATTRIBUTE_NOINLINE
+    int
+    PreserveMostCallee(int a, int b) {
+  // Bitwise operations prevent folding into a single load-effective-address
+  // instruction so the callee must preserve incoming parameter registers.
+  return (a ^ 0x55aa) + (b ^ 0xaa55);
+}
+
+TEST(Attributes, PreserveMost) {
+  volatile int init = 20;
+  int a = init;
+  int b = a + 2;
+  int out = 0;
+  PreserveMostVoidCaller(&out, a);
+  EXPECT_EQ(PreserveMostCallee(a, b) + a + b + out,
+            (20 ^ 0x55aa) + (22 ^ 0xaa55) + 20 + 22 + 22);
+}
 }  // namespace

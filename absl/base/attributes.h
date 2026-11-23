@@ -203,6 +203,56 @@
 #define ABSL_INTERNAL_MUSTTAIL
 #endif
 
+// ABSL_INTERNAL_PRESERVE_MOST
+//
+// Tells the compiler to use the `preserve_most` calling convention for a
+// function, which preserves all general-purpose registers (except R11 on
+// x86-64) across the call. This shifts the burden of saving and restoring
+// registers from the caller to the callee, reducing register spills and code
+// size at call sites that invoke cold out-of-line slow paths.
+//
+// MANDATORY USAGE REQUIREMENTS:
+// * Out-of-line slow paths: Apply to cold or rarely executed out-of-line
+//   functions called from hot inline fast paths, where shrinking caller
+//   register-spill code outweighs any extra callee save/restore instructions.
+// * Hot functions: May also be used on small, self-contained functions
+//   that use minimal registers, benefiting callers without degrading
+//   performance of the function itself.
+// * Benchmark justification: The performance or code-size impact of using
+//   `ABSL_INTERNAL_PRESERVE_MOST` MUST be clearly demonstrated by benchmarks.
+// * Attribute ordering: Because this macro expands to a C++11 standard-style
+//   attribute, place it before GNU-style attribute macros on declarations.
+// * Tail calls: Because parameter registers are also preserved for the caller,
+//   a function using this convention may only force a tail call when forwarding
+//   all incoming parameter registers unchanged.
+// * ABI compatibility: `[[clang::preserve_most]]` alters the calling convention
+//   without changing C++ name mangling. Linking callers and callees built
+//   with mismatched conventions (for example, Clang >= 17 against GCC or
+//   Clang <= 16) links silently and corrupts registers at runtime. Because of
+//   this cross-TU ABI hazard (and lazy PLT R10 clobbers on older linkers),
+//   this macro is gated on `__GOOGLE_GRTE_VERSION__`, where all linked TUs
+//   use a single homogeneous Clang toolchain and GRTE runtime.
+// * This macro is strictly for internal Abseil use and must not be exposed as a
+//   public Abseil API.
+//
+// See: https://clang.llvm.org/docs/AttributeReference.html#preserve-most
+#if defined(ABSL_INTERNAL_PRESERVE_MOST)
+#error "ABSL_INTERNAL_PRESERVE_MOST cannot be directly set."
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::preserve_most) &&                        \
+    /* Clang <= 16 clobbered return registers in epilogues (D143425). */      \
+    defined(__clang__) && __clang_major__ >= 17 &&                            \
+    /* AArch64 lazy PLT resolver clobbers X10-X15. */                         \
+    defined(__x86_64__) &&                                                    \
+    /* Unsupported on Windows PE/COFF and across DLL boundaries. */           \
+    !defined(_WIN32) && !defined(ABSL_BUILD_DLL) &&                           \
+    !defined(ABSL_CONSUME_DLL) &&                                             \
+    /* Require GRTE for a single Clang toolchain ABI and PLT-safe R10. */     \
+    defined(__GOOGLE_GRTE_VERSION__) && __GOOGLE_GRTE_VERSION__ >= 20180301L
+#define ABSL_INTERNAL_PRESERVE_MOST [[clang::preserve_most]]
+#else
+#define ABSL_INTERNAL_PRESERVE_MOST
+#endif
+
 // ABSL_ATTRIBUTE_WEAK
 //
 // Tags a function as weak for the purposes of compilation and linking.
