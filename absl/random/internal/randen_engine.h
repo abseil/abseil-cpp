@@ -88,6 +88,21 @@ class alignas(8) randen_engine {
     std::memcpy(state(), other.state(), kStateSizeT * sizeof(result_type));
     return *this;
   }
+  randen_engine(randen_engine&& other) noexcept
+      : next_(other.next_), impl_(std::move(other.impl_)) {
+    std::memcpy(state(), other.state(), kStateSizeT * sizeof(result_type));
+    other.seed();
+  }
+  randen_engine& operator=(randen_engine&& other) noexcept {
+    if (this == &other) {
+      return *this;
+    }
+    next_ = other.next_;
+    impl_ = std::move(other.impl_);
+    std::memcpy(state(), other.state(), kStateSizeT * sizeof(result_type));
+    other.seed();
+    return *this;
+  }
 
   // Returns random bits from the buffer in units of result_type.
   result_type operator()() {

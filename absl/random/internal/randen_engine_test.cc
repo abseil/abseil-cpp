@@ -260,6 +260,29 @@ TYPED_TEST(RandenEngineTypedTest, SelfAssignmentPreservesState) {
   }
 }
 
+TYPED_TEST(RandenEngineTypedTest, MoveResetsSourceState) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  ExplicitSeedSeq seed_sequence{12, 34, 56};
+  randen source(seed_sequence);
+  source.discard(5);
+  const randen expected = source;
+  const randen zero_seeded;
+
+  randen move_constructed(std::move(source));
+  EXPECT_TRUE(move_constructed == expected);
+  EXPECT_TRUE(source == zero_seeded);  // NOLINT(bugprone-use-after-move)
+
+  randen source2(seed_sequence);
+  source2.discard(5);
+  randen move_assigned;
+  move_assigned = std::move(source2);
+  EXPECT_TRUE(move_assigned == expected);
+  EXPECT_TRUE(source2 == zero_seeded);  // NOLINT(bugprone-use-after-move)
+
+  EXPECT_NE(move_constructed(), source());  // NOLINT(bugprone-use-after-move)
+}
+
 TYPED_TEST(RandenEngineTypedTest, RandenEngineSFINAETest) {
   using randen = typename absl::random_internal::randen_engine<TypeParam>;
   using result_type = typename randen::result_type;
