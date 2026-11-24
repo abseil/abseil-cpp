@@ -55,6 +55,7 @@
 #include "absl/strings/internal/cord_rep_crc.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
+#include "absl/strings/internal/string_search.h"
 #include "absl/strings/match.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
@@ -1416,6 +1417,74 @@ inline void InitShift(std::array<uint16_t, 256>& shift,
   }
 }
 
+// Returns the position of the first occurrence of `needle` at or after `it`,
+// or `absl::Cord::CharIterator()` if there is none. Takes worst-case
+// O(BytesRemaining(it) + needle.size()) time and O(needle.size()) extra memory:
+// copies overlapping blocks of the haystack into a buffer and searches them
+// with Two-Way.
+absl::Cord::CharIterator FindLinear(absl::Cord::CharIterator it,
+                                    absl::string_view needle) {
+  const size_t m = needle.size();
+  const strings_internal::TwoWaySearcher<false> searcher(needle);
+  // Each block adds at least `m` bytes to the `m - 1` bytes kept from the
+  // previous block, so searching the blocks takes linear time in total.
+  const size_t block = (std::max)(m, size_t{1} << 16);
+  std::string buf;
+  // The position of `buf[0]`. `it` is the position after the end of `buf`.
+  absl::Cord::CharIterator buf_start = it;
+  while (true) {
+    size_t n = (std::min)(block, BytesRemaining(it));
+    while (n > 0) {
+      absl::string_view chunk = absl::Cord::ChunkRemaining(it);
+      const size_t k = (std::min)(n, chunk.size());
+      buf.append(chunk.data(), k);
+      absl::Cord::Advance(&it, k);
+      n -= k;
+    }
+    const size_t idx = searcher.Find(buf, needle, 0);
+    if (idx != absl::string_view::npos) {
+      absl::Cord::Advance(&buf_start, idx);
+      return buf_start;
+    }
+    if (BytesRemaining(it) == 0) return absl::Cord::CharIterator();
+    // Keep the last `m - 1` bytes, which may start an occurrence.
+    const size_t keep = (std::min)(buf.size(), m - 1);
+    absl::Cord::Advance(&buf_start, buf.size() - keep);
+    buf.erase(0, buf.size() - keep);
+  }
+}
+
+absl::Cord::CharIterator FindLinear(absl::Cord::CharIterator it,
+                                    const absl::Cord& needle) {
+  if (std::optional<absl::string_view> flat = needle.TryFlat()) {
+    return FindLinear(it, *flat);
+  }
+  return FindLinear(it, std::string(needle));
+}
+
+// Returns the first `kProbeSize` bytes of `needle`, or fewer if its first
+// chunk is shorter.
+absl::string_view NeedleProbe(absl::string_view needle) {
+  return needle.substr(0, strings_internal::kProbeSize);
+}
+
+absl::string_view NeedleProbe(const absl::Cord& needle) {
+  return absl::Cord::ChunkRemaining(needle.char_begin())
+      .substr(0, strings_internal::kProbeSize);
+}
+
+// Returns whether `text` starts with the first min(text.size(), probe.size())
+// bytes of `probe`. Candidates that fail this cost at most `kProbeSize` byte
+// comparisons, so they never need to be charged to a `NaiveSearchBudget`.
+inline bool ProbeMatches(absl::string_view text, absl::string_view probe) {
+  const size_t k = (std::min)(text.size(), probe.size());
+  return text.substr(0, k) == probe.substr(0, k);
+}
+
+// Searches with Boyer-Moore-Horspool. If verifying candidates costs more than
+// `strings_internal::kMaxShortNeedleSize` byte comparisons per haystack byte
+// (e.g. for needle 'a' x k + 'b' + 'a' x k in haystack 'a' x n), switches to
+// FindLinear(), so this takes worst-case linear time.
 template <typename Needle>
 absl::Cord::CharIterator FindBMH(absl::Cord::CharIterator it,
                                  const Needle& needle) {
@@ -1427,6 +1496,9 @@ absl::Cord::CharIterator FindBMH(absl::Cord::CharIterator it,
   const uint16_t default_shift = static_cast<uint16_t>(kMaxScan + 1);
   const unsigned char last_needle =
       static_cast<unsigned char>(needle[needle_size - 1]);
+  const absl::string_view needle_probe = NeedleProbe(needle);
+  const size_t total = BytesRemaining(it);
+  strings_internal::NaiveSearchBudget budget(needle_size, 0);
 
   while (BytesRemaining(it) >= needle_size) {
     absl::string_view chunk = absl::Cord::ChunkRemaining(it);
@@ -1448,7 +1520,21 @@ absl::Cord::CharIterator FindBMH(absl::Cord::CharIterator it,
     if (chunk_rem >= needle_size) {
       last_hay = static_cast<unsigned char>(chunk[idx + needle_size - 1]);
     } else {
-      if (!IsPrefixMatch(chunk, idx, chunk_rem, needle)) {
+      // Most candidates differ from the needle within its first bytes.
+      if (!ProbeMatches(chunk.substr(idx), needle_probe)) {
+        absl::Cord::Advance(&it, 1);
+        continue;
+      }
+      // Comparing the prefix costs up to `chunk_rem` byte comparisons, even
+      // if it matches and the candidate is then rejected by the last byte.
+      const bool prefix_match = IsPrefixMatch(chunk, idx, chunk_rem, needle);
+      if (ABSL_PREDICT_FALSE(
+              !budget.Spend(total - BytesRemaining(it), chunk_rem))) {
+        // If the prefix matched, `it` itself may still be an occurrence.
+        if (!prefix_match) absl::Cord::Advance(&it, 1);
+        return FindLinear(it, needle);
+      }
+      if (!prefix_match) {
         absl::Cord::Advance(&it, 1);
         continue;
       }
@@ -1466,9 +1552,18 @@ absl::Cord::CharIterator FindBMH(absl::Cord::CharIterator it,
       absl::Cord::Advance(&it, shift[last_hay]);
       continue;
     }
-    // Check if this is `needle`.
-    if (IsSubstringInCordAt(it, needle)) {
-      return it;
+    // Check if this is `needle`. Candidates that differ within the probe are
+    // cheap and need not be charged to the budget.
+    if (chunk_rem < needle_size ||
+        ProbeMatches(chunk.substr(idx), needle_probe)) {
+      if (IsSubstringInCordAt(it, needle)) {
+        return it;
+      }
+      if (ABSL_PREDICT_FALSE(
+              !budget.Spend(total - BytesRemaining(it), needle_size))) {
+        absl::Cord::Advance(&it, 1);
+        return FindLinear(it, needle);
+      }
     }
     if (!shift_initialized) {
       InitShift(shift, needle, default_shift, kMaxScan);
@@ -1516,7 +1611,9 @@ absl::Cord::CharIterator FindChar(absl::Cord::CharIterator it, char target) {
 // (c) Use string_view::find in each fragment, and specifically handle fragment
 //     boundaries.
 //
-// This currently implements option (b).
+// This currently implements option (c). Needles of more than
+// `strings_internal::kMaxShortNeedleSize` bytes switch to a linear-time search
+// if verifying candidates becomes too expensive.
 template <typename T>
 absl::Cord::CharIterator absl::Cord::FindImpl(CharIterator it,
                                               const T& needle) const {
@@ -1549,6 +1646,14 @@ absl::Cord::CharIterator absl::Cord::FindImpl(CharIterator it,
     return FindBMH(it, needle);
   }
 
+  // Budget for needles longer than `kMaxShortNeedleSize`, whose naive search
+  // would take more than linear time in the worst case.
+  const bool long_needle = m > strings_internal::kMaxShortNeedleSize;
+  const absl::string_view needle_probe =
+      long_needle ? NeedleProbe(needle) : absl::string_view();
+  const size_t total = it.chunk_iterator_.bytes_remaining_;
+  strings_internal::NaiveSearchBudget budget(m, 0);
+
   // Cord is a sequence of chunks. To find `needle` we go chunk by chunk looking
   // for the first char of needle, up until we have advanced `N` defined as
   // `haystack.size() - needle.size()`. If we find the first char of needle at
@@ -1571,9 +1676,20 @@ absl::Cord::CharIterator absl::Cord::FindImpl(CharIterator it,
     if (it.chunk_iterator_.bytes_remaining_ < needle.size()) {
       break;
     }
-    // Check if this is `needle`.
-    if (IsSubstringInCordAt(it, needle)) {
-      return it;
+    // For long needles, candidates that differ within the probe are cheap and
+    // need not be charged to the budget.
+    if (!long_needle ||
+        ProbeMatches(haystack_chunk.substr(idx), needle_probe)) {
+      // Check if this is `needle`.
+      if (IsSubstringInCordAt(it, needle)) {
+        return it;
+      }
+      if (long_needle &&
+          ABSL_PREDICT_FALSE(!budget.Spend(
+              total - it.chunk_iterator_.bytes_remaining_, m))) {
+        Cord::Advance(&it, 1);
+        return FindLinear(it, needle);
+      }
     }
     // No match, increment the iterator for the next attempt.
     Cord::Advance(&it, 1);

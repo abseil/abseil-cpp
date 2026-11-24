@@ -63,6 +63,7 @@ cc_library(
         "internal/memutil.h",
         "internal/str_join_internal.h",
         "internal/str_split_internal.h",
+        "internal/string_search.cc",
         "internal/stringify_sink.cc",
         "internal/stringify_sink.h",
         "match.cc",
@@ -79,6 +80,7 @@ cc_library(
         "has_absl_stringify.h",
         "internal/damerau_levenshtein_distance.h",
         "internal/string_constant.h",
+        "internal/string_search.h",
         "match.h",
         "numbers.h",
         "str_cat.h",
@@ -386,6 +388,36 @@ cc_binary(
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "@google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
+    name = "string_search_test",
+    size = "small",
+    srcs = ["internal/string_search_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":cord",
+        ":string_view",
+        ":strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "string_search_benchmark",
+    testonly = True,
+    srcs = ["internal/string_search_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":cord",
+        ":string_view",
+        ":strings",
         "@google_benchmark//:benchmark_main",
     ],
 )

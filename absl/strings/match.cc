@@ -25,6 +25,7 @@
 #include "absl/numeric/bits.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/memutil.h"
+#include "absl/strings/internal/string_search.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -41,12 +42,41 @@ bool EqualsIgnoreCase(absl::string_view piece1,
 namespace {
 
 // For larger haystacks (n >= 256), Case-Insensitive Boyer-Moore-Horspool
-// provides sub-linear O(N / M) average-case performance, although it still has
-// O(N * M) theoretical worst-case scaling.
+// provides sub-linear O(N / M) average-case performance. Its worst case is
+// O(N * M), e.g. for needle 'a' x k + 'b' + 'a' x k in haystack 'a' x n, so
+// if verifying candidates costs more than `kMaxShortNeedleSize` byte
+// comparisons per haystack byte, it switches to case-insensitive Two-Way,
+// which takes worst-case O(N + M) time.
 // Scans the haystack from left to right using a search window of size `m`.
 // For each window offset, Horspool inspects the rightmost character of the
 // window (`haystack[pos + m - 1]`) first, enabling multi-byte shifts when
 // mismatches occur and reducing average search time to O(N / M).
+//
+// Only needles of more than `kMaxShortNeedleSize` bytes (`kLongNeedle`) can
+// exceed the budget, since each verification costs at most `m` byte
+// comparisons and is followed by a shift of at least 1. For them, verification
+// is done out of line by VerifyLongNeedle(), so that tracking the budget does
+// not slow down the loop that skips windows.
+
+// Result of verifying a candidate window.
+enum class Verified { kMatch, kNoMatch, kOverBudget };
+
+ABSL_ATTRIBUTE_NOINLINE Verified VerifyLongNeedle(absl::string_view haystack,
+                                                  absl::string_view needle,
+                                                  size_t pos,
+                                                  size_t* verified_bytes) {
+  const size_t m = needle.size();
+  if (EqualsIgnoreCase(haystack.substr(pos + 1, m - 2),
+                       needle.substr(1, m - 2))) {
+    return Verified::kMatch;
+  }
+  *verified_bytes += m;
+  return *verified_bytes > strings_internal::kMaxShortNeedleSize * (pos + m)
+             ? Verified::kOverBudget
+             : Verified::kNoMatch;
+}
+
+template <bool kLongNeedle>
 ABSL_ATTRIBUTE_NOINLINE bool StrContainsIgnoreCaseBMH(
     absl::string_view haystack, absl::string_view needle) noexcept {
   const size_t n = haystack.size();
@@ -70,6 +100,7 @@ ABSL_ATTRIBUTE_NOINLINE bool StrContainsIgnoreCaseBMH(
 
   // Step 2: Search loop across candidate window offsets.
   size_t pos = 0;
+  [[maybe_unused]] size_t verified_bytes = 0;  // Only used if kLongNeedle.
   while (pos <= n - m) {
     const unsigned char last_hay =
         static_cast<unsigned char>(haystack[pos + m - 1]);
@@ -84,9 +115,22 @@ ABSL_ATTRIBUTE_NOINLINE bool StrContainsIgnoreCaseBMH(
       if (first_hay == first_needle ||
           absl::ascii_tolower(first_hay) == absl::ascii_tolower(first_needle)) {
         // Check 3: Compare interior (m - 2) bytes.
-        if (EqualsIgnoreCase(haystack.substr(pos + 1, m - 2),
-                             needle.substr(1, m - 2))) {
-          return true;
+        if constexpr (kLongNeedle) {
+          switch (VerifyLongNeedle(haystack, needle, pos, &verified_bytes)) {
+            case Verified::kMatch:
+              return true;
+            case Verified::kNoMatch:
+              break;
+            case Verified::kOverBudget:
+              // All windows before `pos + 1` have been ruled out.
+              return strings_internal::FindIgnoreCaseLinear(
+                         haystack, needle, pos + 1) != absl::string_view::npos;
+          }
+        } else {
+          if (EqualsIgnoreCase(haystack.substr(pos + 1, m - 2),
+                               needle.substr(1, m - 2))) {
+            return true;
+          }
         }
       }
     }
@@ -132,7 +176,10 @@ bool StrContainsIgnoreCase(absl::string_view haystack,
     return false;
   }
 
-  return StrContainsIgnoreCaseBMH(haystack, needle);
+  if (m > strings_internal::kMaxShortNeedleSize) {
+    return StrContainsIgnoreCaseBMH<true>(haystack, needle);
+  }
+  return StrContainsIgnoreCaseBMH<false>(haystack, needle);
 }
 
 bool StrContainsIgnoreCase(absl::string_view haystack,

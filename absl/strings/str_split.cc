@@ -21,6 +21,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/strings/internal/string_search.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -54,12 +55,14 @@ absl::string_view GenericFind(absl::string_view text,
   return found;
 }
 
-// Finds using absl::string_view::find(), therefore the length of the found
-// delimiter is delimiter.length().
+// Finds the delimiter as a substring, therefore the length of the found
+// delimiter is delimiter.length(). Each call takes worst-case linear time in
+// the number of bytes between `pos` and the end of the match, so splitting a
+// whole text takes linear time.
 struct LiteralPolicy {
   static size_t Find(absl::string_view text, absl::string_view delimiter,
                      size_t pos) {
-    return text.find(delimiter, pos);
+    return strings_internal::Find(text, delimiter, pos);
   }
   static size_t Length(absl::string_view delimiter) {
     return delimiter.length();

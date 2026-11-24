@@ -363,6 +363,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/str_join_internal.h"
   "strings/internal/str_split_internal.h"
   "strings/internal/string_constant.h"
+  "strings/internal/string_search.cc"
+  "strings/internal/string_search.h"
   "strings/internal/stringify_sink.cc"
   "strings/internal/stringify_sink.h"
   "strings/internal/stringify_stream.h"
