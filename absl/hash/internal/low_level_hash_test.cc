@@ -15,6 +15,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -22,16 +24,37 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 
+#ifndef UPDATE_GOLDEN
 #define UPDATE_GOLDEN 0
+#endif
+
+#if defined(ABSL_IS_BIG_ENDIAN) || !defined(ABSL_HAVE_INTRINSIC_INT128) || \
+    UINTPTR_MAX != UINT64_MAX
+#define ABSL_HASH_INTERNAL_SKIP_GOLDEN 1
+#else
+#define ABSL_HASH_INTERNAL_SKIP_GOLDEN 0
+#endif
 
 namespace {
 
+// Returns a non-empty skip reason when golden data is not maintained for the
+// current platform. Returning the reason from a helper avoids unreachable-code
+// warnings after GTEST_SKIP().
+absl::string_view GoldenSkipReason() {
+#if ABSL_HASH_INTERNAL_SKIP_GOLDEN
+  return "We only maintain golden data for little endian 64 bit systems with "
+         "128 bit intrinsics.";
+#else
+  return {};
+#endif
+}
+
 TEST(LowLevelHashTest, VerifyGolden) {
-  constexpr size_t kNumGoldenOutputs = 95;
+  constexpr size_t kNumShortCases = 95;
   static struct {
     absl::string_view base64_data;
     uint64_t seed;
-  } cases[kNumGoldenOutputs] = {
+  } cases[kNumShortCases] = {
       {"VprUGNH+5NnNRaORxgH/ySrZFQFDL+4VAodhfBNinmn8cg==",
        uint64_t{0x531858a40bfa7ea1}},
       {"gc1xZaY+q0nPcUvOOnWnT3bqfmT/geth/f7Dm2e/DemMfk4=",
@@ -358,16 +381,26 @@ TEST(LowLevelHashTest, VerifyGolden) {
        uint64_t{0xc9ae5c8759b4877a}},
   };
 
-#if defined(ABSL_IS_BIG_ENDIAN) || !defined(ABSL_HAVE_INTRINSIC_INT128) || \
-    UINTPTR_MAX != UINT64_MAX
-  constexpr uint64_t kGolden[kNumGoldenOutputs] = {};
-  // This conditional is to avoid an unreachable code warning.
-  bool skip = true;
-  if (skip) {
-    GTEST_SKIP()
-        << "We only maintain golden data for little endian 64 bit systems with "
-           "128 bit intristics.";
+  // Additional lengths longer than the cases above: around the 5-cache-line
+  // prefetch lookahead distance (320 bytes), the 1024-byte piecewise chunk
+  // boundary, and multi-chunk inputs with remainders across each length class.
+  constexpr size_t kLongInputLengths[] = {
+      129,        320,       321,       385,
+      1023,       1024,      1025,      1024 + 32,
+      1024 + 33,  1024 + 64, 1024 + 65, 1024 + 320,
+      1024 + 321, 2048,      2048 + 48, 3 * 1024 + 1000,
+  };
+  constexpr size_t kNumLongCases =
+      sizeof(kLongInputLengths) / sizeof(kLongInputLengths[0]);
+  constexpr size_t kNumGoldenOutputs = kNumShortCases + kNumLongCases;
+
+  if (const absl::string_view skip_reason = GoldenSkipReason();
+      !skip_reason.empty()) {
+    GTEST_SKIP() << skip_reason;
   }
+
+#if ABSL_HASH_INTERNAL_SKIP_GOLDEN
+  constexpr uint64_t kGolden[kNumGoldenOutputs] = {};
 #elif (defined(__SSE4_2__) && defined(__AES__))
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
       0xd6bdb2c9ba5e55f2, 0xffd3e23d4115a8ae, 0x2c3218ef486127de,
@@ -401,7 +434,12 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0x4f9457fb4aa12865, 0x30a49d9563643b32, 0x0302e2c5b46d5a3a,
       0x77553f42fb0bfbf7, 0x26b95e89f0077110, 0x76ce68ebe01191ba,
       0x724110fb509e4376, 0xebe74b016b5cfb88, 0x3b0fe11dcf175fc9,
-      0x20b737b9c0490538, 0x0db21c429b45fd17,
+      0x20b737b9c0490538, 0x0db21c429b45fd17, 0x1eda7e7ad5243cc7,
+      0x5b994a0ad6efb144, 0x71322097e51082cb, 0x5db5be33f91e0132,
+      0x5a9a66174f9d3958, 0x7c36745f70e2820d, 0xdca994179f5a8256,
+      0x1d5f43689148715e, 0x7488d5477d606216, 0x6903eed56891bef3,
+      0x5580876be492ba8f, 0xaa6d0be8d8b1d38f, 0xd69b6019a6619d4f,
+      0x4fc7de37699fca57, 0x63c1b3eaeb3b41b0, 0xa0461a76580405fe,
   };
 #elif (defined(ABSL_INTERNAL_HAVE_ARM_NEON) && defined(__ARM_FEATURE_CRYPTO))
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
@@ -436,7 +474,12 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0x050f54d0478ffd52, 0xc5c1bff1bc3c008c, 0x48fd0f2729c9402d,
       0x7685b990e3e264af, 0x940dccac3264ed16, 0x688f94ee88c9ba90,
       0xca112c7825f3944b, 0x584cb5ddba130be2, 0xb7ced01f7140dff6,
-      0xc10dcbb4e77168e6, 0xb5ea4360351ebaef,
+      0xc10dcbb4e77168e6, 0xb5ea4360351ebaef, 0x7aecdc439abc1674,
+      0x01a854952dc7f1e6, 0x9ed69609d2fa4d0e, 0xec35767879254472,
+      0xd1773d876a705742, 0x047ea4d7f293e9ef, 0x30c4cdc7a4e24bc4,
+      0x0949cb26e6d75cd0, 0xab7b8d7304c7a429, 0x65288951d7f0261f,
+      0xa5efc10bf4516551, 0x6a0cc1536268870f, 0xe76bc77a31b30008,
+      0x25620f0d8cb45743, 0x61d529f2ee744026, 0x47b2da673d7dab4c,
   };
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
@@ -471,9 +514,38 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0xb8116dd26cf6feec, 0x7a77a6e4ed0cf081, 0xb71eec2d5a184316,
       0x6fa932f77b4da817, 0x795f79b33909b2c4, 0x1b8755ef6b5eb34e,
       0x2255b72d7d6b2d79, 0xf2bdafafa90bd50a, 0x442a578f02cb1fc8,
-      0xc25aefe55ecf83db, 0x3114c056f9c5a676,
+      0xc25aefe55ecf83db, 0x3114c056f9c5a676, 0xe1881e3f8db57fc0,
+      0x1e0ab3f84fd9a6e3, 0x18d016fb9198d1c2, 0x93080774750fc68b,
+      0x741f07304a7de0da, 0xc16d061f4418af5d, 0xd9798b22d4d4299a,
+      0xd078016020f7ef68, 0xae4b228fc00cf2ac, 0xc2161b5b4469831c,
+      0x192aeda565563537, 0x84b926991dbf5860, 0x93e1dcc7a547129c,
+      0x7979f2a1ded1af87, 0xb8c7b1d0fafb10cd, 0x2d87f42c68592301,
   };
 #endif
+
+  struct GoldenInput {
+    std::string data;
+    uint64_t seed;
+  };
+  std::vector<GoldenInput> inputs;
+  inputs.reserve(kNumGoldenOutputs);
+  for (const auto& c : cases) {
+    std::string str;
+    ASSERT_TRUE(absl::Base64Unescape(c.base64_data, &str));
+    ASSERT_GT(str.size(), 32);
+    inputs.push_back({std::move(str), c.seed});
+  }
+  std::string long_data(4096, '\0');
+  for (size_t i = 0; i < long_data.size(); ++i) {
+    long_data[i] = static_cast<char>(i * 0x9d + (i >> 7));
+  }
+  for (size_t i = 0; i < kNumLongCases; ++i) {
+    const size_t len = kLongInputLengths[i];
+    ASSERT_GT(len, 32);
+    inputs.push_back(
+        {long_data.substr(0, len), uint64_t{0x9e3779b97f4a7c15} * (i + 1)});
+  }
+  ASSERT_EQ(inputs.size(), kNumGoldenOutputs);
 
   auto hash_fn = [](absl::string_view s, uint64_t state) {
     return absl::hash_internal::CombineLargeContiguousImplOn64BitLengthGt32(
@@ -483,10 +555,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
 #if UPDATE_GOLDEN
   (void)kGolden;  // Silence warning.
   for (size_t i = 0; i < kNumGoldenOutputs; ++i) {
-    std::string str;
-    ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
-    ASSERT_GT(str.size(), 32);
-    uint64_t h = hash_fn(str, cases[i].seed);
+    uint64_t h = hash_fn(inputs[i].data, inputs[i].seed);
     printf("0x%016" PRIx64 ", ", h);
     if (i % 3 == 2) {
       printf("\n");
@@ -497,11 +566,8 @@ TEST(LowLevelHashTest, VerifyGolden) {
 #else
   for (size_t i = 0; i < kNumGoldenOutputs; ++i) {
     SCOPED_TRACE(::testing::Message()
-                 << "i = " << i << "; input = " << cases[i].base64_data);
-    std::string str;
-    ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
-    ASSERT_GT(str.size(), 32);
-    EXPECT_EQ(hash_fn(str, cases[i].seed), kGolden[i]);
+                 << "i = " << i << "; len = " << inputs[i].data.size());
+    EXPECT_EQ(hash_fn(inputs[i].data, inputs[i].seed), kGolden[i]);
   }
 #endif
 }
