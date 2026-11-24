@@ -58,6 +58,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
@@ -928,6 +929,9 @@ class btree_node {
   template <typename... Args>
   void emplace_value(field_type i, allocator_type *alloc, Args &&...args);
 
+  // Shifts trailing values and children left by count slots starting at i.
+  void shift_left(field_type i, field_type count, allocator_type *alloc);
+
   // Removes the values at positions [i, i + to_erase), shifting all existing
   // values and children after that range to the left by to_erase. Clears all
   // children between [i, i + to_erase).
@@ -1774,10 +1778,21 @@ class btree {
     return iter.node_ != nullptr ? iter : end();
   }
 
+  // Opens an uninitialized leaf slot before iter via rebalancing/splitting and
+  // shifting without updating size, returning an iterator to that slot.
+  iterator prepare_emplace(iterator iter);
+
+  // Constructs a value in the prepared leaf slot, updates node count and tree
+  // size, and returns an iterator to the inserted element.
+  template <typename... Args>
+  iterator finish_emplace(iterator iter, Args &&...args);
+
   // Emplaces a value into the btree immediately before iter. Requires that
   // key(v) <= iter.key() and (--iter).key() <= key(v).
   template <typename... Args>
-  iterator internal_emplace(iterator iter, Args &&...args);
+  iterator internal_emplace(iterator iter, Args &&...args) {
+    return finish_emplace(prepare_emplace(iter), std::forward<Args>(args)...);
+  }
 
   // Returns an iterator pointing to the first value >= the value "iter" is
   // pointing at. Note that "iter" might be pointing to an invalid location such
@@ -1868,27 +1883,37 @@ inline void btree_node<P>::emplace_value(const field_type i,
 }
 
 template <typename P>
+inline void btree_node<P>::shift_left(const field_type i,
+                                      const field_type count,
+                                      allocator_type *alloc) {
+  const field_type orig_finish = finish();
+  const field_type src_i = i + count;
+  // Move trailing values left to close the gap.
+  transfer_n(orig_finish - src_i, i, src_i, this, alloc);
+  if (is_internal()) {
+    // Shift trailing children left and clear vacated slots.
+    for (field_type j = src_i + 1; j <= orig_finish; ++j) {
+      set_child(j - count, child(j));
+    }
+    for (field_type j = orig_finish - count + 1; j <= orig_finish; ++j) {
+      clear_child(j);
+    }
+  }
+  set_finish(orig_finish - count);
+}
+
+template <typename P>
 inline void btree_node<P>::remove_values(const field_type i,
                                          const field_type to_erase,
                                          allocator_type *alloc) {
-  // Transfer values after the removed range into their new places.
   value_destroy_n(i, to_erase, alloc);
-  const field_type orig_finish = finish();
-  const field_type src_i = i + to_erase;
-  transfer_n(orig_finish - src_i, i, src_i, this, alloc);
-
   if (is_internal()) {
     // Delete all children between begin and end.
     for (field_type j = 0; j < to_erase; ++j) {
       clear_and_delete(child(i + j + 1), alloc);
     }
-    // Rotate children after end into new positions.
-    for (field_type j = i + to_erase + 1; j <= orig_finish; ++j) {
-      set_child(j - to_erase, child(j));
-      clear_child(j);
-    }
   }
-  set_finish(orig_finish - to_erase);
+  shift_left(i, to_erase, alloc);
 }
 
 template <typename P>
@@ -2936,9 +2961,8 @@ inline IterType btree<P>::internal_last(IterType iter) {
 }
 
 template <typename P>
-template <typename... Args>
-inline auto btree<P>::internal_emplace(iterator iter, Args &&...args)
-    -> iterator {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::prepare_emplace(
+    iterator iter) -> iterator {
   if (iter.node_->is_internal()) {
     // We can't insert on an internal node. Instead, we'll insert after the
     // previous value which is guaranteed to be on a leaf node.
@@ -3000,11 +3024,33 @@ inline auto btree<P>::internal_emplace(iterator iter, Args &&...args)
     }
   }
 #endif
-  iter.node_->emplace_value(static_cast<field_type>(iter.position_), alloc,
-                            std::forward<Args>(args)...);
+  assert(iter.position_ >= iter.node_->start());
+  assert(iter.position_ <= iter.node_->finish());
+  if (iter.position_ < iter.node_->finish()) {
+    const auto pos = static_cast<field_type>(iter.position_);
+    iter.node_->transfer_n_backward(iter.node_->finish() - pos,
+                                    /*dest_i=*/pos + 1, /*src_i=*/pos,
+                                    iter.node_, alloc);
+  }
+  return iter;
+}
+
+template <typename P>
+template <typename... Args>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::finish_emplace(
+    iterator iter, Args &&...args) -> iterator {
+  const auto pos = static_cast<field_type>(iter.position_);
+  allocator_type *alloc = mutable_allocator();
+  iter.node_->value_init(pos, alloc, std::forward<Args>(args)...);
+  iter.node_->set_finish(iter.node_->finish() + 1);
+  if (iter.node_->is_internal() && iter.node_->finish() > pos + 1) {
+    for (field_type j = iter.node_->finish(); j > pos + 1; --j) {
+      iter.node_->set_child(j, iter.node_->child(j - 1));
+    }
+    iter.node_->clear_child(pos + 1);
+  }
   assert(
-      iter.node_->is_ordered_correctly(static_cast<field_type>(iter.position_),
-                                       original_key_compare(key_comp())) &&
+      iter.node_->is_ordered_correctly(pos, original_key_compare(key_comp())) &&
       "If this assert fails, then either (1) the comparator may violate "
       "transitivity, i.e. comp(a,b) && comp(b,c) -> comp(a,c) (see "
       "https://en.cppreference.com/w/cpp/named_req/Compare), or (2) a "
