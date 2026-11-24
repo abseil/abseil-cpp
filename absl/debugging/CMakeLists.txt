@@ -111,6 +111,7 @@ absl_cc_test(
     absl::cleanup
     absl::config
     absl::core_headers
+    absl::dynamic_annotations
     absl::log
     absl::malloc_internal
     absl::memory
