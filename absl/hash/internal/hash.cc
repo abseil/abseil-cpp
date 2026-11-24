@@ -216,8 +216,8 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE void MixCD(const uint8_t* p, Vector128& state2,
   state3 = MixD(d, state3);
 }
 
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
-    uint64_t seed, const uint8_t* ptr, size_t len) {
+[[maybe_unused]] ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
+LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   assert(len > 32);
   assert(len <= 64);
   Vector128 state0 = Set128(seed, len);
@@ -232,8 +232,8 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
   return Mix4x16Vectors(state0, state1, state2, state3);
 }
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHashLenGt64Impl(
+    uint64_t seed, const unsigned char* ptr, size_t len) {
   assert(len > 64);
   const uint8_t* last_32_ptr = ptr + len - 32;
 
@@ -279,8 +279,8 @@ uint64_t Mix32Bytes(const uint8_t* ptr, uint64_t current_state) {
   return cs0 ^ cs1;
 }
 
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
-    uint64_t seed, const uint8_t* ptr, size_t len) {
+[[maybe_unused]] ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
+LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   assert(len > 32);
   assert(len <= 64);
   uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
@@ -288,8 +288,8 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHash33To64(
   return Mix32Bytes(last_32_ptr, Mix32Bytes(ptr, current_state));
 }
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
-LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t LowLevelHashLenGt64Impl(
+    uint64_t seed, const unsigned char* ptr, size_t len) {
   assert(len > 64);
   uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
   const uint8_t* last_32_ptr = ptr + len - 32;
@@ -342,41 +342,43 @@ LowLevelHashLenGt64(uint64_t seed, const unsigned char* ptr, size_t len) {
 }
 #endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
-[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST uint64_t
-LowLevelHashLenGt32(uint64_t seed, const unsigned char* data, size_t len) {
-  assert(len > 32);
-  if (ABSL_PREDICT_FALSE(len > 64)) {
-    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt64(seed, data, len);
+template <int kSizeofSizeT>
+ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+SplitAndCombine(uint64_t state, const unsigned char* first, size_t len);
+
+[[maybe_unused]] ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashLenGt64(uint64_t seed, const unsigned char* data, size_t len) {
+  assert(len > 64);
+  if (ABSL_PREDICT_FALSE(len > PiecewiseChunkSize())) {
+    ABSL_INTERNAL_MUSTTAIL return SplitAndCombine<8>(seed, data, len);
   }
-  return LowLevelHash33To64(seed, data, len);
+  return LowLevelHashLenGt64Impl(seed, data, len);
 }
 
-template <int kSizeofSizeT>
-ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t
-HashBlock(uint64_t state, const unsigned char* data, size_t len) {
-  if constexpr (kSizeofSizeT == 4) {
-    // TODO(b/417141985): expose and use CityHash32WithSeed.
-    // Note: we can't use PrecombineLengthMix here because len can be up to
-    // 1024.
-    return CombineRawImpl(
-        state + len,
-        hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
-  } else {
-    static_assert(kSizeofSizeT == 8);
-#ifdef ABSL_HAVE_INTRINSIC_INT128
-    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt32(state, data, len);
-#else
-    return hash_internal::CityHash64WithSeed(
-        reinterpret_cast<const char*>(data), len, state);
-#endif
-  }
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(
+    uint64_t state, const unsigned char* data, size_t len) {
+  // TODO(b/417141985): expose and use CityHash32WithSeed.
+  // Note: we can't use PrecombineLengthMix here because len can be up to 1024.
+  return CombineRawImpl(
+      state + len,
+      hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
 }
 
 template <int kSizeofSizeT>
 ABSL_INTERNAL_PRESERVE_MOST ABSL_ATTRIBUTE_NOINLINE uint64_t
 SplitAndCombine(uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = HashBlock<kSizeofSizeT>(state, first, PiecewiseChunkSize());
+    if constexpr (kSizeofSizeT == 4) {
+      state = HashBlockOn32Bit(state, first, PiecewiseChunkSize());
+    } else {
+      static_assert(kSizeofSizeT == 8);
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+      state = LowLevelHashLenGt64(state, first, PiecewiseChunkSize());
+#else
+      state = hash_internal::CityHash64WithSeed(
+          reinterpret_cast<const char*>(first), PiecewiseChunkSize(), state);
+#endif
+    }
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }
@@ -395,7 +397,7 @@ uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
   assert(len > 8);
   assert(sizeof(size_t) == 4);  // NOLINT(misc-static-assert)
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return HashBlock<4>(state, first, len);
+    return HashBlockOn32Bit(state, first, len);
   }
   return SplitAndCombine<4>(state, first, len);
 }
@@ -406,10 +408,18 @@ CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
                                             size_t len) {
   assert(len > 32);
   assert(sizeof(size_t) == 8);  // NOLINT(misc-static-assert)
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  if (ABSL_PREDICT_FALSE(len > 64)) {
+    ABSL_INTERNAL_MUSTTAIL return LowLevelHashLenGt64(state, first, len);
+  }
+  return LowLevelHash33To64(state, first, len);
+#else
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    ABSL_INTERNAL_MUSTTAIL return HashBlock<8>(state, first, len);
+    return hash_internal::CityHash64WithSeed(
+        reinterpret_cast<const char*>(first), len, state);
   }
   ABSL_INTERNAL_MUSTTAIL return SplitAndCombine<8>(state, first, len);
+#endif
 }
 
 ABSL_CONST_INIT const void* const MixingHashState::kSeed = &kSeed;
