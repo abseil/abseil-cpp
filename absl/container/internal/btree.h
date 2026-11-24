@@ -1467,7 +1467,9 @@ class btree {
     // Put static_asserts in destructor to avoid triggering them before the type
     // is complete.
     static_assert(static_assert_validation(), "This call must be elided.");
-    clear();
+    if (!empty()) {
+      node_type::clear_and_delete(root(), mutable_allocator());
+    }
   }
 
   // Assign the contents of other to *this.

@@ -435,6 +435,11 @@ class BtreeNodePeer {
         typename btree_node<typename Btree::params_type>::field_type,
         typename btree_node<typename Btree::params_type>::slot_type>;
   }
+  template <typename Btree>
+  constexpr static bool DestroyIsTrivial() {
+    return Btree::params_type::template destroy_is_trivial<
+        typename Btree::allocator_type>();
+  }
 };
 
 namespace {
@@ -504,6 +509,9 @@ TEST_F(BtreeMapTest, LinearChoiceTree) {
 }
 
 TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
+  EXPECT_TRUE(BtreeNodePeer::DestroyIsTrivial<absl::btree_set<int>>());
+  EXPECT_FALSE(BtreeNodePeer::DestroyIsTrivial<absl::btree_set<std::string>>());
+  EXPECT_TRUE((BtreeNodePeer::DestroyIsTrivial<absl::btree_map<int, int>>()));
   absl::btree_map<std::string, std::unique_ptr<std::string>> m;
 
   std::unique_ptr<std::string> &v = m["A"];
@@ -2010,6 +2018,34 @@ TEST(Btree, HeterogeneousInsertOrAssign) {
   EXPECT_EQ(m[s], 2);
 }
 #endif
+
+// Verifies basic insertion, iteration, copying, and erasure for B-trees whose
+// node capacity exceeds 255 slots and uses a 16-bit node field type.
+TEST(Btree, Uint16FieldTypeSanity) {
+  using Set = SizedBtreeSet<int, 300>;
+  EXPECT_EQ(BtreeNodePeer::GetMaxFieldType<Set>(), 65535);
+  EXPECT_GE(BtreeNodePeer::GetNumSlotsPerNode<Set>(), 256);
+
+  Set s;
+  for (int i = 0; i < 2000; ++i) {
+    s.insert((i * 3) % 2000);
+  }
+  ASSERT_EQ(s.size(), 2000);
+  EXPECT_EQ(s.end() - s.begin(), 2000);
+
+  auto it = s.begin();
+  it += 1234;
+  EXPECT_EQ(*it, 1234);
+  it -= 734;
+  EXPECT_EQ(*it, 500);
+
+  Set copy = s;
+  EXPECT_EQ(copy, s);
+  s.erase(s.find(100), s.find(1500));
+  EXPECT_EQ(s.size(), 600);
+  s.clear();
+  EXPECT_TRUE(s.empty());
+}
 
 TEST(Btree, NodeHandleMutableKeyAccess) {
   {

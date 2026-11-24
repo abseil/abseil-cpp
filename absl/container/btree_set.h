@@ -66,6 +66,7 @@
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/btree_container.h"  // IWYU pragma: export
 #include "absl/container/internal/common.h"
+#include "absl/container/internal/container_memory.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -821,8 +822,9 @@ struct set_slot_policy {
   }
 
   template <typename Alloc>
-  static void destroy(Alloc *alloc, slot_type *slot) {
+  static auto destroy(Alloc *alloc, slot_type *slot) {
     std::allocator_traits<Alloc>::destroy(*alloc, slot);
+    return IsDestructionTrivial<Alloc, value_type>();
   }
 };
 
