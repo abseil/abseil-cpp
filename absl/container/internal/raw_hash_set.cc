@@ -2480,6 +2480,57 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   }
 }
 
+void ReclaimExcessCapacityImpl(CommonFields& common,
+                               const PolicyFunctions& __restrict policy) {
+  common.AssertNotDebugCapacity();
+  const size_t old_capacity = common.capacity();
+  if (!common.empty() && is_single_group(old_capacity)) return;
+
+  const size_t soo_capacity = policy.alloc_policy->soo_capacity();
+  const size_t size = common.size();
+
+  // For tables that fit within SOO capacity (or are empty), `Rehash(..., 0)`
+  // shrinks to `soo_capacity` (or `NextCapacity(soo_capacity)` for a sampled
+  // 1-element SOO table to preserve Hashtablez sampling).
+  // For larger tables, keep one capacity doubling tier of growth headroom
+  // (`NextCapacity(SizeToCapacity(size))`) so subsequent insertions do not
+  // immediately trigger a rehash.
+  size_t target_capacity;
+  if (size > soo_capacity) {
+    target_capacity = NextCapacity(SizeToCapacity(size));
+  } else if (size > 0 && common.has_infoz()) {
+    target_capacity = NextCapacity(soo_capacity);
+  } else {
+    target_capacity = soo_capacity;
+  }
+  if (old_capacity <= target_capacity) return;
+
+  if (HashtablezInfoHandle infoz = common.infoz();
+      ABSL_PREDICT_FALSE(infoz.IsSampled())) {
+    const size_t slot_align_mask = policy.alloc_policy->slot_align_mask;
+    const size_t old_bytes =
+        RawHashSetLayout(old_capacity, policy.slot_size, slot_align_mask,
+                         /*has_infoz=*/true, common.blocked_element_count())
+            .alloc_size();
+    const size_t new_bytes =
+        size == 0
+            ? 0
+            : RawHashSetLayout(target_capacity, policy.slot_size,
+                               slot_align_mask, /*has_infoz=*/true,
+                               /*blocked_element_count=*/0)
+                  .alloc_size();
+    ABSL_SWISSTABLE_ASSERT(old_bytes > new_bytes);
+    infoz.RecordCompaction(old_bytes - new_bytes);
+  }
+  if (size <= soo_capacity) {
+    Rehash(common, policy, 0);
+  } else {
+    ResizeAllocatedTableWithSeedChange(common, policy, target_capacity);
+  }
+  common.set_reserved_growth(0);
+  common.set_reservation_size(0);
+}
+
 void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
           const CommonFields& other,
           void (*copy_fn)(void* set, void* dst, const void* src)) {
