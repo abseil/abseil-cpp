@@ -3994,7 +3994,13 @@ class raw_hash_set : public raw_hash_set_base {
   struct EmplaceDecomposable {
     template <class K, class... Args>
     std::pair<iterator, bool> operator()(const K& key, Args&&... args) const {
-      auto res = s.find_or_prepare_insert<KeyParam<K>>(key);
+      using Param = KeyParam<std::conditional_t<
+          std::is_convertible_v<const K&, KeyParam<const_key_arg<K>>>,
+          // Convert once when implicitly convertible.
+          const_key_arg<K>,
+          // Otherwise pass through as is, since it cannot convert implicitly.
+          K>>;
+      auto res = s.find_or_prepare_insert<Param>(static_cast<Param>(key));
       if (res.second) {
         s.emplace_at(res.first, std::forward<Args>(args)...);
       }

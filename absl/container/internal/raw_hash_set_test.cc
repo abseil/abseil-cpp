@@ -2094,10 +2094,10 @@ TYPED_TEST(SooTest, LargeTable) {
 
 // Timeout if copy is quadratic as it was in Rust. See b/34756399.
 TYPED_TEST(SooTest, EnsureNonQuadraticAsInRust) {
-  static const size_t kLargeSize = 1 << 15;
+  static const ptrdiff_t kLargeSize = 1 << 15;
 
   TypeParam t;
-  for (size_t i = 0; i != kLargeSize; ++i) {
+  for (ptrdiff_t i = 0; i != kLargeSize; ++i) {
     t.insert(i);
   }
 
@@ -2113,15 +2113,15 @@ TYPED_TEST(SooTest, ClearBug) {
 
   TypeParam t;
   constexpr size_t capacity = container_internal::Group::kWidth - 1;
-  constexpr size_t max_size = capacity / 2 + 1;
-  for (size_t i = 0; i < max_size; ++i) {
+  constexpr ptrdiff_t max_size = static_cast<ptrdiff_t>(capacity / 2 + 1);
+  for (ptrdiff_t i = 0; i < max_size; ++i) {
     t.insert(i);
   }
   ASSERT_EQ(capacity, t.capacity());
   intptr_t original = reinterpret_cast<intptr_t>(&*t.find(2));
   t.erase(t.begin(), t.end());
   ASSERT_EQ(capacity, t.capacity());
-  for (size_t i = 0; i < max_size; ++i) {
+  for (ptrdiff_t i = 0; i < max_size; ++i) {
     t.insert(i);
   }
   ASSERT_EQ(capacity, t.capacity());
@@ -2374,13 +2374,15 @@ TYPED_TEST(SooTest, ReplacingDeletedSlotDoesNotRehash) {
     TypeParam t;
     t.emplace(0);
     size_t c = t.bucket_count();
-    for (n = 1; c == t.bucket_count(); ++n) t.emplace(n);
+    for (n = 1; c == t.bucket_count(); ++n) {
+      t.emplace(static_cast<int64_t>(n));
+    }
     --n;
   }
   TypeParam t;
   t.rehash(n);
   const size_t c = t.bucket_count();
-  for (size_t i = 0; i != n; ++i) t.emplace(i);
+  for (size_t i = 0; i != n; ++i) t.emplace(static_cast<int64_t>(i));
   EXPECT_EQ(c, t.bucket_count()) << "rehashing threshold = " << n;
   t.erase(0);
   t.emplace(0);
@@ -2453,7 +2455,7 @@ template <typename T>
 T MakeSimpleTable(size_t size, bool do_reserve) {
   T t;
   if (do_reserve) t.reserve(size);
-  while (t.size() < size) t.insert(t.size());
+  while (t.size() < size) t.insert(static_cast<int64_t>(t.size()));
   return t;
 }
 
@@ -2677,7 +2679,7 @@ TYPED_TEST(SooTest, EraseIfNone) {
   for (size_t size = 0; size < 100; ++size) {
     absl::container_internal::EraseIf(pred, &t);
     ASSERT_EQ(t.size(), size);
-    t.insert(size);
+    t.insert(static_cast<int64_t>(size));
   }
 }
 
@@ -3126,6 +3128,7 @@ void TestDecomposeRangeInsert() {
 }
 
 struct TransparentHashIntOverload {
+  using is_transparent = void;
   size_t operator()(const DecomposeType& a) const {
     return static_cast<size_t>(a.i);
   }
@@ -3133,6 +3136,7 @@ struct TransparentHashIntOverload {
 };
 
 struct TransparentEqIntOverload {
+  using is_transparent = void;
   bool operator()(const DecomposeType& a, const DecomposeType& b) const {
     return a.i == b.i;
   }
@@ -3156,17 +3160,15 @@ void TestDecomposeNonTransparent() {
   set.insert(DecomposeType{2});
 
   decompose_constructed = 0;
-  // Miss converts for lookup and constructs once in the slot.
+  // Miss converts once for lookup and constructs once in the slot.
   set.insert(1);
-  EXPECT_GE(decompose_constructed, 2);
+  EXPECT_EQ(decompose_constructed, 2);
 
   const int one = 1;
-  // TODO(b/413633804): Tighten to EXPECT_EQ(..., 1) once EmplaceDecomposable
-  // converts non-transparent keys at the lookup boundary.
   auto check_hit = [&](absl::FunctionRef<void(Set&, int)> fn) {
     decompose_constructed = 0;
     fn(set, one);
-    EXPECT_GE(decompose_constructed, 1);
+    EXPECT_EQ(decompose_constructed, 1);
   };
   check_hit([](Set& s, int) { s.insert(1); });
   check_hit([](Set& s, int v) { s.insert(v); });
@@ -3203,6 +3205,39 @@ TEST(Table, EmplaceHeterogeneousKeyHitDoesNotMoveValue) {
   EXPECT_FALSE(m.emplace(1, std::move(p)).second);
   EXPECT_NE(p, nullptr);
   EXPECT_EQ(*m[1], 42);
+}
+
+TEST(Table, EmplaceExplicitlyConvertibleKeyWithOverloadedFunctors) {
+  struct Key {
+    int v;
+  };
+  struct ExplicitProxy {
+    int v;
+    int* conversions;
+    explicit operator Key() const {
+      ++*conversions;
+      return Key{v};
+    }
+  };
+  struct OverloadedHash {
+    size_t operator()(const Key& k) const { return static_cast<size_t>(k.v); }
+    size_t operator()(const ExplicitProxy& p) const {
+      return static_cast<size_t>(p.v);
+    }
+  };
+  struct OverloadedEq {
+    bool operator()(const Key& a, const Key& b) const { return a.v == b.v; }
+    bool operator()(const Key& a, const ExplicitProxy& b) const {
+      return a.v == b.v;
+    }
+  };
+
+  absl::flat_hash_set<Key, OverloadedHash, OverloadedEq> set;
+  int conversions = 0;
+  EXPECT_TRUE(set.emplace(ExplicitProxy{42, &conversions}).second);
+  EXPECT_EQ(conversions, 1);
+  EXPECT_FALSE(set.emplace(ExplicitProxy{42, &conversions}).second);
+  EXPECT_EQ(conversions, 1);
 }
 
 TEST(Table, DecomposeRangeInsert) {
