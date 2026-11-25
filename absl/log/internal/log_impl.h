@@ -35,12 +35,12 @@
 
 // ABSL_DLOG()
 #ifndef NDEBUG
-#define ABSL_LOG_INTERNAL_DLOG_IMPL(severity)            \
-  ABSL_LOG_INTERNAL_CONDITION##severity(STATELESS, true) \
+#define ABSL_LOG_INTERNAL_DLOG_IMPL(severity)                 \
+  ABSL_LOG_INTERNAL_CONDITION##severity(DLOG_STATELESS, true) \
       ABSL_LOG_INTERNAL_DLOG##severity.InternalStream()
 #else
-#define ABSL_LOG_INTERNAL_DLOG_IMPL(severity)             \
-  ABSL_LOG_INTERNAL_CONDITION##severity(STATELESS, false) \
+#define ABSL_LOG_INTERNAL_DLOG_IMPL(severity)                  \
+  ABSL_LOG_INTERNAL_CONDITION##severity(DLOG_STATELESS, false) \
       ABSL_LOG_INTERNAL_DLOG##severity.InternalStream()
 #endif
 
@@ -82,12 +82,12 @@
           .WithPerror()
 
 #ifndef NDEBUG
-#define ABSL_LOG_INTERNAL_DLOG_IF_IMPL(severity, condition)   \
-  ABSL_LOG_INTERNAL_CONDITION##severity(STATELESS, condition) \
+#define ABSL_LOG_INTERNAL_DLOG_IF_IMPL(severity, condition)        \
+  ABSL_LOG_INTERNAL_CONDITION##severity(DLOG_STATELESS, condition) \
       ABSL_LOG_INTERNAL_DLOG##severity.InternalStream()
 #else
-#define ABSL_LOG_INTERNAL_DLOG_IF_IMPL(severity, condition)              \
-  ABSL_LOG_INTERNAL_CONDITION##severity(STATELESS, false && (condition)) \
+#define ABSL_LOG_INTERNAL_DLOG_IF_IMPL(severity, condition)                   \
+  ABSL_LOG_INTERNAL_CONDITION##severity(DLOG_STATELESS, false && (condition)) \
       ABSL_LOG_INTERNAL_DLOG##severity.InternalStream()
 #endif
 

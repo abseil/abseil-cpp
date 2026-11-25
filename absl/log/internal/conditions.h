@@ -68,6 +68,19 @@
   default:                                               \
     !(condition) ? (void)0 : ::absl::log_internal::Voidify() &&
 
+#define ABSL_LOG_INTERNAL_STATELESS_FATAL_CONDITION(condition) \
+  switch (0)                                                   \
+  case 0:                                                      \
+  default:                                                     \
+    !(condition) ? (void)0 : ::absl::log_internal::VoidifyFatal() &&
+
+// Fatal `DLOG`s must not become `[[noreturn]]` (matching
+// `LogMessageDebugFatal`).
+#define ABSL_LOG_INTERNAL_DLOG_STATELESS_CONDITION(condition) \
+  ABSL_LOG_INTERNAL_STATELESS_CONDITION(condition)
+#define ABSL_LOG_INTERNAL_DLOG_STATELESS_FATAL_CONDITION(condition) \
+  ABSL_LOG_INTERNAL_STATELESS_CONDITION(condition)
+
 // `ABSL_LOG_INTERNAL_STATEFUL_CONDITION` applies a condition like
 // `ABSL_LOG_INTERNAL_STATELESS_CONDITION` but adds to that a series of variable
 // declarations, including a local static object which stores the state needed
@@ -100,6 +113,9 @@
          absl_log_internal_stateful_condition_do_log = false)             \
   ::absl::log_internal::Voidify() &&
 
+#define ABSL_LOG_INTERNAL_STATEFUL_FATAL_CONDITION(condition) \
+  ABSL_LOG_INTERNAL_STATEFUL_CONDITION(condition)
+
 // `ABSL_LOG_INTERNAL_CONDITION_*` serve to combine any conditions from the
 // macro (e.g. `LOG_IF` or `VLOG`) with inherent conditions (e.g.
 // `ABSL_MIN_LOG_LEVEL`) into a single boolean expression.  We could chain
@@ -127,7 +143,7 @@
 // NOTE: Use ternary operators instead of short-circuiting to mitigate
 // https://bugs.llvm.org/show_bug.cgi?id=51928.
 #define ABSL_LOG_INTERNAL_CONDITION_FATAL(type, condition)                 \
-  ABSL_LOG_INTERNAL_##type##_CONDITION(                                    \
+  ABSL_LOG_INTERNAL_##type##_FATAL_CONDITION(                              \
       ((condition) ? (::absl::LogSeverity::kFatal >=                       \
                               static_cast<::absl::LogSeverityAtLeast>(     \
                                   ABSL_MIN_LOG_LEVEL)                      \
@@ -137,7 +153,7 @@
 // NOTE: Use ternary operators instead of short-circuiting to mitigate
 // https://bugs.llvm.org/show_bug.cgi?id=51928.
 #define ABSL_LOG_INTERNAL_CONDITION_QFATAL(type, condition)               \
-  ABSL_LOG_INTERNAL_##type##_CONDITION(                                   \
+  ABSL_LOG_INTERNAL_##type##_FATAL_CONDITION(                             \
       ((condition) ? (::absl::LogSeverity::kFatal >=                      \
                               static_cast<::absl::LogSeverityAtLeast>(    \
                                   ABSL_MIN_LOG_LEVEL)                     \
@@ -178,9 +194,9 @@
 #define ABSL_LOG_INTERNAL_CONDITION_DO_NOT_SUBMIT(type, condition) \
   ABSL_LOG_INTERNAL_CONDITION_ERROR(type, condition)
 #define ABSL_LOG_INTERNAL_CONDITION_FATAL(type, condition) \
-  ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
+  ABSL_LOG_INTERNAL_##type##_FATAL_CONDITION(condition)
 #define ABSL_LOG_INTERNAL_CONDITION_QFATAL(type, condition) \
-  ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
+  ABSL_LOG_INTERNAL_##type##_FATAL_CONDITION(condition)
 #define ABSL_LOG_INTERNAL_CONDITION_DFATAL(type, condition) \
   ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
 #define ABSL_LOG_INTERNAL_CONDITION_LEVEL(severity)                            \
