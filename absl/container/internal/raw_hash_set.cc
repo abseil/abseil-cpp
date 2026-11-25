@@ -2489,16 +2489,23 @@ void ReclaimExcessCapacityImpl(CommonFields& common,
   const size_t soo_capacity = policy.alloc_policy->soo_capacity();
   const size_t size = common.size();
 
-  // For tables that fit within SOO capacity (or are empty), `Rehash(..., 0)`
-  // shrinks to `soo_capacity` (or `NextCapacity(soo_capacity)` for a sampled
-  // 1-element SOO table to preserve Hashtablez sampling).
-  // For larger tables, keep one capacity doubling tier of growth headroom
-  // (`NextCapacity(SizeToCapacity(size))`) so subsequent insertions do not
-  // immediately trigger a rehash.
+  // For SOO tables with `size <= soo_capacity`:
+  // - Sampled tables keep a heap backing array of `NextCapacity(soo_capacity)`
+  //   to preserve Hashtablez sampling and avoid resampling on repeated
+  //   insert/erase/reclaim cycles.
+  // - Unsampled tables shrink back to inline SOO (`soo_capacity`) via
+  //   `Rehash(..., 0)` and mark `soo_has_tried_sampling` so subsequent 0->1
+  //   transitions do not resample.
+  // For empty non-SOO tables, both sampled and unsampled tables free their
+  // backing array (`capacity == 0`) via `Rehash(..., 0)` so sampling stays
+  // unbiased.
+  // For larger tables (`size > soo_capacity`), keep one capacity doubling tier
+  // of growth headroom (`NextCapacity(SizeToCapacity(size))`) so subsequent
+  // insertions do not immediately trigger a rehash.
   size_t target_capacity;
   if (size > soo_capacity) {
     target_capacity = NextCapacity(SizeToCapacity(size));
-  } else if (size > 0 && common.has_infoz()) {
+  } else if (soo_capacity > 0 && common.has_infoz()) {
     target_capacity = NextCapacity(soo_capacity);
   } else {
     target_capacity = soo_capacity;
@@ -2513,7 +2520,7 @@ void ReclaimExcessCapacityImpl(CommonFields& common,
                          /*has_infoz=*/true, common.blocked_element_count())
             .alloc_size();
     const size_t new_bytes =
-        size == 0
+        target_capacity == 0
             ? 0
             : RawHashSetLayout(target_capacity, policy.slot_size,
                                slot_align_mask, /*has_infoz=*/true,
@@ -2522,13 +2529,15 @@ void ReclaimExcessCapacityImpl(CommonFields& common,
     ABSL_SWISSTABLE_ASSERT(old_bytes > new_bytes);
     infoz.RecordCompaction(old_bytes - new_bytes);
   }
-  if (size <= soo_capacity) {
+  if (target_capacity <= soo_capacity) {
     Rehash(common, policy, 0);
+    if (soo_capacity > 0) {
+      common.set_soo_has_tried_sampling();
+    }
   } else {
     ResizeAllocatedTableWithSeedChange(common, policy, target_capacity);
   }
-  common.set_reserved_growth(0);
-  common.set_reservation_size(0);
+  common.clear_reservation();
 }
 
 void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
