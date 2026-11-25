@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/container/btree_map.h"
@@ -676,19 +677,34 @@ void BtreeMultiMapTest() {
   (void)m;
 }
 
+// Returns the extra size added by two empty members when
+// ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS expands to nothing.
+size_t NoUniqueAddressPaddingAdjustment() {
+  struct Empty1 {};
+  struct Empty2 {};
+  struct EmptyProbe {
+    void* ptr;
+    ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Empty1 e1;
+    ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Empty2 e2;
+  };
+  return sizeof(EmptyProbe) - sizeof(void*);
+}
+
 template <typename K, int N = 256>
 void SetTest() {
   EXPECT_EQ(sizeof(absl::btree_set<K>),
-            2 * sizeof(void*) + sizeof(typename absl::btree_set<K>::size_type));
+            2 * sizeof(void*) + sizeof(typename absl::btree_set<K>::size_type) +
+                NoUniqueAddressPaddingAdjustment());
   using BtreeSet = absl::btree_set<K>;
   BtreeTest<BtreeSet, std::set<K>>();
 }
 
 template <typename K, int N = 256>
 void MapTest() {
-  EXPECT_EQ(
-      sizeof(absl::btree_map<K, K>),
-      2 * sizeof(void*) + sizeof(typename absl::btree_map<K, K>::size_type));
+  EXPECT_EQ(sizeof(absl::btree_map<K, K>),
+            2 * sizeof(void*) +
+                sizeof(typename absl::btree_map<K, K>::size_type) +
+                NoUniqueAddressPaddingAdjustment());
   using BtreeMap = absl::btree_map<K, K>;
   BtreeTest<BtreeMap, std::map<K, K>>();
   BtreeMapTest<BtreeMap>();
@@ -703,9 +719,10 @@ TEST(Btree, map_cord) { MapTest<absl::Cord>(); }
 
 template <typename K, int N = 256>
 void MultiSetTest() {
-  EXPECT_EQ(
-      sizeof(absl::btree_multiset<K>),
-      2 * sizeof(void*) + sizeof(typename absl::btree_multiset<K>::size_type));
+  EXPECT_EQ(sizeof(absl::btree_multiset<K>),
+            2 * sizeof(void*) +
+                sizeof(typename absl::btree_multiset<K>::size_type) +
+                NoUniqueAddressPaddingAdjustment());
   using BtreeMSet = absl::btree_multiset<K>;
   BtreeMultiTest<BtreeMSet, std::multiset<K>>();
 }
@@ -714,7 +731,8 @@ template <typename K, int N = 256>
 void MultiMapTest() {
   EXPECT_EQ(sizeof(absl::btree_multimap<K, K>),
             2 * sizeof(void*) +
-                sizeof(typename absl::btree_multimap<K, K>::size_type));
+                sizeof(typename absl::btree_multimap<K, K>::size_type) +
+                NoUniqueAddressPaddingAdjustment());
   using BtreeMMap = absl::btree_multimap<K, K>;
   BtreeMultiTest<BtreeMMap, std::multimap<K, K>>();
   BtreeMultiMapTest<BtreeMMap>();

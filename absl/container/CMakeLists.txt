@@ -29,7 +29,6 @@ absl_cc_library(
   DEPS
     absl::common_policy_traits
     absl::compare
-    absl::compressed_tuple
     absl::config
     absl::container_common
     absl::container_memory

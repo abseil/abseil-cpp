@@ -65,7 +65,6 @@
 #include "absl/base/optimization.h"
 #include "absl/container/internal/common.h"
 #include "absl/container/internal/common_policy_traits.h"
-#include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/layout.h"
 #include "absl/strings/cord.h"
@@ -1581,7 +1580,11 @@ class btree {
 
  public:
   btree(const key_compare& comp, const allocator_type& alloc)
-      : root_(EmptyNode()), rightmost_(comp, alloc, EmptyNode()), size_(0) {}
+      : root_(EmptyNode()),
+        rightmost_(EmptyNode()),
+        size_(0),
+        comp_(comp),
+        alloc_(alloc) {}
 
   btree(const btree& other) : btree(other, other.allocator()) {}
   btree(const btree& other, const allocator_type& alloc)
@@ -1590,10 +1593,10 @@ class btree {
   }
   btree(btree&& other) noexcept
       : root_(std::exchange(other.root_, EmptyNode())),
-        rightmost_(std::move(other.rightmost_)),
-        size_(std::exchange(other.size_, 0u)) {
-    other.mutable_rightmost() = EmptyNode();
-  }
+        rightmost_(std::exchange(other.rightmost_, EmptyNode())),
+        size_(std::exchange(other.size_, 0u)),
+        comp_(std::move(other.comp_)),
+        alloc_(std::move(other.alloc_)) {}
   btree(btree&& other, const allocator_type& alloc)
       : btree(other.key_comp(), alloc) {
     if (alloc == other.allocator()) {
@@ -1745,9 +1748,7 @@ class btree {
   // Swaps the contents of `this` and `other`.
   void swap(btree& other);
 
-  const key_compare& key_comp() const noexcept {
-    return rightmost_.template get<0>();
-  }
+  const key_compare& key_comp() const noexcept { return comp_; }
   template <typename K1, typename K2>
   bool compare_keys(const K1& a, const K2& b) const {
     return compare_internal::compare_result_as_less_than(key_comp()(a, b));
@@ -1842,26 +1843,18 @@ class btree {
   node_type* root() { return root_; }
   const node_type* root() const { return root_; }
   node_type*& mutable_root() noexcept { return root_; }
-  node_type* rightmost() { return rightmost_.template get<2>(); }
-  const node_type* rightmost() const { return rightmost_.template get<2>(); }
-  node_type*& mutable_rightmost() noexcept {
-    return rightmost_.template get<2>();
-  }
-  key_compare* mutable_key_comp() noexcept {
-    return &rightmost_.template get<0>();
-  }
+  node_type* rightmost() { return rightmost_; }
+  const node_type* rightmost() const { return rightmost_; }
+  node_type*& mutable_rightmost() noexcept { return rightmost_; }
+  key_compare* mutable_key_comp() noexcept { return &comp_; }
 
   // The leftmost node is stored as the parent of the root node.
   node_type* leftmost() { return root()->parent(); }
   const node_type* leftmost() const { return root()->parent(); }
 
   // Allocator routines.
-  allocator_type* mutable_allocator() noexcept {
-    return &rightmost_.template get<1>();
-  }
-  const allocator_type& allocator() const noexcept {
-    return rightmost_.template get<1>();
-  }
+  allocator_type* mutable_allocator() noexcept { return &alloc_; }
+  const allocator_type& allocator() const noexcept { return alloc_; }
 
   // Allocates a correctly aligned node of at least size bytes using the
   // allocator.
@@ -1980,16 +1973,18 @@ class btree {
   }
 
   node_type* root_;
-
   // A pointer to the rightmost node. Note that the leftmost node is stored as
-  // the root's parent. We use compressed tuple in order to save space because
-  // key_compare and allocator_type are usually empty.
-  absl::container_internal::CompressedTuple<key_compare, allocator_type,
-                                            node_type*>
-      rightmost_;
-
+  // the root's parent.
+  node_type* rightmost_;
   // Number of values.
   size_type size_;
+
+  // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS ensures that sizeof is not affected by
+  // empty comparators or allocators. Note: these members must not have default
+  // member initializers due to an MSVC [[msvc::no_unique_address]] bug:
+  // https://developercommunity.visualstudio.com/t/miscompilation-with-msvcno-unique-address-and-defa/1699750
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS key_compare comp_;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS allocator_type alloc_;
 };
 
 ////
@@ -2691,15 +2686,16 @@ auto btree<P>::operator=(btree&& other) noexcept -> btree& {
     if (std::allocator_traits<
             allocator_type>::propagate_on_container_move_assignment::value) {
       swap(root_, other.root_);
-      // Note: `rightmost_` also contains the allocator and the key comparator.
       swap(rightmost_, other.rightmost_);
       swap(size_, other.size_);
+      swap(comp_, other.comp_);
+      swap(alloc_, other.alloc_);
     } else {
       if (allocator() == other.allocator()) {
-        swap(mutable_root(), other.mutable_root());
-        swap(*mutable_key_comp(), *other.mutable_key_comp());
-        swap(mutable_rightmost(), other.mutable_rightmost());
+        swap(root_, other.root_);
+        swap(rightmost_, other.rightmost_);
         swap(size_, other.size_);
+        swap(comp_, other.comp_);
       } else {
         // We aren't allowed to propagate the allocator and the allocator is
         // different so we can't take over its memory. We must move each element
@@ -2866,15 +2862,15 @@ void btree<P>::swap(btree& other) {
   using std::swap;
   if (std::allocator_traits<
           allocator_type>::propagate_on_container_swap::value) {
-    // Note: `rightmost_` also contains the allocator and the key comparator.
-    swap(rightmost_, other.rightmost_);
+    swap(comp_, other.comp_);
+    swap(alloc_, other.alloc_);
   } else {
     // It's undefined behavior if the allocators are unequal here.
     assert(allocator() == other.allocator());
-    swap(mutable_rightmost(), other.mutable_rightmost());
-    swap(*mutable_key_comp(), *other.mutable_key_comp());
+    swap(comp_, other.comp_);
   }
-  swap(mutable_root(), other.mutable_root());
+  swap(root_, other.root_);
+  swap(rightmost_, other.rightmost_);
   swap(size_, other.size_);
 }
 
