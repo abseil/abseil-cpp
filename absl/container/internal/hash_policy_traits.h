@@ -33,14 +33,20 @@ namespace container_internal {
 // Avoid comparing function addresses with nullptr during constant evaluation,
 // which GCC rejects with UBSan enabled.
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=71962
-template <HashSlotFn kPolicyFn, HashSlotFn kFallbackFn>
+template <HashSlotFn kPolicyFn>
 struct HashSlotFnSelector {
-  static constexpr HashSlotFn kValue = kPolicyFn;
+  template <class Fallback>
+  static constexpr HashSlotFn Select() {
+    return kPolicyFn;
+  }
 };
 
-template <HashSlotFn kFallbackFn>
-struct HashSlotFnSelector<nullptr, kFallbackFn> {
-  static constexpr HashSlotFn kValue = kFallbackFn;
+template <>
+struct HashSlotFnSelector<nullptr> {
+  template <class Fallback>
+  static constexpr HashSlotFn Select() {
+    return Fallback::kFn;
+  }
 };
 
 // Defines how slots are initialized/destroyed/moved.
@@ -184,8 +190,8 @@ template <class Policy, class = void>
   static constexpr HashSlotFn get_hash_slot_fn() {
     // A null policy function selects the non-type-erased fallback.
     return HashSlotFnSelector<
-        Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>(),
-        &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>>::kValue;
+        Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>()>::
+        template Select<NonTypeErasedHashSlotFn<Hash, kIsAbsl, kSeedShift>>();
   }
 
  private:
@@ -197,6 +203,12 @@ template <class Policy, class = void>
             *static_cast<const Hash*>(hash_fn), seed},
         Policy::element(static_cast<slot_type*>(slot)));
   }
+
+  template <class Hash, bool kIsAbsl, size_t kSeedShift>
+  struct NonTypeErasedHashSlotFn {
+    static constexpr HashSlotFn kFn =
+        &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>;
+  };
 };
 
 }  // namespace container_internal

@@ -822,9 +822,10 @@ struct set_slot_policy {
   }
 
   template <typename Alloc>
-  static auto destroy(Alloc *alloc, slot_type *slot) {
+  static IsDestructionTrivial<Alloc, value_type> destroy(Alloc* alloc,
+                                                         slot_type* slot) {
     std::allocator_traits<Alloc>::destroy(*alloc, slot);
-    return IsDestructionTrivial<Alloc, value_type>();
+    return {};
   }
 };
 

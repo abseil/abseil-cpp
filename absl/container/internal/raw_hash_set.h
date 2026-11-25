@@ -4148,7 +4148,7 @@ class raw_hash_set : public raw_hash_set_base {
                           CommonFields& lhs, CommonFields&& rhs) {
     if (PolicyTraits::transfer_uses_memcpy() || !rhs_is_full_soo) {
       lhs = std::move(rhs);
-    } else {
+    } else if constexpr (!PolicyTraits::transfer_uses_memcpy()) {
       lhs.move_non_heap_or_soo_fields(rhs);
       ReentranceGuard lhs_guard(lhs);
       ReentranceGuard rhs_guard(rhs);
@@ -4286,18 +4286,19 @@ class raw_hash_set : public raw_hash_set_base {
     static_assert(std::is_same_v<K, KeyParam<K>>);
     if constexpr (SooEnabled()) {
       return find_or_prepare_insert_soo<K>(key);
-    }
-    if (!empty_when_small()) {
-      if (equal_to<K>(key, single_slot())) {
-        return {single_slot(), false};
+    } else {
+      if (!empty_when_small()) {
+        if (equal_to<K>(key, single_slot())) {
+          return {single_slot(), false};
+        }
       }
+      using Hasher = HashKeyFor<K>;
+      Hasher hash_key{hash_ref(), key};
+      return {to_slot(PrepareInsertSmallNonSoo(common(), GetPolicyFunctions(),
+                                               hash_key.data(),
+                                               Hasher::get_hash_fn())),
+              true};
     }
-    using Hasher = HashKeyFor<K>;
-    Hasher hash_key{hash_ref(), key};
-    return {to_slot(PrepareInsertSmallNonSoo(common(), GetPolicyFunctions(),
-                                             hash_key.data(),
-                                             Hasher::get_hash_fn())),
-            true};
   }
 
   template <class K>
@@ -4542,6 +4543,15 @@ class raw_hash_set : public raw_hash_set_base {
     }
   }
 
+  // `if constexpr` avoids instantiating the unused function.
+  static constexpr TransferNFn get_transfer_n_slots_fn() {
+    if constexpr (PolicyTraits::transfer_uses_memcpy()) {
+      return &TransferNRelocatable<sizeof(slot_type)>;
+    } else {
+      return &raw_hash_set::transfer_n_slots_fn;
+    }
+  }
+
   static void copy_slot_fn(void* set, void* dst, const void* src) {
     // TODO(b/413598253): type erase for trivially copyable types via
     // PolicyTraits.
@@ -4555,9 +4565,11 @@ class raw_hash_set : public raw_hash_set_base {
     h->destroy(to_slot(slot));
   }
   static constexpr DestroySlotFn get_destroy_slot_fn() {
-    return PolicyTraits::template destroy_is_trivial<Alloc>()
-               ? nullptr
-               : &raw_hash_set::destroy_slot_fn_impl;
+    if constexpr (PolicyTraits::template destroy_is_trivial<Alloc>()) {
+      return nullptr;
+    } else {
+      return &raw_hash_set::destroy_slot_fn_impl;
+    }
   }
 
   static constexpr DeallocBackingArrayFn get_dealloc_backing_array_fn() {
@@ -4649,9 +4661,7 @@ class raw_hash_set : public raw_hash_set_base {
           static_cast<uint32_t>(sizeof(slot_type)),
           static_cast<uint32_t>(HasherOffset()),
           get_hash_slot_fn(),
-          PolicyTraits::transfer_uses_memcpy()
-              ? &TransferNRelocatable<sizeof(slot_type)>
-              : &raw_hash_set::transfer_n_slots_fn,
+          get_transfer_n_slots_fn(),
           &GetAllocPolicy(),
           &TransferUnprobedElementsToNextCapacity<Traits>};
       return value;

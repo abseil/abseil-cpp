@@ -306,18 +306,14 @@ TEST(MapSlotPolicy, TransferReturnsTrue) {
 TEST(MapSlotPolicy, DestroyReturnsTrue) {
   {
     using slot_policy = map_slot_policy<int, float>;
-    EXPECT_TRUE(
-        (std::is_same_v<decltype(slot_policy::destroy<std::allocator<char>>(
-                            nullptr, nullptr)),
-                        std::true_type>));
+    EXPECT_TRUE(decltype(slot_policy::destroy<std::allocator<char>>(
+        nullptr, nullptr))::value);
   }
   {
     EXPECT_FALSE(std::is_trivially_destructible_v<std::unique_ptr<int>>);
     using slot_policy = map_slot_policy<int, std::unique_ptr<int>>;
-    EXPECT_TRUE(
-        (std::is_same_v<decltype(slot_policy::destroy<std::allocator<char>>(
-                            nullptr, nullptr)),
-                        std::false_type>));
+    EXPECT_FALSE(decltype(slot_policy::destroy<std::allocator<char>>(
+        nullptr, nullptr))::value);
   }
 }
 

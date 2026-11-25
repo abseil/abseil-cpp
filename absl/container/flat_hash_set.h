@@ -544,9 +544,10 @@ struct FlatHashSetPolicy {
 
   // Return std::true_type in case destroy is trivial.
   template <class Allocator>
-  static auto destroy(Allocator* alloc, slot_type* slot) {
+  static IsDestructionTrivial<Allocator, slot_type> destroy(Allocator* alloc,
+                                                            slot_type* slot) {
     std::allocator_traits<Allocator>::destroy(*alloc, slot);
-    return IsDestructionTrivial<Allocator, slot_type>();
+    return {};
   }
 
   static T& element(slot_type* slot) { return *slot; }
