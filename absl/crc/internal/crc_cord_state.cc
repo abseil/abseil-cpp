@@ -28,6 +28,28 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
 
+void CrcCordState::Ref(RefcountedRep* r) {
+  assert(r != nullptr);
+  r->count.fetch_add(1, std::memory_order_relaxed);
+}
+
+void CrcCordState::Unref(RefcountedRep* r) {
+  assert(r != nullptr);
+  if (r->count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+    delete r;
+  }
+}
+
+CrcCordState::Rep* CrcCordState::mutable_rep() {
+  if (refcounted_rep_->count.load(std::memory_order_acquire) != 1) {
+    RefcountedRep* copy = new RefcountedRep;
+    copy->rep = refcounted_rep_->rep;
+    Unref(refcounted_rep_);
+    refcounted_rep_ = copy;
+  }
+  return &refcounted_rep_->rep;
+}
+
 CrcCordState::RefcountedRep* CrcCordState::RefSharedEmptyRep() {
   static absl::NoDestructor<CrcCordState::RefcountedRep> empty;
 

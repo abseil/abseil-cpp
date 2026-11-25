@@ -95,15 +95,7 @@ class CrcCordState {
   // data. Calling this function will copy the data if another instance also
   // holds a reference to the data, so it is important to call rep() instead if
   // the data may not be mutated.
-  Rep* mutable_rep() {
-    if (refcounted_rep_->count.load(std::memory_order_acquire) != 1) {
-      RefcountedRep* copy = new RefcountedRep;
-      copy->rep = refcounted_rep_->rep;
-      Unref(refcounted_rep_);
-      refcounted_rep_ = copy;
-    }
-    return &refcounted_rep_->rep;
-  }
+  Rep* mutable_rep();
 
   // Returns the CRC32C of the entire Cord.
   absl::crc32c_t Checksum() const;
@@ -139,17 +131,9 @@ class CrcCordState {
   // modify it (by calling `mutable_rep()`) will create a new unshared copy.
   static RefcountedRep* RefSharedEmptyRep();
 
-  static void Ref(RefcountedRep* r) {
-    assert(r != nullptr);
-    r->count.fetch_add(1, std::memory_order_relaxed);
-  }
+  static void Ref(RefcountedRep* r);
 
-  static void Unref(RefcountedRep* r) {
-    assert(r != nullptr);
-    if (r->count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      delete r;
-    }
-  }
+  static void Unref(RefcountedRep* r);
 
   RefcountedRep* refcounted_rep_;
 };
