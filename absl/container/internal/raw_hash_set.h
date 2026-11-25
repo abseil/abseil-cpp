@@ -2727,21 +2727,6 @@ class raw_hash_set_base {
     return is_soo<kSooEnabled>() && !empty_when_small();
   }
 
-  template <size_t kKeySize, size_t kSlotSize, bool kSooEnabled>
-  size_t capacity() const {
-    const size_t cap = common().capacity();
-    // Compiler complains when using functions in ASSUME so use local variables.
-    [[maybe_unused]] const bool kIsValid = IsValidCapacity(cap);
-    [[maybe_unused]] constexpr size_t kDefaultCapacity =
-        kSooEnabled ? SooCapacity() : 0;
-    [[maybe_unused]] const size_t kMaxValidCapacity =
-        SizeToCapacity(container_internal::MaxValidSize(kKeySize, kSlotSize));
-    ABSL_ASSUME(kIsValid || cap == 0);
-    ABSL_ASSUME(cap >= kDefaultCapacity);
-    ABSL_ASSUME(cap <= kMaxValidCapacity);
-    return cap;
-  }
-
   template <bool kSooEnabled, bool kIsDefaultAlloc>
   void* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
@@ -2865,9 +2850,8 @@ class raw_hash_set_base {
 
   // `policy` is a runtime argument so that tables that differ only in other
   // policy functions share one instantiation.
-  template <class Key, size_t kSlotSize, bool kIsDefaultAlloc, bool kSooEnabled,
-            class Hash, size_t kHasherOffset, class Eq, size_t kEqOffset,
-            class SlotEq>
+  template <class Key, size_t kSlotSize, bool kIsDefaultAlloc, class Hash,
+            size_t kHasherOffset, class Eq, size_t kEqOffset, class SlotEq>
   std::pair<void*, bool> find_or_prepare_insert_large(
       const PolicyFunctions& policy, Key key) {
     using SlotKeyType = typename SlotEq::SlotKeyType;
@@ -2876,7 +2860,8 @@ class raw_hash_set_base {
     const Eq& eq_ref = *reinterpret_cast<const Eq*>(
         reinterpret_cast<const char*>(this) + kEqOffset);
     const size_t hash = hash_of<SlotKeyType, Hash, kHasherOffset>(key);
-    const size_t cap = capacity<sizeof(SlotKeyType), kSlotSize, kSooEnabled>();
+    const size_t cap = common().capacity();
+    ABSL_ASSUME(cap > kMaxSmallCapacity);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control<kIsDefaultAlloc>();
@@ -3448,8 +3433,15 @@ class raw_hash_set : public raw_hash_set_base {
     return size;
   }
   size_t capacity() const {
-    return raw_hash_set_base::capacity<sizeof(key_type), sizeof(slot_type),
-                                       SooEnabled()>();
+    const size_t cap = common().capacity();
+    // Compiler complains when using functions in ASSUME so use local variables.
+    [[maybe_unused]] const bool kIsValid = IsValidCapacity(cap);
+    [[maybe_unused]] constexpr size_t kDefaultCapacity = DefaultCapacity();
+    [[maybe_unused]] const size_t kMaxValidCapacity = MaxValidCapacity();
+    ABSL_ASSUME(kIsValid || cap == 0);
+    ABSL_ASSUME(cap >= kDefaultCapacity);
+    ABSL_ASSUME(cap <= kMaxValidCapacity);
+    return cap;
   }
   size_t max_size() const { return MaxValidSize(); }
 
@@ -4138,10 +4130,10 @@ class raw_hash_set : public raw_hash_set_base {
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
     return raw_hash_set_base::hash_of<key_type, hasher, HasherOffset()>(key);
   }
-  ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot,
+                                              size_t seed) const {
     return PolicyTraits::apply(
-        HashElement<hasher, kIsAbslHash, kSeedShift>{hash_ref(),
-                                                     common().seed().seed()},
+        HashElement<hasher, kIsAbslHash, kSeedShift>{hash_ref(), seed},
         PolicyTraits::element(slot));
   }
 
@@ -4313,8 +4305,8 @@ class raw_hash_set : public raw_hash_set_base {
       absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
     auto [slot, inserted] = raw_hash_set_base::find_or_prepare_insert_large<
-        K, sizeof(slot_type), kIsDefaultAlloc, SooEnabled(), hasher,
-        HasherOffset(), key_equal, EqOffset(), typename PolicyTraits::SlotEq>(
+        K, sizeof(slot_type), kIsDefaultAlloc, hasher, HasherOffset(),
+        key_equal, EqOffset(), typename PolicyTraits::SlotEq>(
         GetPolicyFunctions(), key);
     return {to_slot(slot), inserted};
   }
@@ -4622,8 +4614,9 @@ class raw_hash_set : public raw_hash_set_base {
   // not trivially relocatable.
   struct TransferTraits {
     static constexpr size_t kSlotSize = sizeof(slot_type);
-    static size_t HashSlot(CommonFields& common, void* slot, size_t) {
-      return reinterpret_cast<raw_hash_set&>(common).hash_of(to_slot(slot));
+    static size_t HashSlot(CommonFields& common, void* slot, size_t seed) {
+      return reinterpret_cast<raw_hash_set&>(common).hash_of(to_slot(slot),
+                                                             seed);
     }
     static void TransferSlot(CommonFields& common, void* dst_slot,
                              void* src_slot) {
