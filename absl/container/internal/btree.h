@@ -487,13 +487,195 @@ struct SearchResult<V, false> {
   static constexpr bool IsEq() { return false; }
 };
 
+template <typename FieldType>
+class btree_node_base;
+
+// FieldType- and slot-independent base of all B-tree nodes.
+class btree_node_header {
+  using header_layout_type =
+      absl::container_internal::Layout<btree_node_header*>::WithStaticSizes<1>;
+
+ protected:
+  constexpr btree_node_header() = default;
+  ~btree_node_header() = default;
+  btree_node_header(const btree_node_header&) = delete;
+  btree_node_header& operator=(const btree_node_header&) = delete;
+
+  char* this_char() { return reinterpret_cast<char*>(this); }
+  const char* this_char() const { return reinterpret_cast<const char*>(this); }
+
+ public:
+  btree_node_header* parent() const {
+    return *header_layout_type().Pointer<0>(this_char());
+  }
+  void set_parent(btree_node_header* p) {
+    *header_layout_type().Pointer<0>(this_char()) = p;
+  }
+
+  template <typename FieldType>
+  btree_node_base<FieldType>* as() {
+    return static_cast<btree_node_base<FieldType>*>(this);
+  }
+  template <typename FieldType>
+  const btree_node_base<FieldType>* as() const {
+    return static_cast<const btree_node_base<FieldType>*>(this);
+  }
+};
+
+// Slot-independent header base of `btree_node<Params>`, shared across all
+// B-trees with the same `FieldType` (`uint8_t` or `uint16_t`).
+template <typename FieldType>
+class btree_node_base : public btree_node_header {
+  using base_layout_type = typename absl::container_internal::
+      Layout<btree_node_header*, uint32_t, FieldType>::template WithStaticSizes<
+          /*parent*/ 1,
+          /*generation*/ BtreeGenerationsEnabled() ? 1 : 0,
+          /*position, start, finish, max_count*/ 4>;
+
+  static constexpr base_layout_type BaseLayout() { return base_layout_type(); }
+
+  template <size_t N>
+  typename base_layout_type::template ElementType<N>* GetHeaderField() {
+    return BaseLayout().template Pointer<N>(this_char());
+  }
+  template <size_t N>
+  const typename base_layout_type::template ElementType<N>* GetHeaderField()
+      const {
+    return BaseLayout().template Pointer<N>(this_char());
+  }
+
+ protected:
+  constexpr btree_node_base() = default;
+  ~btree_node_base() = default;
+  btree_node_base(const btree_node_base&) = delete;
+  btree_node_base& operator=(const btree_node_base&) = delete;
+
+ public:
+  static constexpr FieldType kInternalNodeMaxCount = 0;
+
+  // Whether this is a leaf node or not. This value doesn't change after the
+  // node is created.
+  bool is_leaf() const {
+    return GetHeaderField<2>()[3] != kInternalNodeMaxCount;
+  }
+  // Whether this is an internal node or not. This value doesn't change after
+  // the node is created.
+  bool is_internal() const { return !is_leaf(); }
+
+  // Getter for the position of this node in its parent.
+  FieldType position() const { return GetHeaderField<2>()[0]; }
+
+  // Getter for the offset of the first value in the `values` array.
+  FieldType start() const {
+    // TODO(ezb): when floating storage is implemented, return
+    // GetHeaderField<2>()[1];
+    assert(GetHeaderField<2>()[1] == 0);
+    return 0;
+  }
+
+  // Getter for the offset after the last value in the `values` array.
+  FieldType finish() const { return GetHeaderField<2>()[2]; }
+
+  // Getters for the number of values stored in this node.
+  FieldType count() const {
+    assert(finish() >= start());
+    return static_cast<FieldType>(finish() - start());
+  }
+  // Note: `node_slots` is `btree_node::kNodeSlots`.
+  FieldType max_count(uint16_t node_slots) const {
+    // Internal nodes have max_count==kInternalNodeMaxCount.
+    // Leaf nodes have max_count in [1, node_slots].
+    const FieldType max_count = GetHeaderField<2>()[3];
+    return max_count == kInternalNodeMaxCount
+               ? static_cast<FieldType>(node_slots)
+               : max_count;
+  }
+
+  btree_node_base* parent() const {
+    return static_cast<btree_node_base*>(btree_node_header::parent());
+  }
+  // Getter for whether the node is the root of the tree. The parent of the
+  // root of the tree is the leftmost node in the tree which is guaranteed to
+  // be a leaf.
+  bool is_root() const { return parent()->is_leaf(); }
+
+  // Gets the root node's generation integer, which is the one used by the tree.
+  uint32_t* get_root_generation() const {
+    assert(BtreeGenerationsEnabled());  // NOLINT(misc-static-assert)
+    const btree_node_base* curr = this;
+    for (; !curr->is_root(); curr = curr->parent()) continue;
+    return const_cast<uint32_t*>(&curr->GetHeaderField<1>()[0]);
+  }
+
+  // Returns the generation for iterator validation.
+  uint32_t generation() const {
+    return BtreeGenerationsEnabled() ? *get_root_generation() : 0;
+  }
+  // Updates generation. Should only be called on a root node or during node
+  // initialization.
+  void set_generation(uint32_t generation) {
+    if (BtreeGenerationsEnabled()) GetHeaderField<1>()[0] = generation;
+  }
+  // Updates the generation. We do this whenever the node is mutated.
+  void next_generation() {
+    if (BtreeGenerationsEnabled()) ++*get_root_generation();
+  }
+
+  void set_parent(btree_node_base* p) { btree_node_header::set_parent(p); }
+  FieldType& mutable_finish() { return GetHeaderField<2>()[2]; }
+  void set_position(FieldType v) { GetHeaderField<2>()[0] = v; }
+  void set_start(FieldType v) { GetHeaderField<2>()[1] = v; }
+  void set_finish(FieldType v) { GetHeaderField<2>()[2] = v; }
+  // This method is only called by the node init methods.
+  void set_max_count(FieldType v) { GetHeaderField<2>()[3] = v; }
+
+  void make_root() {
+    assert(parent()->is_root());
+    set_generation(parent()->generation());
+    set_parent(parent()->parent());
+  }
+
+  btree_node_base* child(size_t children_offset, size_t i) const {
+    assert(is_internal());
+    return reinterpret_cast<btree_node_base* const*>(this_char() +
+                                                     children_offset)[i];
+  }
+  btree_node_base* start_child(size_t children_offset) const {
+    return child(children_offset, start());
+  }
+  btree_node_base*& mutable_child(size_t children_offset, size_t i) {
+    assert(is_internal());
+    return reinterpret_cast<btree_node_base**>(this_char() +
+                                               children_offset)[i];
+  }
+  void clear_child(size_t children_offset, size_t i) {
+    absl::container_internal::SanitizerPoisonObject(
+        &mutable_child(children_offset, i));
+  }
+  void set_child_noupdate_position(size_t children_offset, size_t i,
+                                   btree_node_base* c) {
+    absl::container_internal::SanitizerUnpoisonObject(
+        &mutable_child(children_offset, i));
+    mutable_child(children_offset, i) = c;
+  }
+  void set_child(size_t children_offset, FieldType i, btree_node_base* c) {
+    set_child_noupdate_position(children_offset, i, c);
+    c->set_position(i);
+  }
+  void init_child(size_t children_offset, FieldType i, btree_node_base* c) {
+    set_child(children_offset, i, c);
+    c->set_parent(this);
+  }
+};
+
 // A node in the btree holding. The same node type is used for both internal
 // and leaf nodes in the btree, though the nodes are allocated in such a way
 // that the children array is only valid in internal nodes.
 template <typename Params>
-class btree_node {
+class btree_node : public btree_node_base<typename Params::node_count_type> {
   using is_key_compare_to = typename Params::is_key_compare_to;
   using field_type = typename Params::node_count_type;
+  using Base = btree_node_base<field_type>;
   using allocator_type = typename Params::allocator_type;
   using slot_type = typename Params::slot_type;
   using original_key_compare = typename Params::original_key_compare;
@@ -579,8 +761,8 @@ class btree_node {
 
  private:
   using layout_type =
-      absl::container_internal::Layout<btree_node*, uint32_t, field_type,
-                                       slot_type, btree_node*>;
+      absl::container_internal::Layout<btree_node_header*, uint32_t, field_type,
+                                       slot_type, Base*>;
   using leaf_layout_type = typename layout_type::template WithStaticSizes<
       /*parent*/ 1,
       /*generation*/ BtreeGenerationsEnabled() ? 1 : 0,
@@ -626,7 +808,8 @@ class btree_node {
 
   // The node is internal (i.e. is not a leaf node) if and only if `max_count`
   // has this value.
-  constexpr static field_type kInternalNodeMaxCount = 0;
+  constexpr static field_type kInternalNodeMaxCount =
+      Base::kInternalNodeMaxCount;
 
   // Leaves can have less than kNodeSlots values.
   constexpr static leaf_layout_type LeafLayout(
@@ -651,96 +834,54 @@ class btree_node {
   // ElementType<N> is the Nth type in the Layout definition.
   template <size_type N>
   typename layout_type::template ElementType<N>* GetField() {
+    static_assert(N >= 3, "Use GetHeaderField for header fields.");
     // We assert that we don't read from values that aren't there.
     assert(N < 4 || is_internal());
-    return InternalLayout().template Pointer<N>(reinterpret_cast<char*>(this));
+    return InternalLayout().template Pointer<N>(this->this_char());
   }
   template <size_type N>
   const typename layout_type::template ElementType<N>* GetField() const {
+    static_assert(N >= 3, "Use GetHeaderField for header fields.");
     assert(N < 4 || is_internal());
-    return InternalLayout().template Pointer<N>(
-        reinterpret_cast<const char*>(this));
+    return InternalLayout().template Pointer<N>(this->this_char());
   }
-  void set_parent(btree_node* p) { *GetField<0>() = p; }
-  field_type& mutable_finish() { return GetField<2>()[2]; }
   slot_type* slot(size_type i) { return &GetField<3>()[i]; }
   slot_type* start_slot() { return slot(start()); }
   const slot_type* slot(size_type i) const { return &GetField<3>()[i]; }
-  void set_position(field_type v) { GetField<2>()[0] = v; }
-  void set_start(field_type v) { GetField<2>()[1] = v; }
-  void set_finish(field_type v) { GetField<2>()[2] = v; }
-  // This method is only called by the node init methods.
-  void set_max_count(field_type v) { GetField<2>()[3] = v; }
+  using Base::mutable_finish;
+  using Base::set_finish;
+  using Base::set_max_count;
+  using Base::set_parent;
+  using Base::set_position;
+  using Base::set_start;
+
+  template <size_type N>
+  static constexpr size_t GetOffset() {
+    return InternalLayout().template Offset<N>();
+  }
+
+  static constexpr size_t kFieldTypeFieldsOffset = GetOffset<2>();
+  static constexpr size_t kSlotsOffset = GetOffset<3>();
+  static constexpr size_t kChildrenOffset = GetOffset<4>();
 
  public:
-  // Whether this is a leaf node or not. This value doesn't change after the
-  // node is created.
-  bool is_leaf() const { return GetField<2>()[3] != kInternalNodeMaxCount; }
-  // Whether this is an internal node or not. This value doesn't change after
-  // the node is created.
-  bool is_internal() const { return !is_leaf(); }
+  using Base::count;
+  using Base::finish;
+  using Base::is_internal;
+  using Base::next_generation;
+  using Base::position;
+  using Base::set_generation;
+  using Base::start;
 
-  // Getter for the position of this node in its parent.
-  field_type position() const { return GetField<2>()[0]; }
-
-  // Getter for the offset of the first value in the `values` array.
-  field_type start() const {
-    // TODO(ezb): when floating storage is implemented, return GetField<2>()[1];
-    assert(GetField<2>()[1] == 0);
-    return 0;
-  }
-
-  // Getter for the offset after the last value in the `values` array.
-  field_type finish() const { return GetField<2>()[2]; }
-
-  // Getters for the number of values stored in this node.
-  field_type count() const {
-    assert(finish() >= start());
-    return finish() - start();
-  }
   field_type max_count() const {
-    // Internal nodes have max_count==kInternalNodeMaxCount.
-    // Leaf nodes have max_count in [1, kNodeSlots].
-    const field_type max_count = GetField<2>()[3];
-    return max_count == field_type{kInternalNodeMaxCount}
-               ? field_type{kNodeSlots}
-               : max_count;
+    return Base::max_count(field_type{kNodeSlots});
   }
 
   // Getter for the parent of this node.
   // TODO(ezb): assert that the child of the returned node at position
   // `node_->position()` maps to the current node.
-  btree_node* parent() const { return *GetField<0>(); }
-  // Getter for whether the node is the root of the tree. The parent of the
-  // root of the tree is the leftmost node in the tree which is guaranteed to
-  // be a leaf.
-  bool is_root() const { return parent()->is_leaf(); }
-  void make_root() {
-    assert(parent()->is_root());
-    set_generation(parent()->generation());
-    set_parent(parent()->parent());
-  }
-
-  // Gets the root node's generation integer, which is the one used by the tree.
-  uint32_t* get_root_generation() const {
-    assert(BtreeGenerationsEnabled());  // NOLINT(misc-static-assert)
-    const btree_node* curr = this;
-    for (; !curr->is_root(); curr = curr->parent()) continue;
-    return const_cast<uint32_t*>(&curr->GetField<1>()[0]);
-  }
-
-  // Returns the generation for iterator validation.
-  uint32_t generation() const {
-    return BtreeGenerationsEnabled() ? *get_root_generation() : 0;
-  }
-  // Updates generation. Should only be called on a root node or during node
-  // initialization.
-  void set_generation(uint32_t generation) {
-    if (BtreeGenerationsEnabled()) GetField<1>()[0] = generation;
-  }
-  // Updates the generation. We do this whenever the node is mutated.
-  void next_generation() {
-    if (BtreeGenerationsEnabled()) ++*get_root_generation();
+  btree_node* parent() const {
+    return reinterpret_cast<btree_node*>(Base::parent());
   }
 
   // Getters for the key/value at position i in the node.
@@ -751,23 +892,22 @@ class btree_node {
   }
 
   // Getters/setter for the child at position i in the node.
-  btree_node* child(field_type i) const { return GetField<4>()[i]; }
-  btree_node* start_child() const { return child(start()); }
-  btree_node*& mutable_child(field_type i) { return GetField<4>()[i]; }
-  void clear_child(field_type i) {
-    absl::container_internal::SanitizerPoisonObject(&mutable_child(i));
+  btree_node* child(field_type i) const {
+    return reinterpret_cast<btree_node*>(Base::child(kChildrenOffset, i));
   }
+  btree_node* start_child() const { return child(start()); }
+  Base*& mutable_child(field_type i) {
+    return Base::mutable_child(kChildrenOffset, i);
+  }
+  void clear_child(field_type i) { Base::clear_child(kChildrenOffset, i); }
   void set_child_noupdate_position(field_type i, btree_node* c) {
-    absl::container_internal::SanitizerUnpoisonObject(&mutable_child(i));
-    mutable_child(i) = c;
+    Base::set_child_noupdate_position(kChildrenOffset, i, c);
   }
   void set_child(field_type i, btree_node* c) {
-    set_child_noupdate_position(i, c);
-    c->set_position(i);
+    Base::set_child(kChildrenOffset, i, c);
   }
   void init_child(field_type i, btree_node* c) {
-    set_child(i, c);
-    c->set_parent(this);
+    Base::init_child(kChildrenOffset, i, c);
   }
 
   // Returns the position of the first value whose key is not less than k.
@@ -1344,9 +1484,9 @@ class btree_iterator : private btree_iterator_generation_info {
 // defined outside of btree in order to be shared between all btrees with
 // compatible node headers.
 template <typename FieldType, size_t Alignment>
-struct alignas(Alignment) BtreeEmptyNode {
+struct alignas(Alignment) BtreeEmptyNode : btree_node_base<FieldType> {
   // Mirrors the header of btree_node's layout (see the comment in btree_node).
-  void* parent;
+  btree_node_header* parent;
 #ifdef ABSL_BTREE_ENABLE_GENERATIONS
   uint32_t generation = 0;
 #endif
@@ -2347,6 +2487,8 @@ constexpr bool btree<P>::static_assert_validation() {
                 "Allocator must be nothrow copy constructible");
   static_assert(std::is_trivially_copyable_v<iterator>,
                 "iterator not trivially copyable.");
+  static_assert(sizeof(node_type) == 1 && alignof(node_type) == 1,
+                "btree_node must remain an empty 1-byte type.");
 
   // Note: We assert that kTargetValues, which is computed from
   // Params::kTargetNodeSize, must fit the node_type::field_type.
