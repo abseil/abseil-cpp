@@ -217,6 +217,10 @@ bool FormatUntyped(FormatRawSinkImpl raw_sink,
   return ConvertAll(format, args, Converter(&sink));
 }
 
+Streamable::Streamable(const UntypedFormatSpecImpl& format,
+                       absl::Span<const FormatArgImpl> args)
+    : format_(format), args_(args.begin(), args.end()) {}
+
 std::ostream& Streamable::Print(std::ostream& os) const {
   if (!FormatUntyped(&os, format_, args_)) os.setstate(std::ios::failbit);
   return os;
