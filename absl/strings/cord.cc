@@ -129,6 +129,11 @@ void InitializeCordRepExternal(absl::string_view data,
   VerifyTree(rep);
 }
 
+CordRep* absl_nonnull NewExternalRep(absl::string_view data,
+                                     void (&releaser)(absl::string_view)) {
+  return NewExternalRep(data, &releaser);
+}
+
 }  // namespace cord_internal
 
 // Creates a CordRep from the provided string. If the string is large enough,

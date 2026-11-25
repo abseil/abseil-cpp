@@ -1157,10 +1157,8 @@ CordRep* absl_nonnull NewExternalRep(absl::string_view data,
 // Overload for function reference types that dispatches using a function
 // pointer because there are no `alignof()` or `sizeof()` a function reference.
 // NOLINTNEXTLINE - suppress clang-tidy raw pointer return.
-inline CordRep* absl_nonnull NewExternalRep(
-    absl::string_view data, void (&releaser)(absl::string_view)) {
-  return NewExternalRep(data, &releaser);
-}
+CordRep* absl_nonnull NewExternalRep(absl::string_view data,
+                                     void (&releaser)(absl::string_view));
 
 }  // namespace cord_internal
 
