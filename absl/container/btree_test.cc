@@ -80,13 +80,13 @@ using ::testing::SizeIs;
 namespace {
 
 struct CompareIntToString {
-  bool operator()(const std::string &a, const std::string &b) const {
+  bool operator()(const std::string& a, const std::string& b) const {
     return a < b;
   }
-  bool operator()(const std::string &a, int b) const {
+  bool operator()(const std::string& a, int b) const {
     return a < absl::StrCat(b);
   }
-  bool operator()(int a, const std::string &b) const {
+  bool operator()(int a, const std::string& b) const {
     return absl::StrCat(a) < b;
   }
   using is_transparent = void;
@@ -94,7 +94,7 @@ struct CompareIntToString {
 
 struct NonTransparentCompare {
   template <typename T, typename U>
-  bool operator()(const T &t, const U &u) const {
+  bool operator()(const T& t, const U& u) const {
     // Treating all comparators as transparent can cause inefficiencies (see
     // N3657 C++ proposal). Test that for comparators without 'is_transparent'
     // alias (like this one), we do not attempt heterogeneous lookup.
@@ -156,7 +156,7 @@ void TestHeterogeneous(T table) {
   EXPECT_FALSE(CanEraseWithEmptyBrace<T>::value);
 
   // Also run it with const T&.
-  if (std::is_class<T>()) TestHeterogeneous<const T &>(table);
+  if (std::is_class<T>()) TestHeterogeneous<const T&>(table);
 }
 
 TEST(Btree, HeterogeneousLookup) {
@@ -174,7 +174,7 @@ TEST(Btree, HeterogeneousLookup) {
   EXPECT_EQ(1, map.at(1));
   EXPECT_EQ(3, map.at({"3"}));
   EXPECT_EQ(-1, map.at({}));
-  const auto &cmap = map;
+  const auto& cmap = map;
   EXPECT_EQ(1, cmap.at(1));
   EXPECT_EQ(3, cmap.at({"3"}));
   EXPECT_EQ(-1, cmap.at({}));
@@ -228,11 +228,11 @@ class StringLike {
  public:
   StringLike() = default;
 
-  StringLike(const char *s) : s_(s) {  // NOLINT
+  StringLike(const char* s) : s_(s) {  // NOLINT
     ++constructor_calls_;
   }
 
-  bool operator<(const StringLike &a) const { return s_ < a.s_; }
+  bool operator<(const StringLike& a) const { return s_ < a.s_; }
 
   static void clear_constructor_call_count() { constructor_calls_ = 0; }
 
@@ -285,7 +285,7 @@ TEST(Btree, HeterogeneousLookupDoesntDegradePerformance) {
 struct SubstringLess {
   SubstringLess() = delete;
   explicit SubstringLess(int length) : n(length) {}
-  bool operator()(const std::string &a, const std::string &b) const {
+  bool operator()(const std::string& a, const std::string& b) const {
     return absl::string_view(a).substr(0, n) <
            absl::string_view(b).substr(0, n);
   }
@@ -514,7 +514,7 @@ TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
   EXPECT_TRUE((BtreeNodePeer::DestroyIsTrivial<absl::btree_map<int, int>>()));
   absl::btree_map<std::string, std::unique_ptr<std::string>> m;
 
-  std::unique_ptr<std::string> &v = m["A"];
+  std::unique_ptr<std::string>& v = m["A"];
   EXPECT_TRUE(v == nullptr);
   v = std::make_unique<std::string>("X");
 
@@ -677,8 +677,8 @@ class SizedBtreeSet
 template <typename Set>
 void ExpectOperationCounts(const int expected_moves,
                            const int expected_comparisons,
-                           const std::vector<int> &values,
-                           InstanceTracker *tracker, Set *set) {
+                           const std::vector<int>& values,
+                           InstanceTracker* tracker, Set* set) {
   for (const int v : values) set->insert(MovableOnlyInstance(v));
   set->clear();
   EXPECT_EQ(tracker->moves(), expected_moves);
@@ -716,7 +716,7 @@ TEST(Btree, MovesComparisonsCopiesSwapsTracking) {
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set4)>(), 4);
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set61)>(), 61);
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set100)>(), 100);
-  if (sizeof(void *) == 8) {
+  if (sizeof(void*) == 8) {
     EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<absl::btree_set<int32_t>>(),
               // When we have generations, there is one fewer slot.
               BtreeGenerationsEnabled() ? 60 : 61);
@@ -741,8 +741,8 @@ TEST(Btree, MovesComparisonsCopiesSwapsTracking) {
 }
 
 struct MovableOnlyInstanceThreeWayCompare {
-  absl::weak_ordering operator()(const MovableOnlyInstance &a,
-                                 const MovableOnlyInstance &b) const {
+  absl::weak_ordering operator()(const MovableOnlyInstance& a,
+                                 const MovableOnlyInstance& b) const {
     return a.compare(b);
   }
 };
@@ -774,7 +774,7 @@ TEST(Btree, MovesComparisonsCopiesSwapsTrackingThreeWayCompare) {
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set4)>(), 4);
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set61)>(), 61);
   EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<decltype(set100)>(), 100);
-  if (sizeof(void *) == 8) {
+  if (sizeof(void*) == 8) {
     EXPECT_EQ(BtreeNodePeer::GetNumSlotsPerNode<absl::btree_set<int32_t>>(),
               // When we have generations, there is one fewer slot.
               BtreeGenerationsEnabled() ? 60 : 61);
@@ -802,7 +802,7 @@ struct NoDefaultCtor {
   int num;
   explicit NoDefaultCtor(int i) : num(i) {}
 
-  friend bool operator<(const NoDefaultCtor &a, const NoDefaultCtor &b) {
+  friend bool operator<(const NoDefaultCtor& a, const NoDefaultCtor& b) {
     return a.num < b.num;
   }
 };
@@ -863,7 +863,7 @@ TEST(Btree, MapAt) {
   EXPECT_EQ(map.at(1), 2);
   EXPECT_EQ(map.at(2), 4);
   map.at(2) = 8;
-  const absl::btree_map<int, int> &const_map = map;
+  const absl::btree_map<int, int>& const_map = map;
   EXPECT_EQ(const_map.at(1), 2);
   EXPECT_EQ(const_map.at(2), 8);
 #ifdef ABSL_HAVE_EXCEPTIONS
@@ -1397,10 +1397,10 @@ TEST(Btree, ExtractDoesntCauseExtraMoves) {
 #endif
 
   using Set = absl::btree_set<MovableOnlyInstance>;
-  std::array<std::function<void(Set &)>, 3> extracters = {
-      [](Set &s) { auto node = s.extract(s.begin()); },
-      [](Set &s) { auto ret = s.extract_and_get_next(s.begin()); },
-      [](Set &s) { auto node = s.extract(MovableOnlyInstance(0)); }};
+  std::array<std::function<void(Set&)>, 3> extracters = {
+      [](Set& s) { auto node = s.extract(s.begin()); },
+      [](Set& s) { auto ret = s.extract_and_get_next(s.begin()); },
+      [](Set& s) { auto node = s.extract(MovableOnlyInstance(0)); }};
 
   InstanceTracker tracker;
   for (int i = 0; i < 3; ++i) {
@@ -1585,19 +1585,19 @@ TEST(Btree, MergeIntoSetMovableOnly) {
 
 struct KeyCompareToWeakOrdering {
   template <typename T>
-  absl::weak_ordering operator()(const T &a, const T &b) const {
-    return a < b ? absl::weak_ordering::less
-                 : a == b ? absl::weak_ordering::equivalent
-                          : absl::weak_ordering::greater;
+  absl::weak_ordering operator()(const T& a, const T& b) const {
+    return a < b    ? absl::weak_ordering::less
+           : a == b ? absl::weak_ordering::equivalent
+                    : absl::weak_ordering::greater;
   }
 };
 
 struct KeyCompareToStrongOrdering {
   template <typename T>
-  absl::strong_ordering operator()(const T &a, const T &b) const {
-    return a < b ? absl::strong_ordering::less
-                 : a == b ? absl::strong_ordering::equal
-                          : absl::strong_ordering::greater;
+  absl::strong_ordering operator()(const T& a, const T& b) const {
+    return a < b    ? absl::strong_ordering::less
+           : a == b ? absl::strong_ordering::equal
+                    : absl::strong_ordering::greater;
   }
 };
 
@@ -1738,9 +1738,7 @@ TEST(Btree, TryEmplaceWithHintAndMultipleValueArgsWorks) {
 template <typename Alloc>
 using BtreeSetAlloc = absl::btree_set<int, std::less<int>, Alloc>;
 
-TEST(Btree, AllocatorPropagation) {
-  TestAllocPropagation<BtreeSetAlloc>();
-}
+TEST(Btree, AllocatorPropagation) { TestAllocPropagation<BtreeSetAlloc>(); }
 
 TEST(Btree, MinimumAlignmentAllocator) {
   absl::btree_set<int8_t, std::less<int8_t>, MinimumAlignmentAlloc<int8_t>> set;
@@ -1902,10 +1900,10 @@ struct ConstructorCounted {
 int ConstructorCounted::constructor_calls = 0;
 
 struct ConstructorCountedCompare {
-  bool operator()(int a, const ConstructorCounted &b) const { return a < b.i; }
-  bool operator()(const ConstructorCounted &a, int b) const { return a.i < b; }
-  bool operator()(const ConstructorCounted &a,
-                  const ConstructorCounted &b) const {
+  bool operator()(int a, const ConstructorCounted& b) const { return a < b.i; }
+  bool operator()(const ConstructorCounted& a, int b) const { return a.i < b; }
+  bool operator()(const ConstructorCounted& a,
+                  const ConstructorCounted& b) const {
     return a.i < b.i;
   }
   using is_transparent = void;
@@ -1930,10 +1928,10 @@ TEST(Btree,
      SetRangeConstructorAndInsertSupportExplicitConversionNonComparable) {
   const int i[] = {0, 1};
 
-  absl::btree_set<std::vector<void *>> s1{std::begin(i), std::end(i)};
+  absl::btree_set<std::vector<void*>> s1{std::begin(i), std::end(i)};
   EXPECT_THAT(s1, ElementsAre(IsEmpty(), ElementsAre(IsNull())));
 
-  absl::btree_set<std::vector<void *>> s2;
+  absl::btree_set<std::vector<void*>> s2;
   s2.insert(std::begin(i), std::end(i));
   EXPECT_THAT(s2, ElementsAre(IsEmpty(), ElementsAre(IsNull())));
 }
@@ -1975,11 +1973,11 @@ TEST(Btree,
      MapRangeConstructorAndInsertSupportExplicitConversionNonComparable) {
   const std::pair<int, int> i[] = {{0, 1}, {1, 2}};
 
-  absl::btree_map<std::vector<void *>, int> m1{std::begin(i), std::end(i)};
+  absl::btree_map<std::vector<void*>, int> m1{std::begin(i), std::end(i)};
   EXPECT_THAT(m1,
               ElementsAre(Pair(IsEmpty(), 1), Pair(ElementsAre(IsNull()), 2)));
 
-  absl::btree_map<std::vector<void *>, int> m2;
+  absl::btree_map<std::vector<void*>, int> m2;
   m2.insert(std::begin(i), std::end(i));
   EXPECT_THAT(m2,
               ElementsAre(Pair(IsEmpty(), 1), Pair(ElementsAre(IsNull()), 2)));
@@ -2160,8 +2158,7 @@ TYPED_TEST(BtreeMultiKeyTest, Extract) {
 }
 
 TYPED_TEST(BtreeMultiKeyTest, Erase) {
-  absl::btree_set<MultiKey, TypeParam> set = {
-      {1, 1}, {2, 1}, {2, 2}, {3, 1}};
+  absl::btree_set<MultiKey, TypeParam> set = {{1, 1}, {2, 1}, {2, 2}, {3, 1}};
   EXPECT_EQ(set.erase(2), 2);
   EXPECT_THAT(set, ElementsAre(MultiKey{1, 1}, MultiKey{3, 1}));
 }
@@ -2280,13 +2277,13 @@ TEST(Btree, AllocMoveConstructor_DifferentAlloc) {
 bool IntCmp(const int a, const int b) { return a < b; }
 
 TEST(Btree, SupportsFunctionPtrComparator) {
-  absl::btree_set<int, decltype(IntCmp) *> set(IntCmp);
+  absl::btree_set<int, decltype(IntCmp)*> set(IntCmp);
   set.insert({1, 2, 3});
   EXPECT_THAT(set, ElementsAre(1, 2, 3));
   EXPECT_TRUE(set.key_comp()(1, 2));
   EXPECT_TRUE(set.value_comp()(1, 2));
 
-  absl::btree_map<int, int, decltype(IntCmp) *> map(&IntCmp);
+  absl::btree_map<int, int, decltype(IntCmp)*> map(&IntCmp);
   map[1] = 1;
   EXPECT_THAT(map, ElementsAre(Pair(1, 1)));
   EXPECT_TRUE(map.key_comp()(1, 2));
@@ -2301,7 +2298,7 @@ struct TransparentPassThroughComp {
   // support, and the failure will happen inside the function implementation so
   // it can't be avoided by using SFINAE on this comparator.
   template <typename T, typename U>
-  bool operator()(const T &lhs, const U &rhs) const {
+  bool operator()(const T& lhs, const U& rhs) const {
     return Compare()(lhs, rhs);
   }
 };
@@ -2423,17 +2420,17 @@ TEST(Btree, MutatedKeysCaught) {
   if (!IsAssertEnabled()) GTEST_SKIP() << "Assertions not enabled.";
 
   struct IntPtrCmp {
-    bool operator()(int *lhs, int *rhs) const { return *lhs < *rhs; }
+    bool operator()(int* lhs, int* rhs) const { return *lhs < *rhs; }
   };
   {
-    absl::btree_set<int *, IntPtrCmp> set;
+    absl::btree_set<int*, IntPtrCmp> set;
     int arr[] = {0, 1, 2};
     set.insert({&arr[0], &arr[1], &arr[2]});
     arr[0] = 100;
     EXPECT_DEATH(set.insert(&arr[0]), "is_ordered_correctly");
   }
   {
-    absl::btree_multiset<int *, IntPtrCmp> set;
+    absl::btree_multiset<int*, IntPtrCmp> set;
     int arr[] = {0, 1, 2};
     set.insert({&arr[0], &arr[0], &arr[1], &arr[1], &arr[2], &arr[2]});
     arr[0] = 100;
@@ -2449,7 +2446,7 @@ TEST(Btree, InvalidIteratorUse) {
 
   // Invalid memory use can trigger use-after-free in ASan, HWASAN or
   // invalidated iterator assertions.
-  constexpr const char *kInvalidMemoryDeathMessage =
+  constexpr const char* kInvalidMemoryDeathMessage =
       "use-after-free|invalidated iterator";
 
   {
@@ -2489,10 +2486,10 @@ class OnlyConstructibleByAllocator {
   explicit OnlyConstructibleByAllocator(int i) : i_(i) {}
 
  public:
-  OnlyConstructibleByAllocator(const OnlyConstructibleByAllocator &other)
+  OnlyConstructibleByAllocator(const OnlyConstructibleByAllocator& other)
       : i_(other.i_) {}
-  OnlyConstructibleByAllocator &operator=(
-      const OnlyConstructibleByAllocator &other) {
+  OnlyConstructibleByAllocator& operator=(
+      const OnlyConstructibleByAllocator& other) {
     i_ = other.i_;
     return *this;
   }
@@ -2511,13 +2508,13 @@ class OnlyConstructibleAllocator : public std::allocator<T> {
  public:
   OnlyConstructibleAllocator() = default;
   template <class U>
-  explicit OnlyConstructibleAllocator(const OnlyConstructibleAllocator<U> &) {}
+  explicit OnlyConstructibleAllocator(const OnlyConstructibleAllocator<U>&) {}
 
-  void construct(OnlyConstructibleByAllocator *p, int i) {
+  void construct(OnlyConstructibleByAllocator* p, int i) {
     new (p) OnlyConstructibleByAllocator(i);
   }
   template <typename Pair>
-  void construct(Pair *p, const int i) {
+  void construct(Pair* p, const int i) {
     OnlyConstructibleByAllocator only(i);
     new (p) Pair(std::move(only), i);
   }
@@ -2592,8 +2589,8 @@ TEST(Btree, OnlyConstructibleByAllocatorType) {
 class NotAssignable {
  public:
   explicit NotAssignable(int i) : i_(i) {}
-  NotAssignable(const NotAssignable &other) : i_(other.i_) {}
-  NotAssignable &operator=(NotAssignable &&other) = delete;
+  NotAssignable(const NotAssignable& other) : i_(other.i_) {}
+  NotAssignable& operator=(NotAssignable&& other) = delete;
   int Get() const { return i_; }
   bool operator==(int i) const { return i_ == i; }
   friend bool operator<(NotAssignable a, NotAssignable b) {
@@ -2669,12 +2666,12 @@ class ArenaLikeAllocator : public std::allocator<T> {
 
   ~ArenaLikeAllocator() {
     if (arena_->recycled != nullptr) {
-      delete [] static_cast<T*>(arena_->recycled);
+      delete[] static_cast<T*>(arena_->recycled);
       arena_->recycled = nullptr;
     }
   }
 
-  template<typename U>
+  template <typename U>
   explicit ArenaLikeAllocator(const ArenaLikeAllocator<U>& other) noexcept
       : arena_(other.arena_) {}
 
@@ -2699,7 +2696,7 @@ class ArenaLikeAllocator : public std::allocator<T> {
       arena_->recycled = p;
       arena_->recycled_size = size;
     } else {
-      delete [] p;
+      delete[] p;
     }
   }
 
@@ -2848,7 +2845,7 @@ TEST(Btree, InvalidIteratorComparison) {
   EXPECT_DEATH(void(set1.begin() == iter1), "");
   EXPECT_DEATH(void(iter1 == set1.begin()), "");
 
-  constexpr const char *kDifferentContainerDeathMessage =
+  constexpr const char* kDifferentContainerDeathMessage =
       "Comparing iterators from different containers";
   iter1 = set1.begin();
   iter2 = set2.begin();
@@ -2862,7 +2859,7 @@ TEST(Btree, InvalidPointerUse) {
 
   absl::btree_set<int> set;
   set.insert(0);
-  const int *ptr = &*set.begin();
+  const int* ptr = &*set.begin();
   set.insert(1);
   EXPECT_DEATH(std::cout << *ptr, "use-after-free");
   size_t slots_per_node = BtreeNodePeer::GetNumSlotsPerNode<decltype(set)>();
@@ -2872,21 +2869,25 @@ TEST(Btree, InvalidPointerUse) {
   EXPECT_DEATH(std::cout << *ptr, "use-after-free");
 }
 
-template<typename Set>
+template <typename Set>
 void TestBasicFunctionality(Set set) {
   using value_type = typename Set::value_type;
-  for (int i = 0; i < 100; ++i) { set.insert(value_type(i)); }
-  for (int i = 50; i < 100; ++i) { set.erase(value_type(i)); }
+  for (int i = 0; i < 100; ++i) {
+    set.insert(value_type(i));
+  }
+  for (int i = 50; i < 100; ++i) {
+    set.erase(value_type(i));
+  }
   auto it = set.begin();
   for (int i = 0; i < 50; ++i, ++it) {
     ASSERT_EQ(set.find(value_type(i)), it) << i;
   }
 }
 
-template<size_t align>
+template <size_t align>
 struct alignas(align) OveralignedKey {
   explicit OveralignedKey(int i) : key(i) {}
-  bool operator<(const OveralignedKey &other) const { return key < other.key; }
+  bool operator<(const OveralignedKey& other) const { return key < other.key; }
   int key = 0;
 };
 
@@ -2938,8 +2939,8 @@ TEST(BtreeTest, SetParamsStripsDefaults) {
                               set_p_impl<K, XA, DB, XC>>));
   EXPECT_TRUE((std::is_same_v<set_params<K, XA, DB, DC{}, XD{}>,
                               set_p_impl<K, XA, DB, DC, XD>>));
-  EXPECT_TRUE((std::is_same_v<set_params<K, XA, DB, DC{}, DD{}>,
-                              set_p_impl<K, XA>>));
+  EXPECT_TRUE(
+      (std::is_same_v<set_params<K, XA, DB, DC{}, DD{}>, set_p_impl<K, XA>>));
   EXPECT_TRUE((std::is_same_v<set_params<K, DA, XB, XC{}, XD{}>,
                               set_p_impl<K, DA, XB, XC, XD>>));
   EXPECT_TRUE((std::is_same_v<set_params<K, DA, XB, XC{}, DD{}>,
@@ -2954,8 +2955,8 @@ TEST(BtreeTest, SetParamsStripsDefaults) {
                               set_p_impl<K, DA, DB, XC>>));
   EXPECT_TRUE((std::is_same_v<set_params<K, DA, DB, DC{}, XD{}>,
                               set_p_impl<K, DA, DB, DC, XD>>));
-  EXPECT_TRUE((std::is_same_v<set_params<K, DA, DB, DC{}, DD{}>,
-                              set_p_impl<K>>));
+  EXPECT_TRUE(
+      (std::is_same_v<set_params<K, DA, DB, DC{}, DD{}>, set_p_impl<K>>));
 }
 
 // Alias whose only purpose is to have the same length as map_params for better
@@ -3006,8 +3007,8 @@ TEST(BtreeTest, MapParamsStripsDefaults) {
                               map_p_impl<K, V, DA, DB, XC>>));
   EXPECT_TRUE((std::is_same_v<map_params<K, V, DA, DB, DC{}, XD{}>,
                               map_p_impl<K, V, DA, DB, DC, XD>>));
-  EXPECT_TRUE((std::is_same_v<map_params<K, V, DA, DB, DC{}, DD{}>,
-                              map_p_impl<K, V>>));
+  EXPECT_TRUE(
+      (std::is_same_v<map_params<K, V, DA, DB, DC{}, DD{}>, map_p_impl<K, V>>));
 }
 
 }  // namespace
