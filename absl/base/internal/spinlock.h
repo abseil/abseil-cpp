@@ -245,9 +245,6 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
       const std::atomic<uint32_t>* absl_nonnull lockword, int iterations);
   static void ProbeSpinLockLoop(int iterations);
 
-  // Target duration of SpinLoop() on multi-CPU hosts.
-  static constexpr int64_t kSpinNanoseconds = 500;
-
   inline bool TryLockImpl() {
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
     return (TryLockInternal(lock_value, 0) & kSpinLockHeld) == 0;
@@ -304,10 +301,14 @@ void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
 void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
     const void* absl_nonnull lock, int64_t wait_cycles));
 
-// Returns the number of `probe_fn` spin-loop iterations that take about
-// `target_ns` nanoseconds, clamped to a safe range.
-int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations),
-                            int64_t target_ns);
+// Calibrates the number of `probe_fn` spin-loop iterations for a target
+// duration scaled inversely with NumCPUs(), clamped to a safe range.
+int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations));
+
+// Returns the target spin duration in nanoseconds for a host with `num_cpus`
+// CPUs. Exposed for testing.
+int64_t TargetSpinNanoseconds(int num_cpus);
+
 //------------------------------------------------------------------------------
 // Public interface ends here.
 //------------------------------------------------------------------------------

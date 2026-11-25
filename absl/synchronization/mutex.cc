@@ -1590,9 +1590,6 @@ ABSL_ATTRIBUTE_NOINLINE static bool TryAcquireWithSpinning(
   return false;
 }
 
-// Target duration of TryAcquireWithSpinning() on multi-CPU hosts.
-static constexpr int64_t kSpinNanoseconds = 800;
-
 ABSL_ATTRIBUTE_NOINLINE static void ProbeMutexSpinLoop(int iterations) {
   std::atomic<intptr_t> mu{kMuWriter};
   ABSL_RAW_CHECK(!TryAcquireWithSpinning(&mu, iterations),
@@ -1916,8 +1913,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::LockSlow(MuHow how, const Condition* cond,
     if (absl::base_internal::NumCPUs() > 1) {
       // If this is multiprocessor, allow spinning.
       globals.spinloop_iterations.store(
-          absl::base_internal::CalibrateSpinIterations(&ProbeMutexSpinLoop,
-                                                       kSpinNanoseconds),
+          absl::base_internal::CalibrateSpinIterations(&ProbeMutexSpinLoop),
           std::memory_order_relaxed);
     } else {
       // If this a uniprocessor, only yield/sleep.

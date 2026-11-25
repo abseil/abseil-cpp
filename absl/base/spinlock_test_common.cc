@@ -57,7 +57,6 @@ struct SpinLockTest {
 
   static bool IsCooperative(const SpinLock& l) { return l.IsCooperative(); }
 
-  static constexpr int64_t kSpinNanoseconds = SpinLock::kSpinNanoseconds;
   static uint32_t SpinLoop(SpinLock& l) { return l.SpinLoop(); }
   static void SetAdaptiveSpinCount(int count) {
     SpinLock::SetAdaptiveSpinCount(count);
@@ -302,6 +301,18 @@ TEST(SpinLockTest, IsCooperative) {
 TEST(SpinLockTest, ScopedLock) {
   SpinLock s;
   std::scoped_lock l(s);
+}
+
+TEST(SpinLockTest, TargetSpinNanosecondsScalesWithNumCPUs) {
+  const int64_t ref_ns = TargetSpinNanoseconds(64);
+  // Smaller hosts use the 64-CPU reference duration.
+  EXPECT_EQ(TargetSpinNanoseconds(2), ref_ns);
+  EXPECT_EQ(TargetSpinNanoseconds(16), ref_ns);
+  EXPECT_EQ(TargetSpinNanoseconds(32), ref_ns);
+  // Above 64 CPUs, doubling CPU count halves the target duration.
+  EXPECT_EQ(TargetSpinNanoseconds(128), ref_ns / 2);
+  EXPECT_EQ(TargetSpinNanoseconds(256), ref_ns / 4);
+  EXPECT_GT(TargetSpinNanoseconds(256), TargetSpinNanoseconds(512));
 }
 
 }  // namespace
