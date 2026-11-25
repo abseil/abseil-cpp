@@ -92,16 +92,24 @@ struct common_policy_traits {
   }
 
   static constexpr bool transfer_uses_memcpy() {
-    return std::is_same_v<decltype(transfer_impl<std::allocator<char>>(
-                              nullptr, nullptr, nullptr)),
-                          std::true_type>;
+    using R = decltype(transfer_impl<std::allocator<char>>(nullptr, nullptr,
+                                                           nullptr));
+    if constexpr (std::is_void_v<R>) {
+      return false;
+    } else {
+      return R::value;
+    }
   }
 
   // Returns true if destroy is trivial and can be omitted.
   template <class Alloc>
   static constexpr bool destroy_is_trivial() {
-    return std::is_same_v<decltype(destroy<Alloc>(nullptr, nullptr)),
-                          std::true_type>;
+    using R = decltype(destroy<Alloc>(nullptr, nullptr));
+    if constexpr (std::is_void_v<R>) {
+      return false;
+    } else {
+      return R::value;
+    }
   }
 
  private:

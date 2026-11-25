@@ -115,14 +115,11 @@ void* Allocate(Alloc* alloc, size_t n) {
 // Returns true if the destruction of the value with given Allocator will be
 // trivial.
 template <class Allocator, class ValueType>
-constexpr auto IsDestructionTrivial() {
-  constexpr bool result =
-      std::is_trivially_destructible_v<ValueType> &&
-      std::is_same_v<typename std::allocator_traits<
-                         Allocator>::template rebind_alloc<char>,
-                     std::allocator<char>>;
-  return std::bool_constant<result>();
-}
+using IsDestructionTrivial = std::conditional_t<
+    std::is_same_v<
+        typename std::allocator_traits<Allocator>::template rebind_alloc<char>,
+        std::allocator<char>>,
+    std::is_trivially_destructible<ValueType>, std::false_type>;
 
 // The pointer must have been previously obtained by calling
 // Allocate<Alignment>(alloc, n).
@@ -472,7 +469,7 @@ struct map_slot_policy {
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
     emplace(slot);
-    if (kMutableKeys::value) {
+    if constexpr (kMutableKeys::value) {
       std::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
                                                   std::forward<Args>(args)...);
     } else {
@@ -485,7 +482,7 @@ struct map_slot_policy {
   template <class Allocator>
   static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
     emplace(slot);
-    if (kMutableKeys::value) {
+    if constexpr (kMutableKeys::value) {
       std::allocator_traits<Allocator>::construct(
           *alloc, &slot->mutable_value, std::move(other->mutable_value));
     } else {
@@ -504,46 +501,50 @@ struct map_slot_policy {
   }
 
   template <class Allocator>
-  static auto destroy(Allocator* alloc, slot_type* slot) {
-    if (kMutableKeys::value) {
+  static IsDestructionTrivial<Allocator, value_type> destroy(Allocator* alloc,
+                                                             slot_type* slot) {
+    if constexpr (kMutableKeys::value) {
       std::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
     } else {
       std::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
     }
-    return IsDestructionTrivial<Allocator, value_type>();
+    return {};
   }
 
   template <class Allocator>
-  static auto transfer(Allocator* alloc, slot_type* new_slot,
-                       slot_type* old_slot) {
+  static std::bool_constant<
+      absl::is_trivially_relocatable<typename std::conditional_t<
+          false, Allocator, value_type>::first_type>::value &&
+      absl::is_trivially_relocatable<typename std::conditional_t<
+          false, Allocator, value_type>::second_type>::value>
+  transfer(Allocator* alloc, slot_type* new_slot, slot_type* old_slot) {
+    emplace(new_slot);
+
     // This should really just be
     // typename absl::is_trivially_relocatable<value_type>::type()
     // but std::pair is not trivially copyable in C++23 in some standard
     // library versions.
     // See https://github.com/llvm/llvm-project/pull/95444 for instance.
-    auto is_relocatable = typename std::conjunction<
-        absl::is_trivially_relocatable<typename value_type::first_type>,
-        absl::is_trivially_relocatable<typename value_type::second_type>>::
-        type();
-
-    emplace(new_slot);
-    if (is_relocatable) {
+    if constexpr (absl::is_trivially_relocatable<
+                      typename value_type::first_type>::value &&
+                  absl::is_trivially_relocatable<
+                      typename value_type::second_type>::value) {
       // TODO(b/247130232,b/251814870): remove casts after fixing warnings.
       std::memcpy(static_cast<void*>(std::launder(&new_slot->value)),
                   static_cast<const void*>(&old_slot->value),
                   sizeof(value_type));
-      return is_relocatable;
-    }
-
-    if (kMutableKeys::value) {
-      std::allocator_traits<Allocator>::construct(
-          *alloc, &new_slot->mutable_value, std::move(old_slot->mutable_value));
     } else {
-      std::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
-                                                  std::move(old_slot->value));
+      if constexpr (kMutableKeys::value) {
+        std::allocator_traits<Allocator>::construct(
+            *alloc, &new_slot->mutable_value,
+            std::move(old_slot->mutable_value));
+      } else {
+        std::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
+                                                    std::move(old_slot->value));
+      }
+      destroy(alloc, old_slot);
     }
-    destroy(alloc, old_slot);
-    return is_relocatable;
+    return {};
   }
 };
 
@@ -579,9 +580,10 @@ struct HashElement {
       // "absl::hash_internal::SupportsHashWithSeed" is directly included`.
       // Maybe we should make "internal/hash.h" be a separate library.
       return absl::hash_internal::HashWithSeed().hash(hash, key, seed);
+    } else {
+      // NOLINTNEXTLINE(clang-diagnostic-sign-conversion)
+      return hash(key) ^ seed;
     }
-    // NOLINTNEXTLINE(clang-diagnostic-sign-conversion)
-    return hash(key) ^ seed;
   }
   ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
   type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
@@ -693,9 +695,10 @@ constexpr HashSlotFn GetTypeErasedApplyToSlotFn() {
     return &TypeErasedApplyAbslHashToSlotFn<
         decltype(absl::hash_internal::CanonicalHasher<NonConstT>()),
         kDerefSlot>;
+  } else {
+    return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift,
+                                    kDerefSlot>;
   }
-  return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift,
-                                  kDerefSlot>;
 }
 
 }  // namespace container_internal
