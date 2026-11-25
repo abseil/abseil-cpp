@@ -17,7 +17,6 @@
 
 #include <algorithm>
 #include <initializer_list>
-#include <iterator>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -28,7 +27,6 @@
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/common.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
-#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -135,7 +133,7 @@ class btree_container {
   template <typename K = key_type>
   size_type count(const key_arg<K> &key) const {
     auto equal_range = this->equal_range(key);
-    return equal_range.second - equal_range.first;
+    return static_cast<size_type>(equal_range.second - equal_range.first);
   }
   template <typename K = key_type>
   iterator find(const key_arg<K> &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -306,7 +304,7 @@ class btree_set_container : public btree_container<Tree> {
 
   // Inherit constructors.
   using super_type::super_type;
-  btree_set_container() {}
+  btree_set_container() = default;
 
   // Range constructors.
   template <class InputIterator>
@@ -489,7 +487,7 @@ class btree_map_container : public btree_set_container<Tree> {
 
   // Inherit constructors.
   using super_type::super_type;
-  btree_map_container() {}
+  btree_map_container() = default;
 
   // TODO(b/402804213): Remove these macros whenever we have a better mechanism
   // available to handle lifetime analysis.
@@ -731,7 +729,7 @@ class btree_multiset_container : public btree_container<Tree> {
 
   // Inherit constructors.
   using super_type::super_type;
-  btree_multiset_container() {}
+  btree_multiset_container() = default;
 
   // Range constructors.
   template <class InputIterator>
@@ -863,7 +861,7 @@ class btree_multimap_container : public btree_multiset_container<Tree> {
 
   // Inherit constructors.
   using super_type::super_type;
-  btree_multimap_container() {}
+  btree_multimap_container() = default;
 };
 
 }  // namespace container_internal

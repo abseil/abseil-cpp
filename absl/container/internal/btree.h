@@ -62,15 +62,12 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/container/internal/common.h"
 #include "absl/container/internal/common_policy_traits.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/layout.h"
-#include "absl/memory/memory.h"
-#include "absl/meta/type_traits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
@@ -653,13 +650,13 @@ class btree_node {
   // N is the index of the type in the Layout definition.
   // ElementType<N> is the Nth type in the Layout definition.
   template <size_type N>
-  inline typename layout_type::template ElementType<N>* GetField() {
+  typename layout_type::template ElementType<N>* GetField() {
     // We assert that we don't read from values that aren't there.
     assert(N < 4 || is_internal());
     return InternalLayout().template Pointer<N>(reinterpret_cast<char*>(this));
   }
   template <size_type N>
-  inline const typename layout_type::template ElementType<N>* GetField() const {
+  const typename layout_type::template ElementType<N>* GetField() const {
     assert(N < 4 || is_internal());
     return InternalLayout().template Pointer<N>(
         reinterpret_cast<const char*>(this));
@@ -727,7 +724,7 @@ class btree_node {
 
   // Gets the root node's generation integer, which is the one used by the tree.
   uint32_t* get_root_generation() const {
-    assert(BtreeGenerationsEnabled());
+    assert(BtreeGenerationsEnabled());  // NOLINT(misc-static-assert)
     const btree_node* curr = this;
     for (; !curr->is_root(); curr = curr->parent()) continue;
     return const_cast<uint32_t*>(&curr->GetField<1>()[0]);
@@ -3144,7 +3141,8 @@ typename btree<P>::size_type btree<P>::internal_verify(
   if (hi) {
     assert(!compare_keys(*hi, node->key(node->finish() - 1)));
   }
-  for (int i = node->start() + 1; i < node->finish(); ++i) {
+  for (size_type i = static_cast<size_type>(node->start()) + 1;
+       i < static_cast<size_type>(node->finish()); ++i) {
     assert(!compare_keys(node->key(i), node->key(i - 1)));
   }
   size_type count = node->count();
@@ -3165,6 +3163,7 @@ struct btree_access {
   template <typename BtreeContainer, typename Pred>
   static auto erase_if(BtreeContainer& container, Pred pred) ->
       typename BtreeContainer::size_type {
+    using size_type = typename BtreeContainer::size_type;
     const auto initial_size = container.size();
     auto& tree = container.tree_;
     auto* alloc = tree.mutable_allocator();
@@ -3190,11 +3189,13 @@ struct btree_access {
         if (pred(*it)) {
           node->value_destroy(it.position_, alloc);
         } else {
-          node->transfer(node->slot(to_pos++), node->slot(it.position_), alloc);
+          node->transfer(node->slot(static_cast<size_type>(to_pos++)),
+                         node->slot(static_cast<size_type>(it.position_)),
+                         alloc);
         }
       }
       const int num_deleted = node->finish() - to_pos;
-      tree.size_ -= num_deleted;
+      tree.size_ -= static_cast<size_type>(num_deleted);
       node->set_finish(to_pos);
       it.position_ = to_pos;
       it = tree.rebalance_after_delete(it);

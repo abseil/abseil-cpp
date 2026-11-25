@@ -77,20 +77,21 @@ void BM_InsertImpl(benchmark::State& state, bool sorted) {
   T container(values.begin(), values.end());
 
   // Remove and re-insert 10% of the keys per batch.
-  const int batch_size = (kBenchmarkValues + 9) / 10;
-  while (state.KeepRunningBatch(batch_size)) {
+  const size_t batch_size = (kBenchmarkValues + 9) / 10;
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(batch_size))) {
     state.PauseTiming();
-    const auto i = static_cast<int>(state.iterations());
+    const auto i = static_cast<size_t>(state.iterations());
 
-    for (int j = i; j < i + batch_size; j++) {
-      int x = j % kBenchmarkValues;
+    for (size_t j = i; j < i + batch_size; j++) {
+      size_t x = j % kBenchmarkValues;
       container.erase(key_of_value(values[x]));
     }
 
     state.ResumeTiming();
 
-    for (int j = i; j < i + batch_size; j++) {
-      int x = j % kBenchmarkValues;
+    for (size_t j = i; j < i + batch_size; j++) {
+      size_t x = j % kBenchmarkValues;
       container.insert(values[x]);
     }
   }
@@ -117,8 +118,8 @@ void BM_InsertSmall(benchmark::State& state) {
   T container;
 
   while (state.KeepRunningBatch(kSize)) {
-    for (int i = 0; i < kSize; ++i) {
-      benchmark::DoNotOptimize(container.insert(values[i]));
+    for (const V& value : values) {
+      benchmark::DoNotOptimize(container.insert(value));
     }
     state.PauseTiming();
     // Do not measure the time it takes to clear the container.
@@ -139,7 +140,7 @@ void BM_LookupImpl(benchmark::State& state, bool sorted) {
   T container(values.begin(), values.end());
 
   while (state.KeepRunning()) {
-    int idx = state.iterations() % kBenchmarkValues;
+    size_t idx = static_cast<size_t>(state.iterations()) % kBenchmarkValues;
     benchmark::DoNotOptimize(container.find(key_of_value(values[idx])));
   }
 }
@@ -167,18 +168,19 @@ void BM_Erase(benchmark::State& state) {
   T container(values.begin(), values.end());
 
   // Remove and re-insert 10% of the keys per batch.
-  const int batch_size = (kBenchmarkValues + 9) / 10;
-  while (state.KeepRunningBatch(batch_size)) {
-    const int i = state.iterations();
+  const size_t batch_size = (kBenchmarkValues + 9) / 10;
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(batch_size))) {
+    const auto i = static_cast<size_t>(state.iterations());
 
-    for (int j = i; j < i + batch_size; j++) {
-      int x = j % kBenchmarkValues;
+    for (size_t j = i; j < i + batch_size; j++) {
+      size_t x = j % kBenchmarkValues;
       container.erase(key_of_value(values[x]));
     }
 
     state.PauseTiming();
-    for (int j = i; j < i + batch_size; j++) {
-      int x = j % kBenchmarkValues;
+    for (size_t j = i; j < i + batch_size; j++) {
+      size_t x = j % kBenchmarkValues;
       container.insert(values[x]);
     }
     state.ResumeTiming();
@@ -194,11 +196,12 @@ void BM_EraseRange(benchmark::State& state) {
   T container(values.begin(), values.end());
 
   // Remove and re-insert 10% of the keys per batch.
-  const int batch_size = (kBenchmarkValues + 9) / 10;
-  while (state.KeepRunningBatch(batch_size)) {
-    const int i = state.iterations();
+  const size_t batch_size = (kBenchmarkValues + 9) / 10;
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(batch_size))) {
+    const auto i = static_cast<size_t>(state.iterations());
 
-    const int start_index = i % kBenchmarkValues;
+    const size_t start_index = i % kBenchmarkValues;
 
     state.PauseTiming();
     {
@@ -206,7 +209,7 @@ void BM_EraseRange(benchmark::State& state) {
       removed.reserve(batch_size);
       auto itr = container.find(key_of_value(values[start_index]));
       auto start = itr;
-      for (int j = 0; j < batch_size; j++) {
+      for (size_t j = 0; j < batch_size; j++) {
         if (itr == container.end()) {
           state.ResumeTiming();
           container.erase(start, itr);
@@ -275,23 +278,22 @@ void BM_QueueAddRem(benchmark::State& state) {
 
   T container;
 
-  const size_t half = kBenchmarkValues / 2;
-  std::vector<int> remove_keys(half);
-  std::vector<int> add_keys(half);
+  const int half = kBenchmarkValues / 2;
+  std::vector<int> remove_keys(static_cast<size_t>(half));
+  std::vector<int> add_keys(static_cast<size_t>(half));
 
   // We want to do the exact same work repeatedly, and the benchmark can end
   // after a different number of iterations depending on the speed of the
   // individual run so we use a large batch size here and ensure that we do
   // deterministic work every batch.
-  while (state.KeepRunningBatch(half * kAddRemBatchSize)) {
+  while (state.KeepRunningBatch(static_cast<benchmark::IterationCount>(half) *
+                                kAddRemBatchSize)) {
     state.PauseTiming();
 
     container.clear();
 
-    for (size_t i = 0; i < half; ++i) {
-      remove_keys[i] = i;
-      add_keys[i] = i;
-    }
+    std::iota(remove_keys.begin(), remove_keys.end(), 0);
+    std::iota(add_keys.begin(), add_keys.end(), 0);
     constexpr int kSeed = 5;
     std::mt19937_64 rand(kSeed);
     std::shuffle(remove_keys.begin(), remove_keys.end(), rand);
@@ -300,7 +302,7 @@ void BM_QueueAddRem(benchmark::State& state) {
     // Note needs lazy generation of values.
     Generator<V> g(kBenchmarkValues * kAddRemBatchSize);
 
-    for (size_t i = 0; i < half; ++i) {
+    for (size_t i = 0; i < remove_keys.size(); ++i) {
       container.insert(g(add_keys[i]));
       container.insert(g(half + remove_keys[i]));
     }
@@ -309,7 +311,7 @@ void BM_QueueAddRem(benchmark::State& state) {
     // 1 is being deleted from  [offset - half, offset)
     // 2 is standing            [offset, offset + half)
     // 3 is being inserted into [offset + half, offset + 2 * half)
-    size_t offset = 0;
+    int offset = 0;
 
     for (size_t i = 0; i < kAddRemBatchSize; ++i) {
       std::shuffle(remove_keys.begin(), remove_keys.end(), rand);
@@ -317,7 +319,7 @@ void BM_QueueAddRem(benchmark::State& state) {
       offset += half;
 
       state.ResumeTiming();
-      for (size_t idx = 0; idx < half; ++idx) {
+      for (size_t idx = 0; idx < remove_keys.size(); ++idx) {
         container.erase(key_of_value(g(offset - half + remove_keys[idx])));
         container.insert(g(offset + half + add_keys[idx]));
       }
@@ -338,8 +340,8 @@ void BM_MixedAddRem(benchmark::State& state) {
   T container;
 
   // Create two random shuffles
-  std::vector<int> remove_keys(kBenchmarkValues);
-  std::vector<int> add_keys(kBenchmarkValues);
+  std::vector<size_t> remove_keys(kBenchmarkValues);
+  std::vector<size_t> add_keys(kBenchmarkValues);
 
   // We want to do the exact same work repeatedly, and the benchmark can end
   // after a different number of iterations depending on the speed of the
@@ -393,15 +395,17 @@ void BM_Fifo(benchmark::State& state) {
 
   T container;
   // Need lazy generation of values as state.max_iterations is large.
-  Generator<V> g(kBenchmarkValues + state.max_iterations);
+  Generator<V> g(static_cast<int>(kBenchmarkValues) +
+                 static_cast<int>(state.max_iterations));
 
-  for (int i = 0; i < kBenchmarkValues; i++) {
+  for (int i = 0; i < static_cast<int>(kBenchmarkValues); i++) {
     container.insert(g(i));
   }
 
   while (state.KeepRunning()) {
     container.erase(container.begin());
-    container.insert(container.end(), g(state.iterations() + kBenchmarkValues));
+    container.insert(container.end(), g(static_cast<int>(state.iterations()) +
+                                        static_cast<int>(kBenchmarkValues)));
   }
 }
 
@@ -417,7 +421,7 @@ void BM_FwdIter(benchmark::State& state) {
 
   while (state.KeepRunning()) {
     if (iter == container.end()) iter = container.begin();
-    auto *v = &(*iter);
+    auto* v = &(*iter);
     benchmark::DoNotOptimize(v);
     benchmark::DoNotOptimize(++iter);
   }
@@ -465,6 +469,7 @@ STL_ORDERED_TYPES(StdString);
 STL_ORDERED_TYPES(Cord);
 STL_ORDERED_TYPES(Time);
 
+// NOLINTBEGIN(*-runtime-unneeded-pointer-stability-check)
 #define STL_UNORDERED_TYPES(value)                                       \
   using stl_unordered_set_##value = std::unordered_set<value>;           \
   using stl_unordered_map_##value = std::unordered_map<value, intptr_t>; \
@@ -482,6 +487,7 @@ STL_ORDERED_TYPES(Time);
   using stl_unordered_multiset_##value = std::unordered_multiset<value, hash>; \
   using stl_unordered_multimap_##value =                                       \
       std::unordered_multimap<value, intptr_t, hash>
+// NOLINTEND(*-runtime-unneeded-pointer-stability-check)
 
 STL_UNORDERED_TYPES_CUSTOM_HASH(Cord, absl::Hash<absl::Cord>);
 
@@ -566,15 +572,17 @@ MY_BENCHMARK(Time);
 // cache-locality advantage over STL. When cost of moving increases, we expect
 // btree to actually do more work than STL because it has to move values around
 // and STL doesn't have to.
-template <int Size, int Copies>
+template <size_t Size, size_t Copies>
 struct BigType {
   BigType() : BigType(0) {}
   explicit BigType(int x) { std::iota(values.begin(), values.end(), x); }
 
   void Copy(const BigType& other) {
-    for (int i = 0; i < Size && i < Copies; ++i) values[i] = other.values[i];
+    for (size_t i = 0; i < Size && i < Copies; ++i) {
+      values[i] = other.values[i];
+    }
     // If Copies > Size, do extra copies.
-    for (int i = Size, idx = 0; i < Copies; ++i) {
+    for (size_t i = Size, idx = 0; i < Copies; ++i) {
       int64_t tmp = other.values[idx];
       benchmark::DoNotOptimize(tmp);
       idx = idx + 1 == Size ? 0 : idx + 1;
@@ -589,20 +597,23 @@ struct BigType {
 
   // Compare only the first Copies elements if Copies is less than Size.
   bool operator<(const BigType& other) const {
-    return std::lexicographical_compare(
-        values.begin(), values.begin() + std::min(Size, Copies),
-        other.values.begin(), other.values.begin() + std::min(Size, Copies));
+    const auto len = static_cast<std::ptrdiff_t>(std::min(Size, Copies));
+    return std::lexicographical_compare(values.begin(), values.begin() + len,
+                                        other.values.begin(),
+                                        other.values.begin() + len);
   }
   bool operator==(const BigType& other) const {
-    return std::equal(values.begin(), values.begin() + std::min(Size, Copies),
+    const auto len = static_cast<std::ptrdiff_t>(std::min(Size, Copies));
+    return std::equal(values.begin(), values.begin() + len,
                       other.values.begin());
   }
 
   // Support absl::Hash.
   template <typename State>
   friend State AbslHashValue(State h, const BigType& b) {
-    for (int i = 0; i < Size && i < Copies; ++i)
+    for (size_t i = 0; i < Size && i < Copies; ++i) {
       h = State::combine(std::move(h), b.values[i]);
+    }
     return h;
   }
 
@@ -668,7 +679,7 @@ BIG_TYPE_BENCHMARKS(32, 32);
 // Benchmark using unique_ptrs to large value types. In order to be able to use
 // the same benchmark code as the other types, use a type that holds a
 // unique_ptr and has a copy constructor.
-template <int Size>
+template <size_t Size>
 struct BigTypePtr {
   BigTypePtr() : BigTypePtr(0) {}
   explicit BigTypePtr(int x) { ptr = std::make_unique<BigType<Size, Size>>(x); }
@@ -687,7 +698,7 @@ struct BigTypePtr {
   std::unique_ptr<BigType<Size, Size>> ptr;
 };
 
-template <int Size>
+template <size_t Size>
 double ContainerInfo(const btree_set<BigTypePtr<Size>>& b) {
   const double bytes_used =
       b.bytes_used() + b.size() * sizeof(BigType<Size, Size>);
@@ -695,7 +706,7 @@ double ContainerInfo(const btree_set<BigTypePtr<Size>>& b) {
   BtreeContainerInfoLog(b, bytes_used, bytes_per_value);
   return bytes_per_value;
 }
-template <int Size>
+template <size_t Size>
 double ContainerInfo(const btree_map<int, BigTypePtr<Size>>& b) {
   const double bytes_used =
       b.bytes_used() + b.size() * sizeof(BigType<Size, Size>);
@@ -736,7 +747,7 @@ void BM_BtreeSet_IteratorDifference(benchmark::State& state) {
   absl::InsecureBitGen bitgen;
   std::vector<int> vec;
   // Randomize the set's insertion order so the nodes aren't all full.
-  vec.reserve(state.range(0));
+  vec.reserve(static_cast<size_t>(state.range(0)));
   for (int i = 0; i < state.range(0); ++i) vec.push_back(i);
   absl::c_shuffle(vec, bitgen);
 
@@ -744,7 +755,8 @@ void BM_BtreeSet_IteratorDifference(benchmark::State& state) {
   for (int i : vec) set.insert(i);
 
   size_t distance = absl::Uniform(bitgen, 0u, set.size());
-  while (state.KeepRunningBatch(distance)) {
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(distance))) {
     size_t end = absl::Uniform(bitgen, distance, set.size());
     size_t begin = end - distance;
     benchmark::DoNotOptimize(set.find(static_cast<int>(end)) -
@@ -767,7 +779,8 @@ void BM_BtreeSet_IteratorAddition(benchmark::State& state) {
   for (int i : vec) set.insert(i);
 
   size_t distance = absl::Uniform(bitgen, 0u, set.size());
-  while (state.KeepRunningBatch(distance)) {
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(distance))) {
     // Let the increment go all the way to the `end` iterator.
     const size_t begin =
         absl::Uniform(absl::IntervalClosed, bitgen, 0u, set.size() - distance);
@@ -791,7 +804,8 @@ void BM_BtreeSet_IteratorSubtraction(benchmark::State& state) {
   for (int i : vec) set.insert(i);
 
   size_t distance = absl::Uniform(bitgen, 0u, set.size());
-  while (state.KeepRunningBatch(distance)) {
+  while (state.KeepRunningBatch(
+      static_cast<benchmark::IterationCount>(distance))) {
     size_t end = absl::Uniform(bitgen, distance, set.size());
     auto it = set.find(static_cast<int>(end));
     benchmark::DoNotOptimize(it -= static_cast<int>(distance));

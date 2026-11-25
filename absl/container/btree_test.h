@@ -15,8 +15,9 @@
 #ifndef ABSL_CONTAINER_BTREE_TEST_H_
 #define ABSL_CONTAINER_BTREE_TEST_H_
 
-#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 #include <string>
 #include <type_traits>
@@ -24,8 +25,6 @@
 #include <vector>
 
 #include "absl/base/config.h"
-#include "absl/container/btree_map.h"
-#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/cord.h"
 #include "absl/time/time.h"
@@ -63,10 +62,10 @@ struct KeyOfValue<K, K> {
   };
 };
 
-inline char* GenerateDigits(char buf[16], unsigned val, unsigned maxval) {
+inline char* GenerateDigits(char buf[16], uint32_t val, uint32_t maxval) {
   assert(val <= maxval);
-  constexpr unsigned kBase = 64;  // avoid integer division.
-  unsigned p = 15;
+  constexpr uint32_t kBase = 64;  // avoid integer division.
+  uint32_t p = 15;
   buf[p--] = 0;
   while (maxval > 0) {
     buf[p--] = ' ' + (val % kBase);
@@ -99,7 +98,8 @@ struct Generator<std::string> {
   explicit Generator(int m) : maxval(m) {}
   std::string operator()(int i) const {
     char buf[16];
-    return GenerateDigits(buf, i, maxval);
+    return GenerateDigits(buf, static_cast<uint32_t>(i),
+                          static_cast<uint32_t>(maxval));
   }
 };
 
@@ -109,7 +109,8 @@ struct Generator<Cord> {
   explicit Generator(int m) : maxval(m) {}
   Cord operator()(int i) const {
     char buf[16];
-    return Cord(GenerateDigits(buf, i, maxval));
+    return Cord(GenerateDigits(buf, static_cast<uint32_t>(i),
+                               static_cast<uint32_t>(maxval)));
   }
 };
 
@@ -125,7 +126,8 @@ struct Generator<std::pair<T, U> > {
 };
 
 // Generate n values for our tests and benchmarks. Value range is [0, maxval].
-inline std::vector<int> GenerateNumbersWithSeed(int n, int maxval, int seed) {
+inline std::vector<int> GenerateNumbersWithSeed(int n, int maxval,
+                                                uint32_t seed) {
   // NOTE: Some tests rely on generated numbers not changing between test runs.
   // We use std::minstd_rand0 because it is well-defined, but don't use
   // std::uniform_int_distribution because platforms use different algorithms.
@@ -133,8 +135,8 @@ inline std::vector<int> GenerateNumbersWithSeed(int n, int maxval, int seed) {
 
   std::vector<int> values;
   absl::flat_hash_set<int> unique_values;
-  if (values.size() < n) {
-    for (int i = values.size(); i < n; i++) {
+  if (values.size() < static_cast<size_t>(n)) {
+    for (int i = static_cast<int>(values.size()); i < n; i++) {
       int value;
       do {
         value = static_cast<int>(rng()) % (maxval + 1);
@@ -148,14 +150,14 @@ inline std::vector<int> GenerateNumbersWithSeed(int n, int maxval, int seed) {
 
 // Generates n values in the range [0, maxval].
 template <typename V>
-std::vector<V> GenerateValuesWithSeed(int n, int maxval, int seed) {
+std::vector<V> GenerateValuesWithSeed(int n, int maxval, uint32_t seed) {
   const std::vector<int> nums = GenerateNumbersWithSeed(n, maxval, seed);
   Generator<V> gen(maxval);
   std::vector<V> vec;
 
-  vec.reserve(n);
-  for (int i = 0; i < n; i++) {
-    vec.push_back(gen(nums[i]));
+  vec.reserve(nums.size());
+  for (int num : nums) {
+    vec.push_back(gen(num));
   }
 
   return vec;

@@ -35,7 +35,6 @@
 #include <numeric>
 #include <optional>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -45,14 +44,11 @@
 #include "gtest/gtest.h"
 #include "absl/algorithm/container.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/base/macros.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/hash/hash_testing.h"
-#include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
@@ -286,8 +282,8 @@ struct SubstringLess {
   SubstringLess() = delete;
   explicit SubstringLess(int length) : n(length) {}
   bool operator()(const std::string& a, const std::string& b) const {
-    return absl::string_view(a).substr(0, n) <
-           absl::string_view(b).substr(0, n);
+    return absl::string_view(a).substr(0, static_cast<size_t>(n)) <
+           absl::string_view(b).substr(0, static_cast<size_t>(n));
   }
   int n;
 };
@@ -356,7 +352,7 @@ TEST(Btree, Comparison) {
 
   absl::btree_map<std::string, int64_t> my_map;
   for (int i = 0; i < kSetSize; ++i) {
-    my_map[std::string(i, 'a')] = i;
+    my_map[std::string(static_cast<size_t>(i), 'a')] = i;
   }
   absl::btree_map<std::string, int64_t> my_map_copy(my_map);
   EXPECT_TRUE(my_map_copy == my_map);
@@ -655,7 +651,7 @@ TEST(Btree, RValueInsert) {
 template <typename Cmp>
 struct CheckedCompareOptedOutCmp : Cmp, BtreeTestOnlyCheckedCompareOptOutBase {
   using Cmp::Cmp;
-  CheckedCompareOptedOutCmp() {}
+  CheckedCompareOptedOutCmp() = default;
   CheckedCompareOptedOutCmp(Cmp cmp) : Cmp(std::move(cmp)) {}  // NOLINT
 };
 
@@ -1191,9 +1187,9 @@ void TestExtractWithTrackingForSet() {
     // Add enough elements to make sure we test internal nodes too.
     const size_t kSize = 1000;
     while (s.size() < kSize) {
-      s.insert(MovableOnlyInstance(s.size()));
+      s.insert(MovableOnlyInstance(static_cast<int>(s.size())));
     }
-    for (int i = 0; i < kSize; ++i) {
+    for (int i = 0; i < static_cast<int>(kSize); ++i) {
       // Extract with key
       auto nh = s.extract(MovableOnlyInstance(i));
       EXPECT_EQ(s.size(), kSize - 1);
@@ -1223,10 +1219,10 @@ void TestExtractWithTrackingForMap() {
     // Add enough elements to make sure we test internal nodes too.
     const size_t kSize = 1000;
     while (m.size() < kSize) {
-      m.insert(
-          {CopyableMovableInstance(m.size()), MovableOnlyInstance(m.size())});
+      m.insert({CopyableMovableInstance(static_cast<int>(m.size())),
+                MovableOnlyInstance(static_cast<int>(m.size()))});
     }
-    for (int i = 0; i < kSize; ++i) {
+    for (int i = 0; i < static_cast<int>(kSize); ++i) {
       // Extract with key
       auto nh = m.extract(CopyableMovableInstance(i));
       EXPECT_EQ(m.size(), kSize - 1);
@@ -1403,7 +1399,7 @@ TEST(Btree, ExtractDoesntCauseExtraMoves) {
       [](Set& s) { auto node = s.extract(MovableOnlyInstance(0)); }};
 
   InstanceTracker tracker;
-  for (int i = 0; i < 3; ++i) {
+  for (size_t i = 0; i < 3; ++i) {
     Set s;
     s.insert(MovableOnlyInstance(0));
     tracker.ResetCopiesMovesSwaps();
@@ -2486,13 +2482,10 @@ class OnlyConstructibleByAllocator {
   explicit OnlyConstructibleByAllocator(int i) : i_(i) {}
 
  public:
-  OnlyConstructibleByAllocator(const OnlyConstructibleByAllocator& other)
-      : i_(other.i_) {}
+  OnlyConstructibleByAllocator(const OnlyConstructibleByAllocator& other) =
+      default;
   OnlyConstructibleByAllocator& operator=(
-      const OnlyConstructibleByAllocator& other) {
-    i_ = other.i_;
-    return *this;
-  }
+      const OnlyConstructibleByAllocator& other) = default;
   int Get() const { return i_; }
   bool operator==(int i) const { return i_ == i; }
 
@@ -2589,7 +2582,7 @@ TEST(Btree, OnlyConstructibleByAllocatorType) {
 class NotAssignable {
  public:
   explicit NotAssignable(int i) : i_(i) {}
-  NotAssignable(const NotAssignable& other) : i_(other.i_) {}
+  NotAssignable(const NotAssignable& other) = default;
   NotAssignable& operator=(NotAssignable&& other) = delete;
   int Get() const { return i_; }
   bool operator==(int i) const { return i_ == i; }
@@ -2730,7 +2723,8 @@ TEST(Btree, IteratorDifference) {
   for (int i = 0; i < 1000; ++i) {
     size_t begin = absl::Uniform(bitgen, 0u, set.size());
     size_t end = absl::Uniform(bitgen, begin, set.size());
-    ASSERT_EQ(end - begin, set.find(end) - set.find(begin))
+    ASSERT_EQ(end - begin, set.find(static_cast<int>(end)) -
+                               set.find(static_cast<int>(begin)))
         << begin << " " << end;
   }
 }
