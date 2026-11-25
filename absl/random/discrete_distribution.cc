@@ -17,32 +17,89 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <iterator>
-#include <numeric>
+#include <limits>
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace random_internal {
+namespace {
+
+// The maximum value of `fabs(sum - 1.0)` that can be tolerated before rescaling
+// the probabilities.
+constexpr double kRoundingError = 16.0 * std::numeric_limits<double>::epsilon();
+
+// A stateful `double` adder using Neumaier compensated summation that
+// saturates at infinity.
+class NeumaierSum {
+ public:
+  NeumaierSum& operator+=(double value) {
+    const double t = sum_ + value;
+    if (std::isfinite(t)) {
+      compensation_ +=
+          (sum_ >= value) ? (sum_ - t) + value : (value - t) + sum_;
+    } else {
+      compensation_ = 0.0;
+    }
+    sum_ = t;
+    return *this;
+  }
+
+  friend NeumaierSum operator+(NeumaierSum adder, double value) {
+    adder += value;
+    return adder;
+  }
+
+  double value() const { return sum_ + compensation_; }
+
+ private:
+  double sum_;
+  double compensation_;
+};
+
+}  // namespace
 
 // Initializes the distribution table for Walker's Aliasing algorithm, described
 // in Knuth, Vol 2. as well as in https://en.wikipedia.org/wiki/Alias_method
 std::vector<std::pair<double, size_t>> InitDiscreteDistribution(
-    std::vector<double>* probabilities) {
+    std::vector<double>& probabilities) {
   // The empty-case should already be handled by the constructor.
-  assert(probabilities);
-  assert(!probabilities->empty());
+  assert(!probabilities.empty());
+  for (double& item : probabilities) {
+    const bool is_valid_probability_mass = std::isfinite(item) && item >= 0.0;
+    assert(is_valid_probability_mass);
+    // Gracefully handle non-positive or non-finite weights (and canonicalize
+    // -0.0 to +0.0 without signaling FE_INVALID on quiet NaN).
+    if (!is_valid_probability_mass || item == 0.0) {
+      item = 0.0;
+    }
+  }
 
   // Step 1. Normalize the input probabilities to 1.0.
-  double sum = std::accumulate(std::begin(*probabilities),
-                               std::end(*probabilities), 0.0);
-  if (std::fabs(sum - 1.0) > 1e-6) {
-    // Scale `probabilities` only when the sum is too far from 1.0.  Scaling
-    // unconditionally will alter the probabilities slightly.
-    for (double& item : *probabilities) {
+  const double max_weight = *absl::c_max_element(probabilities);
+  if (max_weight == 0.0) {
+    // Computed non-negative weights can underflow or clamp to all zeros; fall
+    // back to std::discrete_distribution's empty-range default ({1.0}) rather
+    // than dividing 0.0 / 0.0 into NaN.
+    probabilities.assign(1, 1.0);
+    return {{1.0, 0}};
+  }
+
+  double sum = absl::c_accumulate(probabilities, NeumaierSum{}).value();
+  const bool overflowed = !std::isfinite(sum);
+  if (overflowed) {
+    for (double& item : probabilities) {
+      item /= max_weight;
+    }
+    sum = absl::c_accumulate(probabilities, NeumaierSum{}).value();
+  }
+  if (overflowed || sum < 1.0 - kRoundingError || sum > 1.0 + kRoundingError) {
+    // Rescale on overflow or if the sum exceeds the rounding error threshold.
+    for (double& item : probabilities) {
       item = item / sum;
     }
   }
@@ -53,20 +110,20 @@ std::vector<std::pair<double, size_t>> InitDiscreteDistribution(
   // the selection phases of Walker's Aliasing algorithm.
   //
   // To construct the table, pick an element which is under-full (i.e., an
-  // element for which `(*probabilities)[i] < 1.0/n`), and pair it with an
+  // element for which `probabilities[i] < 1.0/n`), and pair it with an
   // element which is over-full (i.e., an element for which
-  // `(*probabilities)[i] > 1.0/n`). The smaller value can always be retired.
+  // `probabilities[i] > 1.0/n`). The smaller value can always be retired.
   // The larger may still be greater than 1.0/n, or may now be less than 1.0/n,
   // and put back onto the appropriate collection.
-  const size_t n = probabilities->size();
+  const size_t n = probabilities.size();
   std::vector<std::pair<double, size_t>> q;
   q.reserve(n);
 
   std::vector<size_t> over;
   std::vector<size_t> under;
   size_t idx = 0;
-  for (const double item : *probabilities) {
-    assert(item >= 0);
+  for (const double item : probabilities) {
+    assert(item >= 0.0);
     const double v = item * n;
     q.emplace_back(v, 0);
     if (v < 1.0) {

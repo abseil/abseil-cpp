@@ -78,12 +78,27 @@ class discrete_distribution {
     explicit param_type(size_t nw, double xmin, double xmax,
                         UnaryOperation fw) {
       if (nw > 0) {
+        assert(std::isfinite(xmin) && std::isfinite(xmax) && xmin < xmax);
         p_.reserve(nw);
-        double delta = (xmax - xmin) / static_cast<double>(nw);
-        assert(delta > 0);
-        double t = delta * 0.5;
-        for (size_t i = 0; i < nw; ++i) {
-          p_.push_back(fw(xmin + i * delta + t));
+        const double span = xmax - xmin;
+        if (std::isfinite(span)) {
+          const double delta = span / static_cast<double>(nw);
+          assert(delta > 0);
+          const double half_delta = delta * 0.5;
+          for (size_t i = 0; i < nw; ++i) {
+            p_.push_back(
+                fw(xmin + static_cast<double>(i) * delta + half_delta));
+          }
+        } else {
+          // `xmax - xmin` overflowed (`xmin < 0 < xmax`); compute each
+          // midpoint as an overflow-free convex combination of `xmin` and
+          // `xmax`.
+          const double dnw = static_cast<double>(nw);
+          for (size_t i = 0; i < nw; ++i) {
+            const double w_hi = (static_cast<double>(i) + 0.5) / dnw;
+            const double w_lo = (static_cast<double>(nw - 1 - i) + 0.5) / dnw;
+            p_.push_back(fw(w_lo * xmin + w_hi * xmax));
+          }
         }
       }
       init();
@@ -174,13 +189,13 @@ class discrete_distribution {
 
 namespace random_internal {
 
-// Using the vector `*probabilities`, whose values are the weights or
+// Using the vector `probabilities`, whose values are the weights or
 // probabilities of an element being selected, constructs the proportional
-// probabilities used by the discrete distribution.  `*probabilities` will be
+// probabilities used by the discrete distribution.  `probabilities` will be
 // scaled, if necessary, so that its entries sum to a value sufficiently close
 // to 1.0.
 std::vector<std::pair<double, size_t>> InitDiscreteDistribution(
-    std::vector<double>* probabilities);
+    std::vector<double>& probabilities);
 
 }  // namespace random_internal
 
@@ -191,7 +206,7 @@ void discrete_distribution<IntType>::param_type::init() {
     q_.emplace_back(1.0, 0);
   } else {
     assert(n() <= (std::numeric_limits<IntType>::max)());
-    q_ = random_internal::InitDiscreteDistribution(&p_);
+    q_ = random_internal::InitDiscreteDistribution(p_);
   }
 }
 
