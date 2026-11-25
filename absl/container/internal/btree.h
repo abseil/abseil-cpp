@@ -1505,6 +1505,16 @@ BtreeEmptyNode<FieldType, Alignment>* GetBtreeEmptyNode() {
   return const_cast<BtreeEmptyNode<FieldType, Alignment>*>(&empty_node);
 }
 
+// Type-erased core fields of `btree<Params>`, stored as the first member of
+// `btree<Params>`.
+struct BtreeCommonFields {
+  btree_node_header* root;
+  btree_node_header* rightmost;
+  size_t size;
+
+  bool empty() const { return size == 0; }
+};
+
 template <typename Params>
 class btree {
   using node_type = btree_node<Params>;
@@ -1580,11 +1590,7 @@ class btree {
 
  public:
   btree(const key_compare& comp, const allocator_type& alloc)
-      : root_(EmptyNode()),
-        rightmost_(EmptyNode()),
-        size_(0),
-        comp_(comp),
-        alloc_(alloc) {}
+      : common_{EmptyNode(), EmptyNode(), 0}, comp_(comp), alloc_(alloc) {}
 
   btree(const btree& other) : btree(other, other.allocator()) {}
   btree(const btree& other, const allocator_type& alloc)
@@ -1592,9 +1598,9 @@ class btree {
     copy_or_move_values_in_order(other);
   }
   btree(btree&& other) noexcept
-      : root_(std::exchange(other.root_, EmptyNode())),
-        rightmost_(std::exchange(other.rightmost_, EmptyNode())),
-        size_(std::exchange(other.size_, 0u)),
+      : common_{std::exchange(other.common_.root, EmptyNode()),
+                std::exchange(other.common_.rightmost, EmptyNode()),
+                std::exchange(other.common_.size, 0u)},
         comp_(std::move(other.comp_)),
         alloc_(std::move(other.alloc_)) {}
   btree(btree&& other, const allocator_type& alloc)
@@ -1762,7 +1768,7 @@ class btree {
   void verify() const;
 
   // Size routines.
-  size_type size() const { return size_; }
+  size_type size() const { return common_.size; }
   size_type max_size() const { return (std::numeric_limits<size_type>::max)(); }
   bool empty() const { return size() == 0; }
 
@@ -1840,13 +1846,17 @@ class btree {
   friend struct btree_access;
 
   // Internal accessor routines.
-  node_type* root() { return root_; }
-  const node_type* root() const { return root_; }
-  node_type*& mutable_root() noexcept { return root_; }
-  node_type* rightmost() { return rightmost_; }
-  const node_type* rightmost() const { return rightmost_; }
-  node_type*& mutable_rightmost() noexcept { return rightmost_; }
-  size_type& mutable_size() noexcept { return size_; }
+  node_type* root() { return static_cast<node_type*>(common_.root); }
+  const node_type* root() const {
+    return static_cast<const node_type*>(common_.root);
+  }
+  btree_node_header*& mutable_root() noexcept { return common_.root; }
+  node_type* rightmost() { return static_cast<node_type*>(common_.rightmost); }
+  const node_type* rightmost() const {
+    return static_cast<const node_type*>(common_.rightmost);
+  }
+  btree_node_header*& mutable_rightmost() noexcept { return common_.rightmost; }
+  size_type& mutable_size() noexcept { return common_.size; }
   key_compare* mutable_key_comp() noexcept { return &comp_; }
 
   // The leftmost node is stored as the parent of the root node.
@@ -1973,12 +1983,9 @@ class btree {
     return res;
   }
 
-  node_type* root_;
-  // A pointer to the rightmost node. Note that the leftmost node is stored as
-  // the root's parent.
-  node_type* rightmost_;
-  // Number of values.
-  size_type size_;
+  // `common_` must be the first member: type-erased functions compute member
+  // offsets from `&common_`.
+  BtreeCommonFields common_;
 
   // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS ensures that sizeof is not affected by
   // empty comparators or allocators. Note: these members must not have default
@@ -2686,16 +2693,12 @@ auto btree<P>::operator=(btree&& other) noexcept -> btree& {
     using std::swap;
     if (std::allocator_traits<
             allocator_type>::propagate_on_container_move_assignment::value) {
-      swap(root_, other.root_);
-      swap(rightmost_, other.rightmost_);
-      swap(size_, other.size_);
+      swap(common_, other.common_);
       swap(comp_, other.comp_);
       swap(alloc_, other.alloc_);
     } else {
       if (allocator() == other.allocator()) {
-        swap(root_, other.root_);
-        swap(rightmost_, other.rightmost_);
-        swap(size_, other.size_);
+        swap(common_, other.common_);
         swap(comp_, other.comp_);
       } else {
         // We aren't allowed to propagate the allocator and the allocator is
@@ -2870,9 +2873,7 @@ void btree<P>::swap(btree& other) {
     assert(allocator() == other.allocator());
     swap(comp_, other.comp_);
   }
-  swap(root_, other.root_);
-  swap(rightmost_, other.rightmost_);
-  swap(size_, other.size_);
+  swap(common_, other.common_);
 }
 
 template <typename P>
