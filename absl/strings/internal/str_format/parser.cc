@@ -23,9 +23,11 @@
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <unordered_set>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -106,6 +108,36 @@ struct ParsedFormatBase::ParsedFormatConsumer {
   char* data_pos;
 };
 
+ParsedFormatBase::ParsedFormatBase(const ParsedFormatBase& other) {
+  *this = other;
+}
+
+ParsedFormatBase::ParsedFormatBase(ParsedFormatBase&& other) {
+  *this = std::move(other);
+}
+
+ParsedFormatBase& ParsedFormatBase::operator=(const ParsedFormatBase& other) {
+  if (this == &other) return *this;
+  has_error_ = other.has_error_;
+  items_ = other.items_;
+  size_t text_size = items_.empty() ? 0 : items_.back().text_end;
+  data_ = std::make_unique<char[]>(text_size);
+  if (text_size > 0) {
+    memcpy(data_.get(), other.data_.get(), text_size);
+  }
+  return *this;
+}
+
+ParsedFormatBase& ParsedFormatBase::operator=(ParsedFormatBase&& other) {
+  if (this == &other) return *this;
+  has_error_ = other.has_error_;
+  data_ = std::move(other.data_);
+  items_ = std::move(other.items_);
+  // Reset the vector to make sure the invariants hold.
+  other.items_.clear();
+  return *this;
+}
+
 ParsedFormatBase::ParsedFormatBase(
     string_view format, bool allow_ignored,
     std::initializer_list<FormatConversionCharSet> convs)
@@ -125,9 +157,9 @@ bool ParsedFormatBase::MatchesConversions(
     used.insert(pos);
     return true;
   };
-  for (const ConversionItem &item : items_) {
+  for (const ConversionItem& item : items_) {
     if (!item.is_conversion) continue;
-    auto &conv = item.conv;
+    auto& conv = item.conv;
     if (conv.precision.is_from_arg() &&
         !add_if_valid_conv(conv.precision.get_from_arg(), '*'))
       return false;

@@ -123,31 +123,13 @@ class ParsedFormatBase {
       string_view format, bool allow_ignored,
       std::initializer_list<FormatConversionCharSet> convs);
 
-  ParsedFormatBase(const ParsedFormatBase& other) { *this = other; }
+  ParsedFormatBase(const ParsedFormatBase& other);
 
-  ParsedFormatBase(ParsedFormatBase&& other) { *this = std::move(other); }
+  ParsedFormatBase(ParsedFormatBase&& other);
 
-  ParsedFormatBase& operator=(const ParsedFormatBase& other) {
-    if (this == &other) return *this;
-    has_error_ = other.has_error_;
-    items_ = other.items_;
-    size_t text_size = items_.empty() ? 0 : items_.back().text_end;
-    data_ = std::make_unique<char[]>(text_size);
-    if (text_size > 0) {
-      memcpy(data_.get(), other.data_.get(), text_size);
-    }
-    return *this;
-  }
+  ParsedFormatBase& operator=(const ParsedFormatBase& other);
 
-  ParsedFormatBase& operator=(ParsedFormatBase&& other) {
-    if (this == &other) return *this;
-    has_error_ = other.has_error_;
-    data_ = std::move(other.data_);
-    items_ = std::move(other.items_);
-    // Reset the vector to make sure the invariants hold.
-    other.items_.clear();
-    return *this;
-  }
+  ParsedFormatBase& operator=(ParsedFormatBase&& other);
 
   template <typename Consumer>
   bool ProcessFormat(Consumer consumer) const {
