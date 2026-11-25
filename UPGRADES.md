@@ -1,17 +1,16 @@
 # C++ Upgrade Tools
 
 Abseil may occasionally release API-breaking changes. As noted in our
-[Compatibility Guidelines][compatibility-guide], we will aim to provide a tool
-to do the work of effecting such API-breaking changes, when absolutely
-necessary.
+[Compatibility Guidelines][compatibility-guide], Abseil follows the Google
+[OSS Library Breaking Change Policy][breaking-change-policy].
 
-These tools will be listed on the [C++ Upgrade Tools][upgrade-tools] guide on
-https://abseil.io.
-
-For more information, the [C++ Automated Upgrade Guide][api-upgrades-guide]
-outlines this process.
+Abseil used to promise an automated upgrade tool for every API-breaking change.
+Since August 2023 it no longer does; see the
+[Breaking Change Policy Update][policy-update] for details. Breaking changes are
+announced in commit messages and in the release notes for
+[LTS releases][lts-releases], with guidance on how to resolve issues.
 
 [compatibility-guide]: https://abseil.io/about/compatibility
-[api-upgrades-guide]: https://abseil.io/docs/cpp/tools/api-upgrades
-[upgrade-tools]: https://abseil.io/docs/cpp/tools/upgrades/
-
+[breaking-change-policy]: https://opensource.google/documentation/policies/library-breaking-change
+[policy-update]: https://abseil.io/blog/20230828-breaking-change-policy
+[lts-releases]: https://github.com/abseil/abseil-cpp/releases
