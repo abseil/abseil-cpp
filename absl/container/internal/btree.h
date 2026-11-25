@@ -1764,7 +1764,7 @@ class btree {
   // Size routines.
   size_type size() const { return size_; }
   size_type max_size() const { return (std::numeric_limits<size_type>::max)(); }
-  bool empty() const { return size_ == 0; }
+  bool empty() const { return size() == 0; }
 
   // The height of the btree. An empty tree will have height 0.
   size_type height() const {
@@ -1846,6 +1846,7 @@ class btree {
   node_type* rightmost() { return rightmost_; }
   const node_type* rightmost() const { return rightmost_; }
   node_type*& mutable_rightmost() noexcept { return rightmost_; }
+  size_type& mutable_size() noexcept { return size_; }
   key_compare* mutable_key_comp() noexcept { return &comp_; }
 
   // The leftmost node is stored as the parent of the root node.
@@ -2740,7 +2741,7 @@ auto btree<P>::erase(iterator iter) -> iterator {
   }
   // Update node finish and container size.
   iter.node_->set_finish(iter.node_->finish() - 1);
-  --size_;
+  --mutable_size();
 
   // We want to return the next value after the one we just erased. If we
   // erased from an internal node (internal_delete == true), then the next
@@ -2813,7 +2814,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     return {0, begin};
   }
 
-  if (static_cast<size_type>(count) == size_) {
+  if (static_cast<size_type>(count) == size()) {
     clear();
     return {count, this->end()};
   }
@@ -2824,21 +2825,21 @@ auto btree<P>::erase_range(iterator begin, iterator end)
         static_cast<field_type>(begin.position_),
         static_cast<field_type>(end.position_ - begin.position_),
         mutable_allocator());
-    size_ -= count;
+    mutable_size() -= count;
     return {count, rebalance_after_delete(begin)};
   }
 
-  const size_type target_size = size_ - count;
-  while (size_ > target_size) {
+  const size_type target_size = size() - count;
+  while (size() > target_size) {
     if (begin.node_->is_leaf()) {
-      const size_type remaining_to_erase = size_ - target_size;
+      const size_type remaining_to_erase = size() - target_size;
       const size_type remaining_in_node =
           static_cast<size_type>(begin.node_->finish() - begin.position_);
       const field_type to_erase = static_cast<field_type>(
           (std::min)(remaining_to_erase, remaining_in_node));
       begin.node_->remove_values(static_cast<field_type>(begin.position_),
                                  to_erase, mutable_allocator());
-      size_ -= to_erase;
+      mutable_size() -= to_erase;
       begin = rebalance_after_delete(begin);
     } else {
       begin = erase(begin);
@@ -2854,7 +2855,7 @@ void btree<P>::clear() {
     node_type::clear_and_delete(root(), mutable_allocator());
   }
   mutable_root() = mutable_rightmost() = EmptyNode();
-  size_ = 0;
+  mutable_size() = 0;
 }
 
 template <typename P>
@@ -3175,7 +3176,7 @@ inline auto btree<P>::finish_emplace(iterator iter, Args&&... args)
       "transitivity, i.e. comp(a,b) && comp(b,c) -> comp(a,c) (see "
       "https://en.cppreference.com/w/cpp/named_req/Compare), or (2) a "
       "key may have been mutated after it was inserted into the tree.");
-  ++size_;
+  ++mutable_size();
   iter.update_generation();
   return iter;
 }
@@ -3327,7 +3328,7 @@ struct btree_access {
         }
       }
       const int num_deleted = node->finish() - to_pos;
-      tree.size_ -= static_cast<size_type>(num_deleted);
+      tree.mutable_size() -= static_cast<size_type>(num_deleted);
       node->set_finish(to_pos);
       it.position_ = to_pos;
       it = tree.rebalance_after_delete(it);
