@@ -643,8 +643,10 @@ class CoreImpl {
     if constexpr (std::is_trivially_destructible_v<T> &&
                   alignof(T) <= ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT) {
       // unique_ptr is used for exception-safety in case construction throws.
-      std::unique_ptr<void, TrivialDeleter> uninitialized_target(
-          ::operator new(sizeof(T)), TrivialDeleter(sizeof(T)));
+      // Evaluates to 'void', but dependent, in order to speed up compilation
+      std::unique_ptr<std::conditional_t<true, void, T>, TrivialDeleter>
+          uninitialized_target(::operator new(sizeof(T)),
+                               TrivialDeleter(sizeof(T)));
       ::new (uninitialized_target.get()) T(std::forward<Args>(args)...);
       state_.remote.target = uninitialized_target.release();
       state_.remote.size = sizeof(T);
