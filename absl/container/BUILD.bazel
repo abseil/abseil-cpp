@@ -474,6 +474,7 @@ cc_test(
 
 cc_library(
     name = "hash_function_defaults",
+    srcs = ["internal/hash_function_defaults.cc"],
     hdrs = ["internal/hash_function_defaults.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
