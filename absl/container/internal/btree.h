@@ -665,7 +665,6 @@ class btree_node {
   field_type& mutable_finish() { return GetField<2>()[2]; }
   slot_type* slot(size_type i) { return &GetField<3>()[i]; }
   slot_type* start_slot() { return slot(start()); }
-  slot_type* finish_slot() { return slot(finish()); }
   const slot_type* slot(size_type i) const { return &GetField<3>()[i]; }
   void set_position(field_type v) { GetField<2>()[0] = v; }
   void set_start(field_type v) { GetField<2>()[1] = v; }
@@ -921,11 +920,6 @@ class btree_node {
     return true;
   }
 
-  // Emplaces a value at position i, shifting all existing values and
-  // children at positions >= i to the right by 1.
-  template <typename... Args>
-  void emplace_value(field_type i, allocator_type* alloc, Args&&... args);
-
   // Shifts trailing values and children left by count slots starting at i.
   void shift_left(field_type i, field_type count, allocator_type* alloc);
 
@@ -942,6 +936,14 @@ class btree_node {
 
   // Splits a node, moving a portion of the node's values to its right sibling.
   void split(int insert_position, btree_node* dest, allocator_type* alloc);
+
+  // Inserts a split key and right child at i:
+  // - Shifts values at or after i right by 1.
+  // - Moves the split key from (*src)[src_i] into (*this)[i] and increments
+  //   finish.
+  // - Shifts trailing children right and links right_child at i + 1.
+  void insert_split_key(field_type i, btree_node* src, field_type src_i,
+                        btree_node* right_child, allocator_type* alloc);
 
   // Merges a node with its right sibling, moving all of the values and the
   // delimiting key in the parent node onto itself, and deleting the src node.
@@ -972,6 +974,12 @@ class btree_node {
                          allocator_type* alloc) {
     absl::container_internal::SanitizerUnpoisonMemoryRegion(node, size);
     absl::container_internal::Deallocate<Alignment()>(alloc, node, size);
+  }
+  // Deallocates an empty node without destroying values or children.
+  static void deallocate_empty(btree_node* node, allocator_type* alloc) {
+    assert(node->count() == 0);
+    deallocate(node->is_leaf() ? LeafSize(node->max_count()) : InternalSize(),
+               node, alloc);
   }
 
   // Deletes a node and all of its children.
@@ -1847,30 +1855,6 @@ class btree {
 ////
 // btree_node methods
 template <typename P>
-template <typename... Args>
-inline void btree_node<P>::emplace_value(const field_type i,
-                                         allocator_type* alloc,
-                                         Args&&... args) {
-  assert(i >= start());
-  assert(i <= finish());
-  // Shift old values to create space for new value and then construct it in
-  // place.
-  if (i < finish()) {
-    transfer_n_backward(finish() - i, /*dest_i=*/i + 1, /*src_i=*/i, this,
-                        alloc);
-  }
-  value_init(static_cast<field_type>(i), alloc, std::forward<Args>(args)...);
-  set_finish(finish() + 1);
-
-  if (is_internal() && finish() > i + 1) {
-    for (field_type j = finish(); j > i + 1; --j) {
-      set_child(j, child(j - 1));
-    }
-    clear_child(i + 1);
-  }
-}
-
-template <typename P>
 inline void btree_node<P>::shift_left(const field_type i,
                                       const field_type count,
                                       allocator_type* alloc) {
@@ -2016,13 +2000,12 @@ void btree_node<P>::split(const int insert_position, btree_node* dest,
   // Move values from the left sibling to the right sibling.
   dest->transfer_n(dest->count(), dest->start(), finish(), this, alloc);
 
-  // The split key is the largest value in the left sibling.
+  // Move this node's largest value to parent as split key and link dest.
   --mutable_finish();
-  parent()->emplace_value(position(), alloc, finish_slot());
-  value_destroy(finish(), alloc);
-  parent()->set_child_noupdate_position(position() + 1, dest);
+  parent()->insert_split_key(position(), this, finish(), dest, alloc);
 
   if (is_internal()) {
+    // Move trailing child pointers to dest.
     for (field_type i = dest->start(), j = finish() + 1; i <= dest->finish();
          ++i, ++j) {
       assert(child(j) != nullptr);
@@ -2033,12 +2016,33 @@ void btree_node<P>::split(const int insert_position, btree_node* dest,
 }
 
 template <typename P>
+inline void btree_node<P>::insert_split_key(const field_type i, btree_node* src,
+                                            const field_type src_i,
+                                            btree_node* right_child,
+                                            allocator_type* alloc) {
+  assert(is_internal());
+  const field_type orig_finish = finish();
+  // Open slot i by shifting values right.
+  if (i < orig_finish) {
+    transfer_n_backward(orig_finish - i, i + 1, i, this, alloc);
+  }
+  // Move split key from src into slot i.
+  transfer(i, src_i, src, alloc);
+  set_finish(orig_finish + 1);
+  // Shift trailing children right and attach right_child.
+  for (field_type j = orig_finish + 1; j > i + 1; --j) {
+    set_child(j, child(j - 1));
+  }
+  set_child_noupdate_position(i + 1, right_child);
+}
+
+template <typename P>
 void btree_node<P>::merge(btree_node* src, allocator_type* alloc) {
   assert(parent() == src->parent());
   assert(position() + 1 == src->position());
 
   // Move the delimiting value to the left node.
-  value_init(finish(), alloc, parent()->slot(position()));
+  transfer(finish(), position(), parent(), alloc);
 
   // Move the values from the right to the left node.
   transfer_n(src->count(), finish() + 1, src->start(), src, alloc);
@@ -2056,19 +2060,17 @@ void btree_node<P>::merge(btree_node* src, allocator_type* alloc) {
   set_finish(start() + 1 + count() + src->count());
   src->set_finish(src->start());
 
-  // Remove the value on the parent node and delete the src node.
-  parent()->remove_values(position(), /*to_erase=*/1, alloc);
+  // Shift remaining values and children in parent, and delete the src node.
+  parent()->shift_left(position(), /*count=*/1, alloc);
+  deallocate_empty(src, alloc);
 }
 
 template <typename P>
 void btree_node<P>::clear_and_delete(btree_node* node, allocator_type* alloc) {
+  assert(node->count() > 0);
   if (node->is_leaf()) {
     node->value_destroy_n(node->start(), node->count(), alloc);
     deallocate(LeafSize(node->max_count()), node, alloc);
-    return;
-  }
-  if (node->count() == 0) {
-    deallocate(InternalSize(), node, alloc);
     return;
   }
 
@@ -2929,7 +2931,7 @@ void btree<P>::try_shrink() {
     child->make_root();
     mutable_root() = child;
   }
-  node_type::clear_and_delete(orig_root, mutable_allocator());
+  node_type::deallocate_empty(orig_root, mutable_allocator());
 }
 
 template <typename P>
@@ -2949,8 +2951,7 @@ inline IterType btree<P>::internal_last(IterType iter) {
 }
 
 template <typename P>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::prepare_emplace(
-    iterator iter) -> iterator {
+auto btree<P>::prepare_emplace(iterator iter) -> iterator {
   if (iter.node_->is_internal()) {
     // We can't insert on an internal node. Instead, we'll insert after the
     // previous value which is guaranteed to be on a leaf node.
@@ -2967,7 +2968,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::prepare_emplace(
     new_node->set_finish(old_node->finish());
     old_node->set_finish(old_node->start());
     new_node->set_generation(old_node->generation());
-    node_type::clear_and_delete(old_node, alloc);
+    node_type::deallocate_empty(old_node, alloc);
   };
   const auto replace_leaf_root_node = [&](field_type new_node_size) {
     assert(iter.node_ == root());
@@ -3025,18 +3026,11 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::prepare_emplace(
 
 template <typename P>
 template <typename... Args>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto btree<P>::finish_emplace(
-    iterator iter, Args&&... args) -> iterator {
+inline auto btree<P>::finish_emplace(iterator iter, Args&&... args)
+    -> iterator {
   const auto pos = static_cast<field_type>(iter.position_);
-  allocator_type* alloc = mutable_allocator();
-  iter.node_->value_init(pos, alloc, std::forward<Args>(args)...);
+  iter.node_->value_init(pos, mutable_allocator(), std::forward<Args>(args)...);
   iter.node_->set_finish(iter.node_->finish() + 1);
-  if (iter.node_->is_internal() && iter.node_->finish() > pos + 1) {
-    for (field_type j = iter.node_->finish(); j > pos + 1; --j) {
-      iter.node_->set_child(j, iter.node_->child(j - 1));
-    }
-    iter.node_->clear_child(pos + 1);
-  }
   assert(
       iter.node_->is_ordered_correctly(pos, original_key_compare(key_comp())) &&
       "If this assert fails, then either (1) the comparator may violate "
