@@ -25,7 +25,6 @@ config_setting(
     flag_values = {
         "@bazel_tools//tools/cpp:compiler": "clang",
     },
-    visibility = [":__subpackages__"],
 )
 
 config_setting(
@@ -33,7 +32,6 @@ config_setting(
     flag_values = {
         "@bazel_tools//tools/cpp:compiler": "mingw",
     },
-    visibility = [":__subpackages__"],
 )
 
 config_setting(
@@ -41,7 +39,6 @@ config_setting(
     flag_values = {
         "@bazel_tools//tools/cpp:compiler": "mingw-gcc",
     },
-    visibility = [":__subpackages__"],
 )
 
 config_setting(
@@ -60,7 +57,6 @@ config_setting(
     constraint_values = [
         "@platforms//os:fuchsia",
     ],
-    visibility = [":__subpackages__"],
 )
 
 selects.config_setting_group(
