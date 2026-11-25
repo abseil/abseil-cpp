@@ -185,9 +185,7 @@ crc32c_t RemoveCrc32cSuffix(crc32c_t full_string_crc, crc32c_t suffix_crc,
 // operator<<
 //
 // Streams the CRC32C value `crc` to the stream `os`.
-inline std::ostream& operator<<(std::ostream& os, crc32c_t crc) {
-  return os << absl::StreamFormat("%08x", static_cast<uint32_t>(crc));
-}
+std::ostream& operator<<(std::ostream& os, crc32c_t crc);
 
 ABSL_NAMESPACE_END
 }  // namespace absl
