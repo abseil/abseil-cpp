@@ -58,6 +58,7 @@ cc_library(
     srcs = [
         "discrete_distribution.cc",
         "gaussian_distribution.cc",
+        "zipf_distribution.cc",
     ],
     hdrs = [
         "bernoulli_distribution.h",
@@ -457,8 +458,11 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
+        "//absl/base:config",
         "//absl/log",
+        "//absl/numeric:int128",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:generate_real",
         "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
