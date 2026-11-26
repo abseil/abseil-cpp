@@ -96,6 +96,10 @@ template <typename T>
 // NOLINTNEXTLINE(build/c++20)
 inline constexpr bool std::ranges::enable_borrowed_range<absl::Span<T>> = true;
 #endif
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <limits>
+#include <memory>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -712,6 +716,12 @@ constexpr bool operator>=(Span<T> a, const U& b) {
 //     return absl::MakeSpan(&array[0], num_elements_);
 //   }
 //
+// In C++20 and later, `MakeSpan()` and `MakeConstSpan()` also accept a
+// contiguous iterator together with a size or a sized sentinel, e.g.
+// `absl::MakeSpan(v.begin() + 1, v.end())`. Prefer this to
+// `absl::MakeSpan(&*first, &*last)`, which dereferences `last`. With
+// bounds-checked iterators, an out-of-bounds range is a hardening failure.
+//
 // NOTE: To avoid undefined behavior if the container is empty, use `.data()`
 // or pass the container directly instead of using `&v[0]` or `&v[v.size()]`.
 //
@@ -721,12 +731,48 @@ constexpr Span<T> MakeSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
   return Span<T>(ptr, size);
 }
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+template <int&... ExplicitArgumentBarrier, std::contiguous_iterator It>
+  requires(!std::is_pointer_v<It>)
+constexpr Span<std::remove_reference_t<std::iter_reference_t<It>>> MakeSpan(
+    It first, size_t size) {
+  absl::base_internal::HardeningAssertLE(
+      size, static_cast<size_t>(
+                (std::numeric_limits<std::iter_difference_t<It>>::max)()));
+  // Compute `first + size` so bounded iterators trap if
+  // `[first, first + size)` is out of bounds. `std::to_address` is valid even
+  // for an end iterator.
+  (void)(first + static_cast<std::iter_difference_t<It>>(size));
+  return Span<std::remove_reference_t<std::iter_reference_t<It>>>(
+      std::to_address(first), size);
+}
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<T> MakeSpan(T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                 T* absl_nullable end) noexcept {
+constexpr Span<T> MakeSpan(T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                           T* absl_nullable end) noexcept {
   absl::base_internal::HardeningAssertLE(begin, end);
   return Span<T>(begin, static_cast<size_t>(end - begin));
 }
+
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+template <int&... ExplicitArgumentBarrier, std::contiguous_iterator It,
+          std::sized_sentinel_for<It> End>
+  requires(!std::is_convertible_v<End, size_t> &&
+           !(std::is_pointer_v<It> && std::is_pointer_v<End>))
+constexpr Span<std::remove_reference_t<std::iter_reference_t<It>>> MakeSpan(
+    It first, End last) {
+  const auto dist = last - first;
+  absl::base_internal::HardeningAssertGE(dist, 0);
+  // Backstop for bounded iterators: computing `first + dist` traps if `last`
+  // is outside `first`'s bounds, e.g. it came from a different container or
+  // is a custom sentinel. Same-container ranges were checked by the caller's
+  // own iterator arithmetic.
+  (void)(first + dist);
+  return Span<std::remove_reference_t<std::iter_reference_t<It>>>(
+      std::to_address(first), static_cast<size_t>(dist));
+}
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 
 template <int&... ExplicitArgumentBarrier, typename C>
 constexpr auto MakeSpan(C& c) noexcept  // NOLINT(runtime/references)
@@ -781,13 +827,33 @@ constexpr Span<const T> MakeConstSpan(
   return Span<const T>(ptr, size);
 }
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+template <int&... ExplicitArgumentBarrier, std::contiguous_iterator It>
+  requires(!std::is_pointer_v<It>)
+constexpr Span<const std::remove_reference_t<std::iter_reference_t<It>>>
+MakeConstSpan(It first, size_t size) {
+  return absl::MakeSpan(first, size);
+}
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<const T> MakeConstSpan(T* absl_nullable begin
-                                ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                            T* absl_nullable end) noexcept {
+constexpr Span<const T> MakeConstSpan(T* absl_nullable begin
+                                          ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                                      T* absl_nullable end) noexcept {
   absl::base_internal::HardeningAssertLE(begin, end);
   return Span<const T>(begin, end - begin);
 }
+
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+template <int&... ExplicitArgumentBarrier, std::contiguous_iterator It,
+          std::sized_sentinel_for<It> End>
+  requires(!std::is_convertible_v<End, size_t> &&
+           !(std::is_pointer_v<It> && std::is_pointer_v<End>))
+constexpr Span<const std::remove_reference_t<std::iter_reference_t<It>>>
+MakeConstSpan(It first, End last) {
+  return absl::MakeSpan(first, last);
+}
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 
 template <int&... ExplicitArgumentBarrier, typename C>
 constexpr auto MakeConstSpan(const C& c) noexcept

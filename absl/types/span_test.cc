@@ -18,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -90,6 +91,31 @@ TEST(IntSpan, PtrLenCtor) {
   absl::Span<int> s(&a[0], 2);
   EXPECT_THAT(s, SpanIs(a, 2));
 }
+
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+template <typename It>
+class SizedSentinel {
+ public:
+  SizedSentinel() = default;
+  explicit constexpr SizedSentinel(It end) : end_(end) {}
+  friend constexpr bool operator==(It it, SizedSentinel s) {
+    return it == s.end_;
+  }
+  friend constexpr std::iter_difference_t<It> operator-(SizedSentinel s,
+                                                        It it) {
+    return s.end_ - it;
+  }
+  friend constexpr std::iter_difference_t<It> operator-(It it,
+                                                        SizedSentinel s) {
+    return it - s.end_;
+  }
+
+ private:
+  It end_{};
+};
+template <typename It>
+SizedSentinel(It) -> SizedSentinel<It>;
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 
 TEST(IntSpan, ArrayCtor) {
   int a[] = {1, 2, 3};
@@ -383,6 +409,49 @@ TEST(IntSpan, MakeSpanTwoPtrs) {
   EXPECT_THAT(absl::MakeConstSpan(v.data(), v.data() + 1), SpanIs(s));
 }
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+TEST(IntSpan, MakeSpanContiguousIterators) {
+  std::vector<int> empty;
+  auto s_empty_len = absl::MakeSpan(empty.begin(), empty.size());
+  EXPECT_THAT(s_empty_len, SpanIs(empty));
+  auto s_empty_end = absl::MakeSpan(empty.begin(), empty.end());
+  EXPECT_THAT(s_empty_end, SpanIs(empty));
+
+  std::vector<int> v{1, 2, 3};
+  auto s_len = absl::MakeSpan(v.begin(), 2);
+  EXPECT_THAT(s_len, SpanIs(v.data(), 2));
+  auto s_end = absl::MakeSpan(v.begin(), v.begin() + 2);
+  EXPECT_THAT(s_end, SpanIs(v.data(), 2));
+  auto s_cend = absl::MakeSpan(v.begin(), v.cend());
+  EXPECT_THAT(s_cend, SpanIs(v));
+  auto s_sentinel = absl::MakeSpan(v.begin(), SizedSentinel(v.end()));
+  EXPECT_THAT(s_sentinel, SpanIs(v));
+
+  EXPECT_THAT(absl::MakeConstSpan(empty.begin(), empty.size()),
+              SpanIs(s_empty_len));
+  EXPECT_THAT(absl::MakeConstSpan(empty.begin(), empty.end()),
+              SpanIs(s_empty_end));
+  EXPECT_THAT(absl::MakeConstSpan(v.begin(), 2), SpanIs(s_len));
+  EXPECT_THAT(absl::MakeConstSpan(v.begin(), v.begin() + 2), SpanIs(s_end));
+  EXPECT_THAT(absl::MakeConstSpan(v.begin(), v.cend()), SpanIs(v));
+  EXPECT_THAT(absl::MakeConstSpan(v.begin(), SizedSentinel(v.end())),
+              SpanIs(v));
+
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(v.end(), v.begin()), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeConstSpan(v.end(), v.begin()), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(v.begin(), size_t(-1)), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeConstSpan(v.begin(), size_t(-1)), "");
+#endif
+#if defined(_LIBCPP_ABI_BOUNDED_ITERATORS_IN_VECTOR) && \
+    (!defined(NDEBUG) || ABSL_OPTION_HARDENED)
+  // With bounded iterators, a length past the end of the container traps.
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(v.begin(), 4), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeConstSpan(v.begin(), 4), "");
+#endif
+}
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
 TEST(IntSpan, MakeSpanContainer) {
   std::vector<int> empty;
   auto s_empty = absl::MakeSpan(empty);
@@ -454,6 +523,17 @@ TEST(IntSpan, MakeSpanTypes) {
   CheckType<absl::Span<const int>>(absl::MakeSpan(ca, 1));
   CheckType<absl::Span<char>>(absl::MakeSpan(s));
   CheckType<absl::Span<const char>>(absl::MakeSpan(cs));
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+  CheckType<absl::Span<int>>(absl::MakeSpan(vec.begin(), vec.end()));
+  CheckType<absl::Span<int>>(absl::MakeSpan(vec.begin(), vec.cend()));
+  CheckType<absl::Span<int>>(absl::MakeSpan(vec.begin(), 0));
+  CheckType<absl::Span<const int>>(absl::MakeSpan(cvec.begin(), cvec.end()));
+  CheckType<absl::Span<const int>>(absl::MakeSpan(cvec.begin(), 0));
+  CheckType<absl::Span<char>>(absl::MakeSpan(s.begin(), s.end()));
+  CheckType<absl::Span<char>>(absl::MakeSpan(s.begin(), 0));
+  CheckType<absl::Span<const char>>(absl::MakeSpan(cs.begin(), cs.end()));
+  CheckType<absl::Span<const char>>(absl::MakeSpan(cs.begin(), 0));
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 }
 
 TEST(ConstIntSpan, MakeConstSpanTypes) {
@@ -490,6 +570,19 @@ TEST(ConstIntSpan, MakeConstSpanTypes) {
   CheckType<absl::Span<const int>>(absl::MakeConstSpan(shallow_container));
   CheckType<absl::Span<const int>>(
       absl::MakeConstSpan(const_shallow_container));
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(vec.begin(), vec.end()));
+  CheckType<absl::Span<const int>>(
+      absl::MakeConstSpan(vec.begin(), vec.cend()));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(vec.begin(), 0));
+  CheckType<absl::Span<const int>>(
+      absl::MakeConstSpan(cvec.begin(), cvec.end()));
+  CheckType<absl::Span<const int>>(absl::MakeConstSpan(cvec.begin(), 0));
+  CheckType<absl::Span<const char>>(absl::MakeConstSpan(s.begin(), s.end()));
+  CheckType<absl::Span<const char>>(absl::MakeConstSpan(s.begin(), 0));
+  CheckType<absl::Span<const char>>(absl::MakeConstSpan(cs.begin(), cs.end()));
+  CheckType<absl::Span<const char>>(absl::MakeConstSpan(cs.begin(), 0));
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 }
 
 TEST(IntSpan, Equality) {
@@ -839,6 +932,17 @@ TEST(ConstIntSpan, ConstexprTest) {
   ABSL_TEST_CONSTEXPR(absl::MakeConstSpan(&a[0], 1));
   ABSL_TEST_CONSTEXPR(absl::MakeConstSpan(c));
   ABSL_TEST_CONSTEXPR(absl::MakeConstSpan(a));
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+  static constexpr std::array<int, 2> std_arr = {1, 2};
+  ABSL_TEST_CONSTEXPR(absl::MakeSpan(std_arr.begin(), 1));
+  ABSL_TEST_CONSTEXPR(absl::MakeSpan(std_arr.begin(), std_arr.end()));
+  ABSL_TEST_CONSTEXPR(
+      absl::MakeSpan(std_arr.begin(), SizedSentinel(std_arr.end())));
+  ABSL_TEST_CONSTEXPR(absl::MakeConstSpan(std_arr.begin(), 1));
+  ABSL_TEST_CONSTEXPR(absl::MakeConstSpan(std_arr.begin(), std_arr.end()));
+  ABSL_TEST_CONSTEXPR(
+      absl::MakeConstSpan(std_arr.begin(), SizedSentinel(std_arr.end())));
+#endif
 
   constexpr absl::Span<const int> span = c;
   ABSL_TEST_CONSTEXPR(span.data());
