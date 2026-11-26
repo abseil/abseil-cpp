@@ -468,7 +468,8 @@ struct is_trivially_relocatable : std::is_trivially_copyable<T> {};
 constexpr bool is_constant_evaluated() noexcept {
 #ifdef __cpp_lib_is_constant_evaluated
   return std::is_constant_evaluated();
-#elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated)
+#elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated) || \
+    (defined(_MSC_VER) && _MSC_VER >= 1925)
   return __builtin_is_constant_evaluated();
 #endif
 }

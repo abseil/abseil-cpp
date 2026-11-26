@@ -770,7 +770,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 #ifdef __cpp_lib_is_constant_evaluated
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
-#elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated)
+#elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated) || \
+    (defined(_MSC_VER) && _MSC_VER >= 1925)
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
 #endif
 

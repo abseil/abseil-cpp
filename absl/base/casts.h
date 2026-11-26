@@ -178,23 +178,30 @@ template <typename Dest, typename Source,
           std::enable_if_t<sizeof(Dest) == sizeof(Source) &&
                                std::is_trivially_copyable_v<Source> &&
                                std::is_trivially_copyable_v<Dest>
-#if !ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#if !(ABSL_HAVE_BUILTIN(__builtin_bit_cast) || \
+      (defined(_MSC_VER) && _MSC_VER >= 1929))
                                && std::is_default_constructible_v<Dest>
-#endif  // !ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#endif  // !(ABSL_HAVE_BUILTIN(__builtin_bit_cast) || (defined(_MSC_VER) &&
+        // _MSC_VER >= 1929))
                            ,
                            int> = 0>
-#if ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#if ABSL_HAVE_BUILTIN(__builtin_bit_cast) || \
+    (defined(_MSC_VER) &&                    \
+     _MSC_VER >=                             \
+         1929)  // Introduced in 1927 with bugs that were addressed with 1929.
 inline constexpr Dest bit_cast(const Source& source) {
   return __builtin_bit_cast(Dest, source);
 }
-#else  // ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#else   // ABSL_HAVE_BUILTIN(__builtin_bit_cast) || (defined(_MSC_VER) &&
+        // _MSC_VER >= 1929)
 inline Dest bit_cast(const Source& source) {
   Dest dest;
   memcpy(static_cast<void*>(std::addressof(dest)),
          static_cast<const void*>(std::addressof(source)), sizeof(dest));
   return dest;
 }
-#endif  // ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#endif  // ABSL_HAVE_BUILTIN(__builtin_bit_cast) || (defined(_MSC_VER) &&
+        // _MSC_VER >= 1929)
 
 #endif  // defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
 
