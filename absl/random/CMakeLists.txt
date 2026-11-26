@@ -203,7 +203,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::algorithm_container
+    absl::base_internal
     absl::config
     absl::core_headers
     absl::random_internal_distribution_caller

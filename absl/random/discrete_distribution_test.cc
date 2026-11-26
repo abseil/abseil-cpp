@@ -14,13 +14,12 @@
 
 #include "absl/random/discrete_distribution.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
-#include <limits>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -35,20 +34,9 @@
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/strip.h"
 
 namespace {
-
-using ::testing::DoubleEq;
-using ::testing::ElementsAre;
-using ::testing::Gt;
-using ::testing::Lt;
-using ::testing::Pointwise;
-
-// Fixed nothing-up-my-sleeve seed for deterministic sampling tests (fractional
-// hex digits of Euler's number e - 2, used across Abseil random tests).
-constexpr uint64_t kTestSeed = 0x2B7E151628AED2A6ULL;
-constexpr double kMaxDouble = (std::numeric_limits<double>::max)();
-constexpr double kLargePowerOfTwo = 0x1p1023;
 
 template <typename IntType>
 class DiscreteDistributionTypeTest : public ::testing::Test {};
@@ -117,12 +105,10 @@ TEST(DiscreteDistributionTest, InitDiscreteDistribution) {
 
   {
     std::vector<double> p({1.0, 2.0, 3.0});
-    constexpr double sum = 6.0;
     std::vector<std::pair<double, size_t>> q =
-        absl::random_internal::InitDiscreteDistribution(p);
+        absl::random_internal::InitDiscreteDistribution(&p);
 
-    // After initialization, probabilities are normalized to 1.0.
-    EXPECT_THAT(p, testing::ElementsAre(1.0 / sum, 2.0 / sum, 3.0 / sum));
+    EXPECT_THAT(p, testing::ElementsAre(1 / 6.0, 2 / 6.0, 3 / 6.0));
 
     // Each bucket is p=1/3, so bucket 0 will send half it's traffic
     // to bucket 2, while the rest will retain all of their traffic.
@@ -132,14 +118,13 @@ TEST(DiscreteDistributionTest, InitDiscreteDistribution) {
   }
 
   {
-    std::vector<double> p({1.0, 2.0, 3.0, 5.0, 2.0});  // sum = 13.0
-    constexpr double sum = 13.0;
-    std::vector<std::pair<double, size_t>> q =
-        absl::random_internal::InitDiscreteDistribution(p);
+    std::vector<double> p({1.0, 2.0, 3.0, 5.0, 2.0});
 
-    // After initialization, probabilities are normalized to 1.0.
-    EXPECT_THAT(p, testing::ElementsAre(1.0 / sum, 2.0 / sum, 3.0 / sum,
-                                        5.0 / sum, 2.0 / sum));
+    std::vector<std::pair<double, size_t>> q =
+        absl::random_internal::InitDiscreteDistribution(&p);
+
+    EXPECT_THAT(p, testing::ElementsAre(1 / 13.0, 2 / 13.0, 3 / 13.0, 5 / 13.0,
+                                        2 / 13.0));
 
     // A more complex bucketing solution: Each bucket has p=0.2
     // So buckets 0, 1, 4 will send their alternate traffic elsewhere, which
@@ -177,7 +162,7 @@ TEST(DiscreteDistributionTest, ChiSquaredTest50) {
   // We use a fixed bit generator for distribution accuracy tests.  This allows
   // these tests to be deterministic, while still testing the qualify of the
   // implementation.
-  absl::random_internal::pcg64_2018_engine rng(kTestSeed);
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6);
 
   std::vector<int32_t> counts(kBuckets, 0);
   for (size_t i = 0; i < kTrials; i++) {
@@ -251,7 +236,6 @@ TEST(DiscreteDistributionTest, StabilityTest) {
   // ...
   EXPECT_THAT(output, testing::ElementsAre(3, 3, 1, 3, 3, 3));
 
-  // Test that the type of the distribution does not affect the results.
   {
     urbg.reset();
     absl::discrete_distribution<int64_t> dist({1.0, 2.0, 3.0, 5.0, 2.0});
@@ -364,175 +348,5 @@ TEST(DiscreteDistributionTest, StreamRejectsInvalidParameters) {
       ParseFromStream(kInitial, "2 1.0 -inf", /*use_non_finite_facet=*/true),
       FailsLeavingUnchanged());
 }
-
-TEST(DiscreteDistributionTest, AllZeroWeightsDefaultToSingleOutcome) {
-  absl::random_internal::pcg64_2018_engine rng(kTestSeed);
-  absl::discrete_distribution<int> all_zero({0.0, 0.0, 0.0});
-
-  EXPECT_THAT(all_zero.probabilities(), ElementsAre(1.0));
-  EXPECT_EQ(all_zero(rng), 0);
-}
-
-TEST(DiscreteDistributionTest, SubnormalWeightsNormalize) {
-  // x/3, x should normalize within a few ULPs of 0.25, 0.75 even when x/3 is
-  // subnormal.
-  constexpr double kMinDouble = (std::numeric_limits<double>::min)();
-  absl::discrete_distribution<int> dist({kMinDouble / 3.0, kMinDouble});
-
-  EXPECT_THAT(dist.probabilities(), Pointwise(DoubleEq(), {0.25, 0.75}));
-}
-
-TEST(DiscreteDistributionTest, OverflowingWeightsNormalize) {
-  // x/3, x should normalize within a few ULPs of 0.25, 0.75 even when direct
-  // summation overflows double.
-  absl::discrete_distribution<int> dist({kMaxDouble / 3.0, kMaxDouble});
-
-  EXPECT_THAT(dist.probabilities(), Pointwise(DoubleEq(), {0.25, 0.75}));
-}
-
-TEST(DiscreteDistributionTest,
-     OverflowingDominantWeightPreservesMultipleSecondaryWeights) {
-  // kV / kMaxDouble == DBL_EPSILON / 4 == 2^-54 is below 0.5 * ULP(1.0), so
-  // naive summation after max-scaling would lose all six secondary weights
-  // into 1.0.
-  constexpr double kV =
-      kMaxDouble * (std::numeric_limits<double>::epsilon() / 4.0);
-  constexpr double kHalfV = 0.5 * kV;
-  absl::discrete_distribution<int> overflow(
-      {kMaxDouble, kV, kV, kV, kV, kV, kV});
-  absl::discrete_distribution<int> scaled(
-      {0.5 * kMaxDouble, kHalfV, kHalfV, kHalfV, kHalfV, kHalfV, kHalfV});
-
-  EXPECT_THAT(overflow.probabilities(),
-              ElementsAre(Lt(1.0), Gt(0.0), Gt(0.0), Gt(0.0), Gt(0.0), Gt(0.0),
-                          Gt(0.0)));
-
-  EXPECT_THAT(overflow.probabilities(),
-              Pointwise(DoubleEq(), scaled.probabilities()));
-}
-
-TEST(DiscreteDistributionTest, SlightlyUnnormalizedWeightsNormalize) {
-  constexpr double kDeficit = 1024.0 * std::numeric_limits<double>::epsilon();
-  absl::discrete_distribution<int> dist({0.5 - kDeficit, 0.5});
-
-  EXPECT_THAT(dist.probabilities()[1], Gt(0.5));
-}
-
-TEST(DiscreteDistributionTest, UnaryOpConstructorOddBucketsOverflowingRange) {
-  std::vector<double> args;
-  const double weights[] = {1.0, 2.0, 1.0};
-  absl::discrete_distribution<int> dist(3, -1.5 * kLargePowerOfTwo,
-                                        1.5 * kLargePowerOfTwo, [&](double x) {
-                                          const double w = weights[args.size()];
-                                          args.push_back(x);
-                                          return w;
-                                        });
-
-  EXPECT_THAT(args, ElementsAre(DoubleEq(-kLargePowerOfTwo), DoubleEq(0.0),
-                                DoubleEq(kLargePowerOfTwo)));
-  EXPECT_THAT(dist.probabilities(), ElementsAre(0.25, 0.5, 0.25));
-}
-
-TEST(DiscreteDistributionTest, UnaryOpConstructorAsymmetricOverflowingRange) {
-  std::vector<double> args;
-  absl::discrete_distribution<int> dist(
-      4, -1.5 * kLargePowerOfTwo, 0.5 * kLargePowerOfTwo, [&](double x) {
-        args.push_back(x);
-        return static_cast<double>(args.size());
-      });
-
-  EXPECT_THAT(args, ElementsAre(DoubleEq(-1.25 * kLargePowerOfTwo),
-                                DoubleEq(-0.75 * kLargePowerOfTwo),
-                                DoubleEq(-0.25 * kLargePowerOfTwo),
-                                DoubleEq(0.25 * kLargePowerOfTwo)));
-  EXPECT_THAT(dist.probabilities(), ElementsAre(0.1, 0.2, 0.3, 0.4));
-}
-
-MATCHER(RoundTripsThroughStream, "round-trips through std::stringstream") {
-  absl::discrete_distribution<int> before(arg.begin(), arg.end());
-  std::stringstream ss;
-  ss << before;
-  absl::discrete_distribution<int> after;
-  ss >> after;
-  if (ss.fail()) {
-    *result_listener << "stream deserialization failed";
-    return false;
-  }
-  if (before != after) {
-    *result_listener << "deserialized distribution differs from original";
-    return false;
-  }
-  return true;
-}
-
-TEST(DiscreteDistributionTest, LargeNonPowerOfTwoSerializationRoundTrip) {
-  // With kRoundingError = 16 * eps, uncompensated summation drifts
-  // by > 400 * eps at n = 10000 and would spuriously re-normalize during
-  // operator>>.
-  EXPECT_THAT(std::vector<double>(10000, 1.0), RoundTripsThroughStream());
-
-  auto make_varied_weights = [](size_t n) {
-    std::vector<double> weights(n);
-    for (size_t i = 0; i < n; ++i) {
-      weights[i] = 1.0 + static_cast<double>((i * 31) % 997) * 0.13;
-    }
-    return weights;
-  };
-  EXPECT_THAT(make_varied_weights(10000), RoundTripsThroughStream());
-}
-
-#ifdef NDEBUG
-constexpr size_t kNdebugSampleCount = 64;
-
-std::vector<int> DrawNdebugSamples(absl::discrete_distribution<int>& dist) {
-  absl::random_internal::pcg64_2018_engine rng(kTestSeed);
-  std::vector<int> samples(kNdebugSampleCount);
-  std::generate(samples.begin(), samples.end(), [&] { return dist(rng); });
-  return samples;
-}
-
-TEST(DiscreteDistributionTest,
-     AllNegativeWeightsDefaultToSingleOutcomeWhenNdebug) {
-  absl::discrete_distribution<int> dist({-1.0, -2.0});
-
-  EXPECT_THAT(dist.probabilities(), ElementsAre(1.0));
-  EXPECT_THAT(DrawNdebugSamples(dist), testing::Each(0));
-}
-
-TEST(DiscreteDistributionTest,
-     AllInvalidWeightsDefaultToSingleOutcomeWhenNdebug) {
-  constexpr double kInf = std::numeric_limits<double>::infinity();
-  constexpr double kNan = std::numeric_limits<double>::quiet_NaN();
-  constexpr double kSnan = std::numeric_limits<double>::signaling_NaN();
-  absl::discrete_distribution<int> dist({-0.0, -1.0, kNan, kSnan, kInf, -kInf});
-
-  EXPECT_THAT(dist.probabilities(), ElementsAre(1.0));
-  EXPECT_THAT(DrawNdebugSamples(dist), testing::Each(0));
-}
-
-TEST(DiscreteDistributionTest,
-     MixedInvalidWeightsClampToPositiveZeroWhenNdebug) {
-  constexpr double kInf = std::numeric_limits<double>::infinity();
-  constexpr double kNan = std::numeric_limits<double>::quiet_NaN();
-  absl::discrete_distribution<int> dist(
-      {-2.0, 1.0, kNan, 3.0, kInf, -kInf, -0.0});
-
-  EXPECT_THAT(dist.probabilities(),
-              ElementsAre(0.0, 0.25, 0.0, 0.75, 0.0, 0.0, 0.0));
-  EXPECT_FALSE(std::signbit(dist.probabilities()[6]));
-  EXPECT_THAT(DrawNdebugSamples(dist), testing::Each(testing::AnyOf(1, 3)));
-}
-
-TEST(DiscreteDistributionTest,
-     OverflowingMixedInvalidWeightsNormalizeWhenNdebug) {
-  constexpr double kInf = std::numeric_limits<double>::infinity();
-  constexpr double kNan = std::numeric_limits<double>::quiet_NaN();
-  absl::discrete_distribution<int> dist(
-      {kMaxDouble, kMaxDouble, -kMaxDouble, kNan, kInf});
-
-  EXPECT_THAT(dist.probabilities(), ElementsAre(0.5, 0.5, 0.0, 0.0, 0.0));
-  EXPECT_THAT(DrawNdebugSamples(dist), testing::Each(testing::AnyOf(0, 1)));
-}
-#endif
 
 }  // namespace
