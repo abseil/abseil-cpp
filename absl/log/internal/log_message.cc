@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cerrno>
 #include <ios>
 #include <memory>
 #include <ostream>
@@ -148,13 +149,15 @@ void WriteToStream(const char* data, void* os) {
 }  // namespace
 
 struct LogMessage::LogMessageData final {
-  LogMessageData(absl::string_view file, int line,
-                 absl::LogSeverity severity, absl::Time timestamp);
+  LogMessageData(absl::string_view file, int line, absl::LogSeverity severity,
+                 absl::Time timestamp, int saved_errno_in);
   LogMessageData(const LogMessageData&) = delete;
   LogMessageData& operator=(const LogMessageData&) = delete;
 
   // `LogEntry` sent to `LogSink`s; contains metadata.
   absl::LogEntry entry;
+
+  int saved_errno;
 
   // true => this was first fatal msg
   bool first_fatal;
@@ -200,10 +203,13 @@ struct LogMessage::LogMessageData final {
   void FinalizeEncodingAndFormat();
 };
 
-LogMessage::LogMessageData::LogMessageData(absl::string_view file,
-                                           int line, absl::LogSeverity severity,
-                                           absl::Time timestamp)
-    : extra_sinks_only(false), manipulated(nullptr) {
+LogMessage::LogMessageData::LogMessageData(absl::string_view file, int line,
+                                           absl::LogSeverity severity,
+                                           absl::Time timestamp,
+                                           int saved_errno_in)
+    : saved_errno(saved_errno_in),
+      extra_sinks_only(false),
+      manipulated(nullptr) {
   // Legacy defaults for LOG's ostream:
   manipulated.setf(std::ios_base::showbase | std::ios_base::boolalpha);
   entry.full_filename_ = file;
@@ -278,8 +284,12 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line,
   : LogMessage(absl::string_view(file), line, severity) {}
 LogMessage::LogMessage(absl::string_view file, int line,
                        absl::LogSeverity severity)
-    : data_(
-          std::make_unique<LogMessageData>(file, line, severity, absl::Now())) {
+    : data_([&] {
+        // Capture errno before absl::Now() or allocation alters it.
+        const int saved_errno = errno;
+        return std::make_unique<LogMessageData>(file, line, severity,
+                                                absl::Now(), saved_errno);
+      }()) {
   data_->first_fatal = false;
   data_->is_perror = false;
   data_->fail_quietly = false;
@@ -298,7 +308,11 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line, ErrorTag)
     : LogMessage(file, line, absl::LogSeverity::kError) {}
 
 // This cannot go in the header since LogMessageData is defined in this file.
-LogMessage::~LogMessage() = default;
+LogMessage::~LogMessage() {
+  const int saved_errno = data_->saved_errno;
+  data_.reset();
+  errno = saved_errno;
+}
 
 void LogMessage::AtLocationImpl(absl::string_view file, int line) {
   data_->entry.full_filename_ = file;
@@ -449,8 +463,9 @@ void LogMessage::Flush() {
   if (data_->entry.log_severity() < absl::MinLogLevel()) return;
 
   if (data_->is_perror) {
-    InternalStream() << ": " << absl::base_internal::StrError(errno_saver_())
-                     << " [" << errno_saver_() << "]";
+    InternalStream() << ": "
+                     << absl::base_internal::StrError(data_->saved_errno)
+                     << " [" << data_->saved_errno << "]";
   }
 
   // Have we already seen a fatal message?
