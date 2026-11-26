@@ -4901,6 +4901,90 @@ TEST(RawHashSamplerTest, GtlReclaimExcessCapacityRecordsCompaction) {
   }
 }
 
+TEST_F(RawHashSooSamplerTest, GtlReclaimExcessCapacityPreservesSampledSoo) {
+  SooInt32Table t;
+  t.insert(1);
+  const HashtablezInfo* info = HashtablezInfoHandlePeer::GetInfo(t);
+  ASSERT_NE(info, nullptr);
+  EXPECT_EQ(info->capacity.load(std::memory_order_relaxed), SooCapacity());
+
+  t.erase(1);
+  GtlReclaimExcessCapacity(t);
+  EXPECT_EQ(HashtablezInfoHandlePeer::GetInfo(t), info);
+  EXPECT_EQ(t.capacity(), NextCapacity(SooCapacity()));
+  EXPECT_EQ(info->capacity.load(std::memory_order_relaxed), SooCapacity());
+  EXPECT_EQ(info->size.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(info->num_compactions.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(info->bytes_reclaimed.load(std::memory_order_relaxed), 0);
+
+  // A large sampled SOO table drained to empty shrinks to
+  // `NextCapacity(SooCapacity())` while preserving its sample.
+  SooInt32Table large;
+  large.reserve(100);
+  large.insert(1);
+  const HashtablezInfo* large_info = HashtablezInfoHandlePeer::GetInfo(large);
+  ASSERT_NE(large_info, nullptr);
+  large.erase(1);
+  GtlReclaimExcessCapacity(large);
+  EXPECT_EQ(HashtablezInfoHandlePeer::GetInfo(large), large_info);
+  EXPECT_EQ(large.capacity(), NextCapacity(SooCapacity()));
+  EXPECT_EQ(large_info->capacity.load(std::memory_order_relaxed),
+            NextCapacity(SooCapacity()));
+  EXPECT_EQ(large_info->size.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(large_info->num_compactions.load(std::memory_order_relaxed), 1);
+  EXPECT_GT(large_info->bytes_reclaimed.load(std::memory_order_relaxed), 0);
+}
+
+TEST_F(RawHashSooSamplerTest,
+       GtlReclaimExcessCapacityUnsampledSooDoesNotResample) {
+  DisableSampling();
+  SooInt32Table empty_after_reclaim;
+  empty_after_reclaim.insert(1);
+  empty_after_reclaim.insert(2);
+  empty_after_reclaim.erase(1);
+  empty_after_reclaim.erase(2);
+  GtlReclaimExcessCapacity(empty_after_reclaim);
+  EXPECT_EQ(empty_after_reclaim.capacity(), SooCapacity());
+  EXPECT_EQ(HashtablezInfoHandlePeer::GetInfo(empty_after_reclaim), nullptr);
+
+  SooInt32Table full_after_reclaim;
+  full_after_reclaim.reserve(100);
+  full_after_reclaim.insert(1);
+  GtlReclaimExcessCapacity(full_after_reclaim);
+  EXPECT_EQ(full_after_reclaim.capacity(), SooCapacity());
+  full_after_reclaim.erase(1);
+
+  SampleEveryTable sample_all;
+  empty_after_reclaim.insert(1);
+  EXPECT_EQ(empty_after_reclaim.capacity(), SooCapacity());
+  EXPECT_EQ(HashtablezInfoHandlePeer::GetInfo(empty_after_reclaim), nullptr);
+
+  full_after_reclaim.insert(2);
+  EXPECT_EQ(full_after_reclaim.capacity(), SooCapacity());
+  EXPECT_EQ(HashtablezInfoHandlePeer::GetInfo(full_after_reclaim), nullptr);
+}
+
+TEST(RawHashSamplerTest, SooTableRepeatedInsertEraseReclaimDoesNotResample) {
+  if (SooInt32Table().capacity() != SooCapacity()) {
+    CHECK_LT(sizeof(void*), 8) << "missing SOO coverage";
+    GTEST_SKIP() << "not SOO on this platform";
+  }
+  std::vector<const HashtablezInfo*> infos =
+      SampleSooMutation([](SooInt32Table& t) {
+        for (int i = 0; i < 10; ++i) {
+          t.insert(1);
+          t.erase(1);
+          GtlReclaimExcessCapacity(t);
+        }
+      });
+  for (const HashtablezInfo* info : infos) {
+    EXPECT_EQ(info->capacity.load(std::memory_order_relaxed), SooCapacity());
+    EXPECT_EQ(info->size.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(info->num_compactions.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(info->bytes_reclaimed.load(std::memory_order_relaxed), 0);
+  }
+}
+
 #endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
 
 TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
@@ -6186,11 +6270,14 @@ TEST(Table, GtlReclaimExcessCapacityEmptySoo) {
 
   GtlReclaimExcessCapacity(soo_map);
   EXPECT_TRUE(soo_map.empty());
-  EXPECT_EQ(soo_map.capacity(), SooCapacity());
+  // Unsampled SOO tables shrink to inline SOO (`1`); sampled SOO tables retain
+  // `NextCapacity(SooCapacity())` (`3`).
+  EXPECT_LE(soo_map.capacity(), NextCapacity(SooCapacity()));
 
-  // Back-to-back call on an already empty SOO table is a no-op.
+  // Back-to-back call on an already compacted empty SOO table is a no-op.
+  const size_t compacted_soo_cap = soo_map.capacity();
   GtlReclaimExcessCapacity(soo_map);
-  EXPECT_EQ(soo_map.capacity(), SooCapacity());
+  EXPECT_EQ(soo_map.capacity(), compacted_soo_cap);
 }
 
 TEST(Table, GtlReclaimExcessCapacityEmptyNonSoo) {
