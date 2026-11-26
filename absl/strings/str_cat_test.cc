@@ -652,6 +652,26 @@ TEST(Numbers, TestFunctionsMovedOverFromNumbersMain) {
   TestFastPrints();
 }
 
+TEST(StrCat, HexAndDecValueCategoriesAndStringify) {
+  absl::Hex hex(0xdeadbeef, absl::kZeroPad12);
+  const absl::Hex const_hex(0x42, absl::kSpacePad4);
+  absl::Dec dec(-12345, absl::kZeroPad8);
+  const absl::Dec const_dec(67, absl::kSpacePad4);
+
+  EXPECT_EQ(absl::StrCat(hex), "0000deadbeef");
+  EXPECT_EQ(absl::StrCat(const_hex), "  42");
+  EXPECT_EQ(absl::StrCat(dec), "-0012345");
+  EXPECT_EQ(absl::StrCat(const_dec), "  67");
+
+  std::string out = "[";
+  absl::StrAppend(&out, hex, "/", const_hex, "/", dec, "/", const_dec, "]");
+  EXPECT_EQ(out, "[0000deadbeef/  42/-0012345/  67]");
+
+  EXPECT_EQ(absl::StrFormat("%v/%v/%v/%v", absl::Hex(0), hex, dec, const_dec),
+            "0/0000deadbeef/-0012345/  67");
+  EXPECT_EQ(absl::StrFormat("%v", absl::Dec(-1, absl::kSpacePad4)), "  -1");
+}
+
 struct PointStringify {
   template <typename FormatSink>
   friend void AbslStringify(FormatSink& sink, const PointStringify& p) {

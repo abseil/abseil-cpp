@@ -222,26 +222,13 @@ struct Hex {
 
   template <typename S>
   friend void AbslStringify(S& sink, Hex hex) {
-    static_assert(
-        numbers_internal::kFastToBufferSize >= 32,
-        "This function only works when output buffer >= 32 bytes long");
     char buffer[numbers_internal::kFastToBufferSize];
-    char* const end = &buffer[numbers_internal::kFastToBufferSize];
-    auto real_width =
-        absl::numbers_internal::FastHexToBufferZeroPad16(hex.value, end - 16);
-    if (real_width >= hex.width) {
-      sink.Append(absl::string_view(end - real_width, real_width));
-    } else {
-      // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
-      // max pad width can be up to 20.
-      std::memset(end - 32, hex.fill, 16);
-      // Patch up everything else up to the real_width.
-      std::memset(end - real_width - 16, hex.fill, 16);
-      sink.Append(absl::string_view(end - hex.width, hex.width));
-    }
+    sink.Append(hex.FormatToBuffer(buffer));
   }
 
  private:
+  friend class AlphaNum;
+
   Hex(PadSpec spec, uint64_t v)
       : value(v),
         width(spec == absl::kNoPad
@@ -249,6 +236,25 @@ struct Hex {
                   : spec >= absl::kSpacePad2 ? spec - absl::kSpacePad2 + 2
                                              : spec - absl::kZeroPad2 + 2),
         fill(spec >= absl::kSpacePad2 ? ' ' : '0') {}
+
+  absl::string_view FormatToBuffer(char* absl_nonnull buffer) const {
+    static_assert(
+        numbers_internal::kFastToBufferSize >= 32,
+        "This function only works when output buffer >= 32 bytes long");
+    char* const end = &buffer[numbers_internal::kFastToBufferSize];
+    auto real_width =
+        absl::numbers_internal::FastHexToBufferZeroPad16(value, end - 16);
+    if (real_width >= width) {
+      return absl::string_view(end - real_width, real_width);
+    } else {
+      // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
+      // max pad width can be up to 20.
+      std::memset(end - 32, fill, 16);
+      // Patch up everything else up to the real_width.
+      std::memset(end - real_width - 16, fill, 16);
+      return absl::string_view(end - width, width);
+    }
+  }
 };
 
 // -----------------------------------------------------------------------------
@@ -277,34 +283,41 @@ struct Dec {
 
   template <typename S>
   friend void AbslStringify(S& sink, Dec dec) {
-    assert(dec.width <= numbers_internal::kFastToBufferSize);
     char buffer[numbers_internal::kFastToBufferSize];
+    sink.Append(dec.FormatToBuffer(buffer));
+  }
+
+ private:
+  friend class AlphaNum;
+
+  absl::string_view FormatToBuffer(char* absl_nonnull buffer) const {
+    assert(width <= numbers_internal::kFastToBufferSize);
     char* const end = &buffer[numbers_internal::kFastToBufferSize];
-    char* const minfill = end - dec.width;
+    char* const minfill = end - width;
     char* writer = end;
-    uint64_t val = dec.value;
+    uint64_t val = value;
     while (val > 9) {
-      *--writer = '0' + (val % 10);
+      *--writer = '0' + static_cast<char>(val % 10);
       val /= 10;
     }
     *--writer = '0' + static_cast<char>(val);
-    if (dec.neg) *--writer = '-';
+    if (neg) *--writer = '-';
 
     ptrdiff_t fillers = writer - minfill;
     if (fillers > 0) {
       // Tricky: if the fill character is ' ', then it's <fill><+/-><digits>
       // But...: if the fill character is '0', then it's <+/-><fill><digits>
       bool add_sign_again = false;
-      if (dec.neg && dec.fill == '0') {  // If filling with '0',
-        ++writer;                    // ignore the sign we just added
-        add_sign_again = true;       // and re-add the sign later.
+      if (neg && fill == '0') {  // If filling with '0',
+        ++writer;                // ignore the sign we just added
+        add_sign_again = true;   // and re-add the sign later.
       }
       writer -= fillers;
-      std::fill_n(writer, fillers, dec.fill);
+      std::fill_n(writer, fillers, fill);
       if (add_sign_again) *--writer = '-';
     }
 
-    sink.Append(absl::string_view(writer, static_cast<size_t>(end - writer)));
+    return absl::string_view(writer, static_cast<size_t>(end - writer));
   }
 };
 
@@ -376,6 +389,11 @@ class AlphaNum {
                             static_cast<double>(f), digits_)) {}
   AlphaNum(double f)  // NOLINT(runtime/explicit)
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
+
+  AlphaNum(Hex hex)  // NOLINT(runtime/explicit)
+      : piece_(hex.FormatToBuffer(digits_)) {}
+  AlphaNum(Dec dec)  // NOLINT(runtime/explicit)
+      : piece_(dec.FormatToBuffer(digits_)) {}
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)
