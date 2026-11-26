@@ -138,12 +138,19 @@ ABSL_ATTRIBUTE_NOINLINE void SpinLock::ProbeSpinLockLoop(int iterations) {
                  "SpinLockLoop cleared held lockword");
 }
 
-int SpinLock::CalibrateSpinCount() {
+// Minimum spin count on multi-CPU hosts, also used if calibration fails.
+static constexpr int kMinSpinIterations = 500;
+// Maximum spin count, which bounds the spin if CycleClock::Frequency() is
+// wrong.
+static constexpr int kMaxSpinIterations = 12000;
+
+int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations),
+                            int64_t target_ns) {
   // Keep the fastest of a few readings to filter out preemption.
   int64_t min_cycles = 0;
   for (int reading = 0; reading < kProbeReadings; ++reading) {
     const int64_t start = CycleClock::Now();
-    ProbeSpinLockLoop(kProbeIterations);
+    probe_fn(kProbeIterations);
     const int64_t elapsed = CycleClock::Now() - start;
     if (elapsed > 0 && (min_cycles == 0 || elapsed < min_cycles)) {
       min_cycles = elapsed;
@@ -153,7 +160,7 @@ int SpinLock::CalibrateSpinCount() {
     // CycleClock failed to advance across all readings.
     return kMinSpinIterations;
   }
-  const double iterations = kSpinNanoseconds / kNanosecondsPerSecond *
+  const double iterations = target_ns / kNanosecondsPerSecond *
                             CycleClock::Frequency() * kProbeIterations /
                             static_cast<double>(min_cycles);
   return static_cast<int>(
@@ -169,7 +176,10 @@ uint32_t SpinLock::SpinLoop() {
   // adaptive_spin_count here.
   if (adaptive_spin_count_.load(std::memory_order_relaxed) == 0) {
     int current_spin_count = 0;
-    int new_spin_count = NumCPUs() > 1 ? CalibrateSpinCount() : 1;
+    int new_spin_count =
+        NumCPUs() > 1
+            ? CalibrateSpinIterations(&ProbeSpinLockLoop, kSpinNanoseconds)
+            : 1;
     // If this fails, the value will remain unchanged. We may not spin for the
     // intended duration, but that is still safe. We will try again on the next
     // call to SpinLoop.

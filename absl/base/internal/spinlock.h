@@ -247,14 +247,6 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
 
   // Target duration of SpinLoop() on multi-CPU hosts.
   static constexpr int64_t kSpinNanoseconds = 500;
-  // Minimum spin count on multi-CPU hosts, also used if calibration fails.
-  static constexpr int kMinSpinIterations = 500;
-  // Maximum spin count, which bounds the spin if CycleClock::Frequency() is
-  // wrong.
-  static constexpr int kMaxSpinIterations = 12000;
-  // Returns the number of SpinLockLoop() iterations that take about
-  // kSpinNanoseconds, within [kMinSpinIterations, kMaxSpinIterations].
-  static int CalibrateSpinCount();
 
   inline bool TryLockImpl() {
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
@@ -312,6 +304,10 @@ void RegisterSpinLockProfiler(void (*absl_nonnull fn)(
 void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
     const void* absl_nonnull lock, int64_t wait_cycles));
 
+// Returns the number of `probe_fn` spin-loop iterations that take about
+// `target_ns` nanoseconds, clamped to a safe range.
+int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations),
+                            int64_t target_ns);
 //------------------------------------------------------------------------------
 // Public interface ends here.
 //------------------------------------------------------------------------------
