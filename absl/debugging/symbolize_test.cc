@@ -559,6 +559,23 @@ TEST(Symbolize, InvalidSymtabEntSizeDoesNotCrash) {
   EXPECT_FALSE(absl::Symbolize(static_cast<char*>(region) + 8, symbol_buf,
                                sizeof(symbol_buf)));
 }
+
+TEST(Symbolize, InvalidPCs) {
+  EXPECT_STREQ("nonstatic_func",
+               TrySymbolize(reinterpret_cast<void*>(&nonstatic_func)));
+
+  char local_var = 0;
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_EQ(nullptr, TrySymbolize(&local_var));
+    EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(uintptr_t{1})));
+    EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(uintptr_t{4095})));
+    EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(~uintptr_t{0})));
+    EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(intptr_t{-10000})));
+  }
+
+  EXPECT_STREQ("Foo::func()",
+               TrySymbolize(reinterpret_cast<void*>(&Foo::func)));
+}
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #endif  // !ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE &&
         // !ABSL_INTERNAL_HAVE_EMSCRIPTEN_SYMBOLIZE
