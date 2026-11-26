@@ -41,8 +41,10 @@
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
@@ -236,6 +238,12 @@ class FlagState : public flags_internal::FlagStateInterface {
 
  private:
   friend class FlagImpl;
+
+  // Restores a flag that was unmodified when SaveState() returned nullptr.
+  static void RestoreInitialState(CommandLineFlag& flag) {
+    FlagImpl& flag_impl = static_cast<FlagImpl&>(flag);
+    FlagState(flag_impl, flag_impl.default_value_).Restore();
+  }
 
   // Restores the flag to the saved state.
   void Restore() && override {
@@ -438,6 +446,7 @@ void FlagImpl::RecordMutation() {
 }
 
 void FlagImpl::StoreValue(const void* src, ValueSource source) {
+  const bool first_modification = CanSkipInitOnSave();
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic: {
@@ -475,6 +484,10 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
       break;
   }
   RecordMutation();
+  if (first_modification) {
+    flags_internal::RegisterFirstFlagModification(
+        *this, &FlagState::RestoreInitialState);
+  }
   InvokeCallback();
 }
 
@@ -609,7 +622,8 @@ bool FlagImpl::CanSkipInitOnSave() const {
 
 std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   if (ABSL_PREDICT_TRUE(CanSkipInitOnSave())) {
-    return std::make_unique<FlagState>(*this, default_value_);
+    // FlagSaver restores the flag with FlagState::RestoreInitialState().
+    return nullptr;
   }
 
   absl::MutexLock l(DataGuard());
@@ -870,8 +884,13 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
       if (s.DefaultKind() == FlagDefaultKind::kDynamicValue) {
         tentative_value.reset(old_value);
       } else {
+        const bool first_modification = CanSkipInitOnSave();
         s.default_kind = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
         mu_state_.store(s, std::memory_order_relaxed);
+        if (first_modification) {
+          flags_internal::RegisterFirstFlagModification(
+              *this, &FlagState::RestoreInitialState);
+        }
       }
 
       if (!was_modified) {
