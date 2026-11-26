@@ -84,6 +84,7 @@ absl_cc_library(
     absl::nullability
     absl::raw_logging_internal
     absl::source_location
+    absl::span
     absl::string_view
     absl::strings_append_and_overwrite
     absl::strings_internal
@@ -811,6 +812,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::compare
     absl::compressed_tuple
     absl::config
@@ -821,6 +823,7 @@ absl_cc_library(
     absl::inlined_vector
     absl::layout
     absl::raw_logging_internal
+    absl::span
     absl::string_view
     absl::strings
     absl::throw_delegate
@@ -944,6 +947,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::base
     absl::config
     absl::cord_internal

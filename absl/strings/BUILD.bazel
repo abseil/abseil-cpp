@@ -119,6 +119,7 @@ cc_library(
         "//absl/numeric:bits",
         "//absl/numeric:int128",
         "//absl/types:source_location",
+        "//absl/types:span",
     ],
 )
 
@@ -561,6 +562,7 @@ cc_library(
     deps = [
         ":string_view",
         ":strings",
+        "//absl/algorithm:container",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
@@ -765,6 +767,7 @@ cc_library(
         ":cordz_handle",
         ":cordz_statistics",
         ":cordz_update_tracker",
+        "//absl/algorithm:container",
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
