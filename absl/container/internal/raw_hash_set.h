@@ -3931,9 +3931,9 @@ class raw_hash_set : public raw_hash_set_base {
 
   friend bool operator==(const raw_hash_set& a, const raw_hash_set& b) {
     if (a.size() != b.size()) return false;
-    const raw_hash_set* outer = &a;
-    const raw_hash_set* inner = &b;
-    if (outer->capacity() > inner->capacity()) std::swap(outer, inner);
+    const bool a_is_larger = a.capacity() > b.capacity();
+    const raw_hash_set* outer = a_is_larger ? &b : &a;
+    const raw_hash_set* inner = a_is_larger ? &a : &b;
     for (const value_type& elem : *outer) {
       auto it = PolicyTraits::apply(FindElement{*inner}, elem);
       if (unchecked_is_end(it)) return false;
