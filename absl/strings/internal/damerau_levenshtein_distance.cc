@@ -18,7 +18,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 #include <utility>
 
 #include "absl/base/config.h"
@@ -58,7 +57,9 @@ uint8_t CappedDamerauLevenshteinDistance(absl::string_view s1,
 
   // d[i][j] is the number of edits required to convert s1[0, i] to s2[0, j]
   std::array<std::array<uint8_t, MAX_SIZE + 2>, MAX_SIZE + 2> d;
-  std::iota(d[0].begin(), d[0].begin() + upper_diag + 1, 0);
+  for (uint8_t j = 0; j <= upper_diag; ++j) {
+    d[0][j] = j;
+  }
   d[0][cutoff_plus_1] = cutoff_plus_1;
   for (size_t i = 1; i <= s1.size(); ++i) {
     // Deduce begin of relevant window.

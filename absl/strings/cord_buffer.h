@@ -332,16 +332,19 @@ class CordBuffer {
     // Returns the available area of the internal SSO data
     absl::Span<char> short_available() {
       const size_t length = short_length();
-      return absl::Span<char>(short_rep.data + length,
-                              kInlineCapacity - length);
+      const absl::Span<char> data = absl::MakeSpan(short_rep.data);
+      assert(length <= data.size());
+      return data.subspan(length);
     }
 
     // Returns the available area of the internal SSO data
     absl::Span<char> long_available() const {
       assert(!is_short());
       const size_t length = long_rep.rep->length;
-      return absl::Span<char>(long_rep.rep->Data() + length,
-                              long_rep.rep->Capacity() - length);
+      const absl::Span<char> data(long_rep.rep->Data(),
+                                  long_rep.rep->Capacity());
+      assert(length <= data.size());
+      return data.subspan(length);
     }
 
     // Returns the length of the internal SSO data.
@@ -437,7 +440,9 @@ class CordBuffer {
   cord_internal::CordRep* ConsumeValue(absl::string_view& short_value) {
     cord_internal::CordRep* rep = nullptr;
     if (rep_.is_short()) {
-      short_value = absl::string_view(rep_.data(), rep_.short_length());
+      short_value = absl::string_view(rep_.short_rep.data,
+                                      sizeof(rep_.short_rep.data))
+                        .substr(0, rep_.short_length());
     } else {
       rep = rep_.rep();
     }

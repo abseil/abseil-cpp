@@ -18,14 +18,17 @@
 
 #include "absl/base/config.h"
 #include "absl/strings/ascii.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 int memcasecmp(const char* s1, const char* s2, size_t len) {
-  const unsigned char* us1 = reinterpret_cast<const unsigned char*>(s1);
-  const unsigned char* us2 = reinterpret_cast<const unsigned char*>(s2);
+  const absl::Span<const unsigned char> us1(
+      reinterpret_cast<const unsigned char*>(s1), len);
+  const absl::Span<const unsigned char> us2(
+      reinterpret_cast<const unsigned char*>(s2), len);
 
   for (size_t i = 0; i < len; i++) {
     unsigned char c1 = us1[i];

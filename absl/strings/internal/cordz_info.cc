@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/base/macros.h"
@@ -306,10 +307,15 @@ size_t CordzInfo::FillParentStack(const CordzInfo* src, void** stack) {
   assert(stack);
   if (src == nullptr) return 0;
   if (src->parent_stack_depth_) {
-    memcpy(stack, src->parent_stack_, src->parent_stack_depth_ * sizeof(void*));
+    const absl::Span<void* const> parent_stack =
+        absl::MakeConstSpan(src->parent_stack_);
+    assert(src->parent_stack_depth_ <= parent_stack.size());
+    absl::c_copy(parent_stack.first(src->parent_stack_depth_), stack);
     return src->parent_stack_depth_;
   }
-  memcpy(stack, src->stack_, src->stack_depth_ * sizeof(void*));
+  const absl::Span<void* const> src_stack = absl::MakeConstSpan(src->stack_);
+  assert(src->stack_depth_ <= src_stack.size());
+  absl::c_copy(src_stack.first(src->stack_depth_), stack);
   return src->stack_depth_;
 }
 

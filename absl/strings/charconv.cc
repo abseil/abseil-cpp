@@ -252,11 +252,6 @@ struct FloatTraits<float> {
 // Lookups into the power-of-10 table must first check the Power10Overflow() and
 // Power10Underflow() functions, to avoid out-of-bounds table access.
 //
-// Indexes into these tables are biased by -kPower10TableMinInclusive. Valid
-// indexes range from kPower10TableMinInclusive to kPower10TableMaxExclusive.
-extern const uint64_t kPower10MantissaHighTable[];  // High 64 of 128 bits.
-extern const uint64_t kPower10MantissaLowTable[];   // Low  64 of 128 bits.
-
 // The smallest (inclusive) allowed value for use with the Power10Mantissa()
 // and Power10Exponent() functions below.  (If a smaller exponent is needed in
 // calculations, the end result is guaranteed to underflow.)
@@ -266,6 +261,16 @@ constexpr int kPower10TableMinInclusive = -342;
 // Power10Exponent() functions below.  (If a larger-or-equal exponent is needed
 // in calculations, the end result is guaranteed to overflow.)
 constexpr int kPower10TableMaxExclusive = 309;
+
+constexpr size_t kPower10TableSize =
+    kPower10TableMaxExclusive - kPower10TableMinInclusive;
+
+// Indexes into these tables are biased by -kPower10TableMinInclusive. Valid
+// indexes range from kPower10TableMinInclusive to kPower10TableMaxExclusive.
+extern const uint64_t
+    kPower10MantissaHighTable[kPower10TableSize];  // High 64 of 128 bits.
+extern const uint64_t
+    kPower10MantissaLowTable[kPower10TableSize];  // Low  64 of 128 bits.
 
 uint64_t Power10Mantissa(int n) {
   return kPower10MantissaHighTable[n - kPower10TableMinInclusive];
@@ -997,7 +1002,7 @@ namespace {
 // after re-formatting its output into two arrays of N uint64_t values (instead
 // of an N element array of uint64_t pairs).
 
-const uint64_t kPower10MantissaHighTable[] = {
+const uint64_t kPower10MantissaHighTable[kPower10TableSize] = {
     0xeef453d6923bd65aU, 0x9558b4661b6565f8U, 0xbaaee17fa23ebf76U,
     0xe95a99df8ace6f53U, 0x91d8a02bb6c10594U, 0xb64ec836a47146f9U,
     0xe3e27a444d8d98b7U, 0x8e6d8c6ab0787f72U, 0xb208ef855c969f4fU,
@@ -1217,7 +1222,7 @@ const uint64_t kPower10MantissaHighTable[] = {
     0xb6472e511c81471dU, 0xe3d8f9e563a198e5U, 0x8e679c2f5e44ff8fU,
 };
 
-const uint64_t kPower10MantissaLowTable[] = {
+const uint64_t kPower10MantissaLowTable[kPower10TableSize] = {
     0x113faa2906a13b3fU, 0x4ac7ca59a424c507U, 0x5d79bcf00d2df649U,
     0xf4d82c2c107973dcU, 0x79071b9b8a4be869U, 0x9748e2826cdee284U,
     0xfd1b1b2308169b25U, 0xfe30f0f5e50e20f7U, 0xbdbd2d335e51a935U,

@@ -22,6 +22,7 @@
 #include <cstring>
 #include <memory>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
@@ -164,7 +165,7 @@ struct CordRepFlat : public CordRep {
   static CordRepFlat* Create(absl::string_view data, size_t extra = 0) {
     assert(data.size() <= kMaxFlatLength);
     CordRepFlat* flat = New(data.size() + (std::min)(extra, kMaxFlatLength));
-    memcpy(flat->Data(), data.data(), data.size());
+    absl::c_copy(data, flat->Data());
     flat->length = data.size();
     return flat;
   }

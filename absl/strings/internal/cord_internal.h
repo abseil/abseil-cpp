@@ -24,6 +24,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
@@ -34,6 +35,7 @@
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -610,7 +612,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineData {
 
   void copy_max_inline_to(char* dst) const {
     assert(!is_tree());
-    memcpy(dst, rep_.SanitizerSafeCopy().as_chars(), kMaxInline);
+    absl::c_copy(absl::MakeConstSpan(rep_.SanitizerSafeCopy().data).subspan(1),
+                 dst);
   }
 
   // Initialize this instance to holding the tree value `rep`,
