@@ -583,6 +583,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_TEST_DLL
 #endif  // defined(_MSC_VER)
 
+// allow disabling abseil sanitizer features in code that consumes its headers
+#ifndef ABSL_SUPPRESS_SANITIZER
+
 // ABSL_HAVE_MEMORY_SANITIZER
 //
 // MemorySanitizer (MSan) is a detector of uninitialized reads. It consists of
@@ -667,6 +670,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // GCC or Clang using the LeakSanitizer integrated into AddressSanitizer.
 #define ABSL_HAVE_LEAK_SANITIZER 1
 #endif
+
+#endif // ABSL_SUPPRESS_SANITIZER
 
 // `ABSL_INTERNAL_HAS_RTTI` determines whether abseil is being compiled with
 // RTTI support.
