@@ -176,7 +176,8 @@ class FormatSpecTemplate
 class Streamable {
  public:
   Streamable(const UntypedFormatSpecImpl& format,
-             absl::Span<const FormatArgImpl> args);
+             absl::Span<const FormatArgImpl> args)
+      : format_(format), args_(args.begin(), args.end()) {}
 
   std::ostream& Print(std::ostream& os) const;
 
