@@ -196,7 +196,6 @@ absl_cc_library(
     absl::base
     absl::config
     absl::core_headers
-    absl::errno_saver
     absl::examine_stack
     absl::inlined_vector
     absl::log_entry
