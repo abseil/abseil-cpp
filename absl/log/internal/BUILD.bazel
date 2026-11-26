@@ -206,7 +206,6 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:errno_saver",
         "//absl/base:log_severity",
         "//absl/base:nullability",
         "//absl/base:raw_logging_internal",

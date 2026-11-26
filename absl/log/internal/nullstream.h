@@ -81,6 +81,9 @@ class NullStream {
   }
   NullStream& InternalStream() { return *this; }
   void Flush() {}
+  // Lives on the base class rather than NullStreamFatal because streaming
+  // returns a base reference and fatal stripped logs flush through it.
+  [[noreturn]] void FlushFatal() { _exit(1); }
 };
 template <typename T>
 inline NullStream& operator<<(NullStream& str, const T&) {
