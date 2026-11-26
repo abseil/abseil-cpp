@@ -1219,6 +1219,7 @@ cc_test(
 cc_library(
     name = "btree",
     srcs = [
+        "internal/btree.cc",
         "internal/btree.h",
         "internal/btree_container.h",
     ],

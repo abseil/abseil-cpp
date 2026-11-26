@@ -78,6 +78,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/flat_hash_set.h"
   "container/hash_container_defaults.h"
   "container/inlined_vector.h"
+  "container/internal/btree.cc"
   "container/internal/btree.h"
   "container/internal/btree_container.h"
   "container/internal/chunked_queue.h"

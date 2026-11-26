@@ -1479,11 +1479,10 @@ class btree_iterator : private btree_iterator_generation_info {
 
 // We use a static empty node for the root/leftmost/rightmost of empty btrees
 // in order to avoid branching in begin()/end(). The empty node only depends on
-// the node's field_type and alignment (not on the full Params), so it is
-// defined outside of btree in order to be shared between all btrees with
-// compatible node headers.
-template <typename FieldType, size_t Alignment>
-struct alignas(Alignment) BtreeEmptyNode : btree_node_base<FieldType> {
+// the node's field_type (not on the full Params), so two shared globals in
+// `btree.cc` cover all btrees.
+template <typename FieldType>
+struct BtreeEmptyNode : btree_node_base<FieldType> {
   // Mirrors the header of btree_node's layout (see the comment in btree_node).
   btree_node_header* parent;
 #ifdef ABSL_BTREE_ENABLE_GENERATIONS
@@ -1499,10 +1498,17 @@ struct alignas(Alignment) BtreeEmptyNode : btree_node_base<FieldType> {
   constexpr BtreeEmptyNode() : parent(this) {}
 };
 
-template <typename FieldType, size_t Alignment>
-BtreeEmptyNode<FieldType, Alignment>* GetBtreeEmptyNode() {
-  static constexpr BtreeEmptyNode<FieldType, Alignment> empty_node;
-  return const_cast<BtreeEmptyNode<FieldType, Alignment>*>(&empty_node);
+ABSL_DLL extern const BtreeEmptyNode<uint8_t> kBtreeEmptyNode8;
+ABSL_DLL extern const BtreeEmptyNode<uint16_t> kBtreeEmptyNode16;
+
+template <typename FieldType>
+inline btree_node_base<FieldType>* BtreeEmptyNodePtr() {
+  if constexpr (std::is_same_v<FieldType, uint8_t>) {
+    return const_cast<BtreeEmptyNode<uint8_t>*>(&kBtreeEmptyNode8);
+  } else {
+    static_assert(std::is_same_v<FieldType, uint16_t>);
+    return const_cast<BtreeEmptyNode<uint16_t>*>(&kBtreeEmptyNode16);
+  }
 }
 
 // Type-erased core fields of `btree<Params>`, stored as the first member of
@@ -1521,16 +1527,10 @@ class btree {
   using is_key_compare_to = typename Params::is_key_compare_to;
   using field_type = typename node_type::field_type;
 
-  // Round the alignment of the empty node up to max natural alignment so that
-  // btrees with different natural node alignments share the same node.
-  static constexpr size_t kEmptyNodeAlignment =
-      (std::max)(alignof(std::max_align_t), size_t{node_type::Alignment()});
-
   static node_type* EmptyNode() {
     static_assert(node_type::kInternalNodeMaxCount != 1,
                   "The empty node must be regarded as a leaf node.");
-    return reinterpret_cast<node_type*>(
-        GetBtreeEmptyNode<field_type, kEmptyNodeAlignment>());
+    return static_cast<node_type*>(BtreeEmptyNodePtr<field_type>());
   }
 
   enum : uint32_t {

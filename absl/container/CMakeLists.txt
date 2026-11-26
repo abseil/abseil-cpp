@@ -22,6 +22,8 @@ absl_cc_library(
     "btree_set.h"
     "internal/btree.h"
     "internal/btree_container.h"
+  SRCS
+    "internal/btree.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -41,6 +43,7 @@ absl_cc_library(
     absl::throw_delegate
     absl::type_traits
     absl::weakly_mixed_integer
+  PUBLIC
 )
 
 # Internal-only target, do not depend on directly.
