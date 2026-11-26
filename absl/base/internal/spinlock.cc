@@ -138,14 +138,22 @@ ABSL_ATTRIBUTE_NOINLINE void SpinLock::ProbeSpinLockLoop(int iterations) {
                  "SpinLockLoop cleared held lockword");
 }
 
+// Target spin duration on a `kReferenceCpus`-CPU host (and smaller hosts).
+// Larger hosts scale the target inversely with CPU count.
+static constexpr int kReferenceCpus = 64;
+static constexpr int64_t kReferenceSpinNanoseconds = 4000;
 // Minimum spin count on multi-CPU hosts, also used if calibration fails.
 static constexpr int kMinSpinIterations = 500;
 // Maximum spin count, which bounds the spin if CycleClock::Frequency() is
 // wrong.
 static constexpr int kMaxSpinIterations = 12000;
 
-int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations),
-                            int64_t target_ns) {
+int64_t TargetSpinNanoseconds(int num_cpus) {
+  return kReferenceSpinNanoseconds * kReferenceCpus /
+         (std::max)(num_cpus, kReferenceCpus);
+}
+
+int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations)) {
   // Keep the fastest of a few readings to filter out preemption.
   int64_t min_cycles = 0;
   for (int reading = 0; reading < kProbeReadings; ++reading) {
@@ -160,6 +168,8 @@ int CalibrateSpinIterations(void (*absl_nonnull probe_fn)(int iterations),
     // CycleClock failed to advance across all readings.
     return kMinSpinIterations;
   }
+  const double target_ns =
+      static_cast<double>(TargetSpinNanoseconds(NumCPUs()));
   const double iterations = target_ns / kNanosecondsPerSecond *
                             CycleClock::Frequency() * kProbeIterations /
                             static_cast<double>(min_cycles);
@@ -177,9 +187,7 @@ uint32_t SpinLock::SpinLoop() {
   if (adaptive_spin_count_.load(std::memory_order_relaxed) == 0) {
     int current_spin_count = 0;
     int new_spin_count =
-        NumCPUs() > 1
-            ? CalibrateSpinIterations(&ProbeSpinLockLoop, kSpinNanoseconds)
-            : 1;
+        NumCPUs() > 1 ? CalibrateSpinIterations(&ProbeSpinLockLoop) : 1;
     // If this fails, the value will remain unchanged. We may not spin for the
     // intended duration, but that is still safe. We will try again on the next
     // call to SpinLoop.
