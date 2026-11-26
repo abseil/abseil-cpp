@@ -3577,7 +3577,11 @@ class raw_hash_set : public raw_hash_set_base {
     insert_range(ilist.begin(), ilist.end());
   }
 
-  insert_return_type insert(node_type&& node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // Templated so that invocations of other overloads don't need to instantiate
+  // `node_type` to rule this overload out.
+  template <class NodeType>
+  std::enable_if_t<std::is_same_v<NodeType, node_type>, insert_return_type>
+  insert(NodeType&& node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (!node) return {end(), false, node_type()};
     const auto& elem = PolicyTraits::element(CommonAccess::GetSlot(node));
     auto res = PolicyTraits::apply(
@@ -3587,13 +3591,16 @@ class raw_hash_set : public raw_hash_set_base {
       CommonAccess::Reset(&node);
       return {res.first, true, node_type()};
     } else {
-      return {res.first, false, std::move(node)};
+      return {res.first, false, std::forward<NodeType>(node)};
     }
   }
 
-  iterator insert(const_iterator,
-                  node_type&& node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    auto res = insert(std::move(node));
+  // Templated so that invocations of other overloads don't need to instantiate
+  // `node_type` to rule this overload out.
+  template <class NodeType>
+  std::enable_if_t<std::is_same_v<NodeType, node_type>, iterator> insert(
+      const_iterator, NodeType&& node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    auto res = insert(std::forward<NodeType>(node));
     node = std::move(res.node);
     return res.position;
   }
