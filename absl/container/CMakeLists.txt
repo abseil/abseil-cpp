@@ -524,6 +524,8 @@ absl_cc_test(
 absl_cc_library(
   NAME
     hash_function_defaults
+  SRCS
+    "internal/hash_function_defaults.cc"
   HDRS
     "internal/hash_function_defaults.h"
   COPTS
