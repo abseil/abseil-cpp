@@ -198,6 +198,29 @@ TEST(SubstituteTest, SubstituteAndAppend) {
   EXPECT_EQ("MyStruct{.value = 17}, MyStruct{.value = 1043}", str);
 }
 
+TEST(SubstituteTest, SubstituteAndAppendAliasesOutputAsArgument) {
+  std::string arg(64, 'a');
+  absl::SubstituteAndAppend(&arg, "$0$0", arg);
+  EXPECT_EQ(std::string(192, 'a'), arg);
+}
+
+TEST(SubstituteTest, SubstituteAndAppendAliasesOutputAsFormat) {
+  std::string format(64, 'b');
+  absl::SubstituteAndAppend(&format, format);
+  EXPECT_EQ(std::string(128, 'b'), format);
+}
+
+TEST(SubstituteTest, SubstituteAndAppendAliasesOutputThroughViews) {
+  std::string output(64, 'c');
+  output.replace(20, 2, "$0");
+  const absl::string_view format(output.data() + 20, 2);
+  const absl::string_view arg(output.data() + 4, 16);
+  const std::string expected = output + std::string(16, 'c');
+
+  absl::SubstituteAndAppend(&output, format, arg);
+  EXPECT_EQ(expected, output);
+}
+
 TEST(SubstituteTest, VectorBoolRef) {
   std::vector<bool> v = {true, false};
   const auto& cv = v;
