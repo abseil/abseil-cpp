@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -33,6 +34,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/randen.h"
+#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -49,6 +51,13 @@ namespace random_internal {
 // generator, faster in some benchmarks than std::mt19937_64 and pcg64_c32.
 template <typename T>
 class alignas(8) randen_engine {
+  template <class SeedSequence>
+  using EnableIfSeedSeq = std::conjunction<
+      std::negation<
+          std::is_base_of<randen_engine, absl::remove_cvref_t<SeedSequence>>>,
+      std::negation<std::is_convertible<SeedSequence, T>>,
+      HasSeedSeqGenerate<SeedSequence>, HasSeedSeqSize<SeedSequence>>;
+
  public:
   // C++11 URBG interface:
   using result_type = T;
@@ -68,10 +77,9 @@ class alignas(8) randen_engine {
   explicit randen_engine(result_type seed_value) { seed(seed_value); }
 
   template <class SeedSequence,
-            typename = typename std::enable_if_t<
-                !std::is_same_v<SeedSequence, randen_engine>>>
+            typename = std::enable_if_t<EnableIfSeedSeq<SeedSequence>::value>>
   explicit randen_engine(SeedSequence&& seq) {
-    seed(seq);
+    AbsorbSeed</*kMixExistingState=*/false>(seq);
   }
 
   // alignment requirements dictate custom copy and move constructors.
@@ -115,12 +123,11 @@ class alignas(8) randen_engine {
     return little_endian::ToHost(begin[next_++]);
   }
 
-  template <class SeedSequence>
-  typename std::enable_if_t<!std::is_convertible_v<SeedSequence, result_type>>
-  seed(SeedSequence&& seq) {
-    // Zeroes the state.
-    seed();
-    reseed(seq);
+  template <class SeedSequence,
+            typename = std::enable_if_t<EnableIfSeedSeq<SeedSequence>::value>>
+  void seed(SeedSequence&& seq) {
+    // Zeroes the state and absorbs seed material.
+    AbsorbSeed</*kMixExistingState=*/false>(seq);
   }
 
   void seed(result_type seed_value = result_type{0}) {
@@ -136,57 +143,10 @@ class alignas(8) randen_engine {
   // Inserts entropy into (part of) the state. Calling this periodically with
   // sufficient entropy ensures prediction resistance (attackers cannot predict
   // future outputs even if state is compromised).
-  template <class SeedSequence>
+  template <class SeedSequence,
+            typename = std::enable_if_t<EnableIfSeedSeq<SeedSequence&>::value>>
   void reseed(SeedSequence& seq) {
-    using sequence_result_type = typename SeedSequence::result_type;
-    static_assert(sizeof(sequence_result_type) == 4,
-                  "SeedSequence::result_type must be 32-bit");
-    constexpr size_t kBufferSize =
-        Randen::kSeedBytes / sizeof(sequence_result_type);
-    alignas(16) sequence_result_type buffer[kBufferSize];
-
-    // Randen::Absorb XORs the seed into state, which is then mixed by a call
-    // to Randen::Generate. Seeding with only the provided entropy is preferred
-    // to using an arbitrary generate() call, so use [rand.req.seed_seq]
-    // size as a proxy for the number of entropy units that can be generated
-    // without relying on seed sequence mixing...
-    const size_t entropy_size = seq.size();
-    if (entropy_size < kBufferSize) {
-      // ... and only request that many values, or 256-bits, when unspecified.
-      const size_t requested_entropy = (entropy_size == 0) ? 8u : entropy_size;
-      std::fill(buffer + requested_entropy, buffer + kBufferSize, 0);
-      seq.generate(buffer, buffer + requested_entropy);
-      // The Randen paper suggests preferentially initializing even-numbered
-      // 128-bit vectors of the randen state (there are 16 such vectors).
-      // The seed data is merged into the state offset by 128-bits, which
-      // implies preferring seed bytes [16..31, ..., 208..223]. Since the
-      // buffer is 32-bit values, we swap the corresponding buffer positions in
-      // 128-bit chunks.
-      size_t dst = kBufferSize;
-      while (dst > 7) {
-        // leave the odd bucket as-is.
-        dst -= 4;
-        size_t src = dst >> 1;
-        // swap 128-bits into the even bucket
-        std::swap(buffer[--dst], buffer[--src]);
-        std::swap(buffer[--dst], buffer[--src]);
-        std::swap(buffer[--dst], buffer[--src]);
-        std::swap(buffer[--dst], buffer[--src]);
-      }
-    } else {
-      seq.generate(buffer, buffer + kBufferSize);
-    }
-#ifdef ABSL_IS_BIG_ENDIAN
-    // Randen expects the seed buffer to be in Little Endian; reverse it on
-    // Big Endian platforms.
-    for (sequence_result_type& e : buffer) {
-      e = absl::little_endian::FromHost(e);
-    }
-#endif
-    impl_.Absorb(buffer, state());
-
-    // Generate will be called when operator() is called
-    next_ = kStateSizeT;
+    AbsorbSeed</*kMixExistingState=*/true>(seq);
   }
 
   void discard(uint64_t count) {
@@ -241,6 +201,8 @@ class alignas(8) randen_engine {
     auto saver = random_internal::make_istream_state_saver(is);
     result_type state[kStateSizeT];
     for (auto& elem : state) {
+      // It is not possible to read uint8_t from a stream, so it is necessary to
+      // read a wider type and then cast it to uint8_t.
       result_type value = 0;
       if (!random_internal::read_integral(is, value)) {
         return is;
@@ -265,6 +227,97 @@ class alignas(8) randen_engine {
       Randen::kStateBytes / sizeof(result_type);
   static constexpr size_t kCapacityT =
       Randen::kCapacityBytes / sizeof(result_type);
+
+  template <bool kMixExistingState>
+  void PrepareStateForSeed(result_type* begin) {
+    if constexpr (kMixExistingState) {
+      // Permute the existing sponge state before absorbing new seed material so
+      // repeated reseed(s) calls cannot XOR-cancel and mid-buffer reseeds do
+      // not XOR directly onto already-emitted rate words. Also fold a nonzero
+      // domain tag and the current byte offset into the inner capacity (which
+      // Absorb() leaves untouched) to separate reseed() from ordinary block
+      // refills and distinguish reseeds at different mid-buffer positions.
+      static_assert(Randen::kCapacityBytes >= 4,
+                    "Randen capacity must hold domain separator bytes");
+      const size_t byte_offset = next_ * sizeof(result_type);
+      impl_.Generate(begin);
+      auto* capacity = reinterpret_cast<unsigned char*>(begin);
+      capacity[0] ^= 0x01;
+      capacity[1] ^= static_cast<unsigned char>(byte_offset & 0xff);
+      capacity[2] ^= static_cast<unsigned char>((byte_offset >> 8) & 0xff);
+    } else {
+      seed();
+    }
+  }
+
+  template <bool kMixExistingState, class SeedSequence>
+  void AbsorbSeed(SeedSequence& seq) {
+    constexpr size_t kBufferSize = Randen::kSeedBytes / sizeof(uint32_t);
+    alignas(16) uint32_t buffer[kBufferSize];
+
+    struct Cleanse {
+      volatile uint32_t* ptr;
+      ~Cleanse() {
+        for (size_t i = 0; i < kBufferSize; ++i) {
+          ptr[i] = 0;
+        }
+      }
+    } cleanse_obj(buffer);
+
+    if constexpr (IsSaltedSeedSeq<absl::remove_cvref_t<SeedSequence>>::value) {
+      // Salted seed sequences fill the full 60-word rate so short seeds do not
+      // leave 14 zero lanes or suffer narrow `[rand.util.seedseq]` truncation
+      // (even if salt is unavailable, n = 60 is injective for 1 <= s <= 33).
+      seq.generate(buffer, buffer + kBufferSize);
+    } else {
+      // Randen::Absorb XORs the seed into state, which is then mixed by a call
+      // to Randen::Generate. Seeding with only the provided entropy is
+      // preferred to using an arbitrary generate() call, so use
+      // [rand.req.seed_seq] size as a proxy for the number of entropy units
+      // that can be generated without relying on seed sequence mixing...
+      const size_t entropy_size = seq.size();
+      if (entropy_size < kBufferSize) {
+        // ... and only request that many values, or 256-bits, when
+        // unspecified.
+        const size_t requested_entropy =
+            (entropy_size == 0) ? 8u : entropy_size;
+        std::fill(buffer + requested_entropy, buffer + kBufferSize, 0);
+        seq.generate(buffer, buffer + requested_entropy);
+        // The Randen paper suggests preferentially initializing even-numbered
+        // 128-bit vectors of the randen state (there are 16 such vectors).
+        // The seed data is merged into the state offset by 128-bits, which
+        // implies preferring seed bytes [16..31, ..., 208..223]. Since the
+        // buffer is 32-bit values, we swap the corresponding buffer positions
+        // in 128-bit chunks.
+        size_t dst = kBufferSize;
+        while (dst > 7) {
+          // leave the odd bucket as-is.
+          dst -= 4;
+          size_t src = dst >> 1;
+          // swap 128-bits into the even bucket
+          std::swap(buffer[--dst], buffer[--src]);
+          std::swap(buffer[--dst], buffer[--src]);
+          std::swap(buffer[--dst], buffer[--src]);
+          std::swap(buffer[--dst], buffer[--src]);
+        }
+      } else {
+        seq.generate(buffer, buffer + kBufferSize);
+      }
+    }
+#ifdef ABSL_IS_BIG_ENDIAN
+    // Randen expects the seed buffer to be in Little Endian; reverse it on
+    // Big Endian platforms.
+    for (uint32_t& e : buffer) {
+      e = absl::little_endian::FromHost(e);
+    }
+#endif
+    auto* begin = state();
+    PrepareStateForSeed<kMixExistingState>(begin);
+    impl_.Absorb(buffer, begin);
+
+    // Generate will be called when operator() is called.
+    next_ = kStateSizeT;
+  }
 
   // Returns the state array pointer, which is aligned to 16 bytes.
   // The first kCapacityT are the `inner' sponge; the remainder are available.

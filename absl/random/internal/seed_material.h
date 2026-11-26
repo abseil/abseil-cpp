@@ -15,11 +15,14 @@
 #ifndef ABSL_RANDOM_INTERNAL_SEED_MATERIAL_H_
 #define ABSL_RANDOM_INTERNAL_SEED_MATERIAL_H_
 
+#include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "absl/base/config.h"
@@ -48,6 +51,51 @@ constexpr size_t kEntropyBlocksNeeded =
 
 static_assert(kEntropyBlocksNeeded > 0,
               "Entropy used to seed URBGs must be nonzero.");
+
+// Amount of salt material (in bits / 32-bit blocks) used to key SaltedSeedSeq.
+constexpr size_t kSaltBitsNeeded = 128;
+constexpr size_t kSaltBlocksNeeded =
+    random_internal::SeedBitsToBlocks(kSaltBitsNeeded);
+
+static_assert(kSaltBlocksNeeded == 4,
+              "SaltMaterial must be 128 bits (4 x uint32_t).");
+
+// 128-bit process/build salt material (4 x uint32_t).
+using SaltMaterial = std::array<uint32_t, kSaltBlocksNeeded>;
+
+// Zeroes `bytes` at `data` using volatile writes so the compiler does not
+// optimize away scrubbing of temporary seed or pool buffers.
+inline void CleanseSeedMaterial(void* data, size_t bytes) noexcept {
+  if (data == nullptr || bytes == 0) {
+    return;
+  }
+  volatile unsigned char* p = static_cast<volatile unsigned char*>(data);
+  while (bytes-- > 0) {
+    *p++ = 0;
+  }
+}
+
+// RAII guard that zeroes a buffer on scope exit via CleanseSeedMaterial().
+class ScopedCleanse {
+ public:
+  ScopedCleanse(void* data, size_t bytes) noexcept
+      : data_(data), bytes_(bytes) {}
+  template <typename T>
+  explicit ScopedCleanse(absl::Span<T> span) noexcept
+      : data_(span.data()), bytes_(span.size() * sizeof(T)) {
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "ScopedCleanse requires trivially copyable element types.");
+  }
+
+  ScopedCleanse(const ScopedCleanse&) = delete;
+  ScopedCleanse& operator=(const ScopedCleanse&) = delete;
+
+  ~ScopedCleanse() { CleanseSeedMaterial(data_, bytes_); }
+
+ private:
+  void* data_;
+  size_t bytes_;
+};
 
 // Attempts to fill a span of uint32_t-values using an OS-provided source of
 // true entropy (eg. /dev/urandom) into an array of uint32_t blocks of data. The
@@ -91,12 +139,33 @@ template <typename URBG>
 void MixIntoSeedMaterial(absl::Span<const uint32_t> sequence,
                          absl::Span<uint32_t> seed_material);
 
-// Returns salt value.
+// Normalizes arbitrary-length salt words into a 128-bit `SaltMaterial`.
+// Preserves 4-word inputs verbatim (so logged 128-bit salts round-trip
+// losslessly) and derives 4 words via SipHash-2-4-128 over all input words and
+// length otherwise.
+SaltMaterial NormalizeSaltMaterial(absl::Span<const uint32_t> words);
+
+// Applies a constant-time, 128-bit salt-keyed bijection (Feistel PRP built on
+// SipHash-2-4-128) to `seed_material` in place. Domain-separated by
+// `domain_tag`, `param_size`, and `seed_material.size()`. Strictly bijective on
+// (uint32_t)^n for every n >= 1 and every salt.
+void PermuteSeedMaterialWithSalt(const SaltMaterial& salt, uint32_t domain_tag,
+                                 uint64_t param_size,
+                                 absl::Span<uint32_t> seed_material);
+
+// Derives `out` from arbitrary-length `seed_words` and `salt` via a
+// constant-time keyed SipHash-2-4-128 XOF, domain-separated by `domain_tag`,
+// `seed_words.size()`, and `out.size()`.
+void DeriveSeedMaterialWithSalt(const SaltMaterial& salt, uint32_t domain_tag,
+                                absl::Span<const uint32_t> seed_words,
+                                absl::Span<uint32_t> out);
+
+// Returns 128-bit salt value.
 //
 // Salt is obtained only once and stored in static variable.
 //
 // May return empty value if obtaining the salt was not possible.
-std::optional<uint32_t> GetSaltMaterial();
+std::optional<SaltMaterial> GetSaltMaterial();
 
 }  // namespace random_internal
 ABSL_NAMESPACE_END

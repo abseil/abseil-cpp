@@ -170,9 +170,11 @@ cc_library(
     }),
     deps = [
         ":fast_uniform_bits",
+        "//absl/algorithm:container",
         "//absl/base:config",
         "//absl/base:dynamic_annotations",
         "//absl/base:raw_logging_internal",
+        "//absl/numeric:bits",
         "//absl/strings",
         "//absl/strings:string_view",
         "//absl/types:optional",
@@ -239,6 +241,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":seed_material",
+        ":traits",
         "//absl/base:config",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
@@ -310,6 +313,7 @@ cc_library(
         ":entropy_pool",
         ":salted_seed_seq",
         ":seed_material",
+        ":traits",
         "//absl/base:config",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
@@ -324,6 +328,7 @@ cc_library(
     deps = [
         ":fastmath",
         ":iostream_state_saver",
+        ":traits",
         "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
@@ -341,6 +346,7 @@ cc_library(
     deps = [
         ":iostream_state_saver",
         ":randen",
+        ":traits",
         "//absl/base:config",
         "//absl/base:endian",
         "//absl/meta:type_traits",
@@ -565,6 +571,8 @@ cc_test(
     deps = [
         ":salted_seed_seq",
         ":seed_material",
+        ":traits",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -638,6 +646,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":nonsecure_base",
+        ":pcg_engine",
+        ":seed_material",
         "//absl/algorithm:container",
         "//absl/container:flat_hash_set",
         "//absl/random",
@@ -656,6 +666,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":seed_material",
+        "//absl/container:flat_hash_set",
         "//absl/types:span",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -689,6 +700,7 @@ cc_test(
     deps = [
         ":explicit_seed_seq",
         ":pcg_engine",
+        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -704,7 +716,10 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":explicit_seed_seq",
+        ":randen",
         ":randen_engine",
+        ":traits",
+        "//absl/base:config",
         "//absl/log",
         "//absl/time",
         "@googletest//:gtest",
