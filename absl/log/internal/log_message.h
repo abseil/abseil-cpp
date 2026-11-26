@@ -40,7 +40,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/nullability.h"
 #include "absl/log/internal/nullguard.h"
@@ -378,11 +377,6 @@ class LogMessage {
 
   // Checks `FLAGS_log_backtrace_at` and appends a backtrace if appropriate.
   void LogBacktraceIfNeeded();
-
-  // This should be the first data member so that its initializer captures errno
-  // before any other initializers alter it (e.g. with calls to new) and so that
-  // no other destructors run afterward an alter it (e.g. with calls to delete).
-  absl::base_internal::ErrnoSaver errno_saver_;
 
   // We keep the data in a separate struct so that each instance of `LogMessage`
   // uses less stack space.
