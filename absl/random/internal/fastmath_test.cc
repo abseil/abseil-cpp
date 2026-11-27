@@ -97,4 +97,56 @@ TEST(FastMathTest, StirlingLogFactorial) {
   }
 }
 
+TEST(FastMathTest, StirlingLogFactorialRemainderMatchesReferenceValues) {
+  using absl::random_internal::StirlingLogFactorialRemainder;
+
+  // High-precision values of R(n) = ln(n!) - ((n + 0.5) * ln(n) - n + 0.5 *
+  // ln(2 * pi)) within the < 2e-15 bound for n >= 20.
+  EXPECT_NEAR(StirlingLogFactorialRemainder(20.0), 4.16631969199692246e-3,
+              2e-15);
+  EXPECT_NEAR(StirlingLogFactorialRemainder(25.0), 3.33315563672809288e-3,
+              2e-15);
+  EXPECT_NEAR(StirlingLogFactorialRemainder(50.0), 1.66664444698336551e-3,
+              2e-15);
+  EXPECT_NEAR(StirlingLogFactorialRemainder(100.0), 8.33330555634914683e-4,
+              2e-15);
+  EXPECT_NEAR(StirlingLogFactorialRemainder(1000.0), 8.33333305555563492e-5,
+              2e-15);
+}
+
+TEST(FastMathTest, StirlingLogFactorialRemainderSatisfiesTelescopingIdentity) {
+  using absl::random_internal::StirlingLogFactorialRemainder;
+
+  // R(k) - R(k + 1) = (k + 0.5) * ln((k + 1) / k) - 1
+  //                 = sum_{m >= 1} 1 / ((2m + 1) * (2k + 1)^(2m)).
+  for (int k = 20; k < 100; ++k) {
+    const double d = static_cast<double>(k);
+    const double z = 1.0 / (2.0 * d + 1.0);
+    const double z2 = z * z;
+    double expected_diff = 0.0;
+    double z_pow = z2;
+    for (int m = 1; m <= 6; ++m) {
+      expected_diff += z_pow / static_cast<double>(2 * m + 1);
+      z_pow *= z2;
+    }
+    EXPECT_NEAR(
+        StirlingLogFactorialRemainder(d) - StirlingLogFactorialRemainder(d + 1),
+        expected_diff, 2e-15);
+  }
+}
+
+TEST(FastMathTest, StirlingLogFactorialRemainderAgreesWithLgamma) {
+  using absl::random_internal::StirlingLogFactorialRemainder;
+
+  // Tolerance allows ~44 bits of cancellation in lgamma(d + 1) - (d + 0.5) *
+  // log(d).
+  constexpr double kLog2PI = 1.83787706640934548356;
+  for (int i = 20; i < 100; ++i) {
+    const double d = static_cast<double>(i);
+    const double expected =
+        std::lgamma(d + 1.0) - ((d + 0.5) * std::log(d) - d + 0.5 * kLog2PI);
+    EXPECT_NEAR(StirlingLogFactorialRemainder(d), expected, 1e-12);
+  }
+}
+
 }  // namespace

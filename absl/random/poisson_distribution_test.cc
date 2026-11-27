@@ -18,8 +18,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <string>
@@ -30,6 +32,7 @@
 #include "absl/base/macros.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/log.h"
+#include "absl/numeric/int128.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/internal/pcg_engine.h"
@@ -64,7 +67,14 @@
 
 namespace {
 
-using absl::random_internal::kChiSquared;
+using ::absl::random_internal::kChiSquared;
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::DoubleNear;
+using ::testing::Each;
+using ::testing::ElementsAre;
+using ::testing::Ge;
+using ::testing::Le;
 
 // The PoissonDistributionInterfaceTest provides a basic test that
 // absl::poisson_distribution conforms to the interface and serialization
@@ -73,14 +83,15 @@ using absl::random_internal::kChiSquared;
 template <typename IntType>
 class PoissonDistributionInterfaceTest : public ::testing::Test {};
 
-using IntTypes = ::testing::Types<int, int8_t, int16_t, int32_t, int64_t,
-                                  uint8_t, uint16_t, uint32_t, uint64_t>;
+using IntTypes =
+    ::testing::Types<int, int8_t, int16_t, int32_t, int64_t, absl::int128,
+                     uint8_t, uint16_t, uint32_t, uint64_t, absl::uint128>;
 TYPED_TEST_SUITE(PoissonDistributionInterfaceTest, IntTypes);
 
 TYPED_TEST(PoissonDistributionInterfaceTest, SerializeTest) {
   using param_type = typename absl::poisson_distribution<TypeParam>::param_type;
   const double kMax =
-      std::min(1e10 /* assertion limit */,
+      std::min(1e15 /* assertion limit */,
                static_cast<double>(std::numeric_limits<TypeParam>::max()));
 
   const double kParams[] = {
@@ -480,10 +491,10 @@ INSTANTIATE_TEST_SUITE_P(All, PoissonDistributionChiSquaredTest,
 
 // NOTE: absl::poisson_distribution is not guaranteed to be stable.
 TEST(PoissonDistributionTest, StabilityTest) {
-  using testing::ElementsAre;
   // absl::poisson_distribution stability relies on stability of
-  // std::exp, std::log, std::sqrt, std::ceil, std::floor, and
-  // absl::FastUniformBits, absl::StirlingLogFactorial, absl::RandU64ToDouble.
+  // std::exp, std::expm1, std::log, std::log1p, std::sqrt, std::ceil,
+  // std::floor, FastUniformBits, GenerateRealFromBits, and
+  // StirlingLogFactorialRemainder.
   absl::random_internal::sequence_urbg urbg({
       0x035b0dc7e0a18acfull, 0x06cebe0d2653682eull, 0x0061e9b23861596bull,
       0x0003eb76f6f7f755ull, 0xFFCEA50FDB2F953Bull, 0xC332DDEFBE6C5AA5ull,
@@ -585,6 +596,8 @@ TEST(PoissonDistributionTest, StreamRejectsInvalidParameters) {
   const absl::poisson_distribution<int8_t> kI8Initial(4.5);
   const absl::poisson_distribution<uint8_t> kU8Initial(4.5);
   const absl::poisson_distribution<int64_t> kI64Initial(4.5);
+  const absl::poisson_distribution<absl::int128> kI128Initial(4.5);
+  const absl::poisson_distribution<absl::uint128> kU128Initial(4.5);
 
   EXPECT_THAT(ParseFromStream(kInitial, ""), FailsLeavingUnchanged());
   EXPECT_THAT(ParseFromStream(kInitial, "abc"), FailsLeavingUnchanged());
@@ -621,6 +634,406 @@ TEST(PoissonDistributionTest, StreamRejectsInvalidParameters) {
   EXPECT_THAT(ParseFromStream(kI64Initial, absl::StrCat(kMaxMean * 10.0)),
               FailsLeavingUnchanged());
   EXPECT_THAT(ParseFromStream(kI64Initial, "1e20"), FailsLeavingUnchanged());
+
+  EXPECT_THAT(
+      ParseFromStream(kI128Initial, absl::StrCat(kMaxMean)),
+      ParsesEqualTo(absl::poisson_distribution<absl::int128>(kMaxMean)));
+  EXPECT_THAT(ParseFromStream(kI128Initial, "1e20"), FailsLeavingUnchanged());
+  EXPECT_THAT(
+      ParseFromStream(kU128Initial, absl::StrCat(kMaxMean)),
+      ParsesEqualTo(absl::poisson_distribution<absl::uint128>(kMaxMean)));
+  EXPECT_THAT(ParseFromStream(kU128Initial, "1e20"), FailsLeavingUnchanged());
+}
+
+// Fixed seed for deterministic sampling tests (fractional hex digits of Euler's
+// number e, matching PoissonDistributionZTest above).
+constexpr uint64_t kTestSeed = 0x2B7E151628AED2A6ULL;
+
+template <typename IntType>
+IntType SamplePoissonWithBits(double mean,
+                              std::initializer_list<uint64_t> seq) {
+  absl::random_internal::sequence_urbg urbg(seq);
+  absl::poisson_distribution<IntType> dist(mean);
+  return dist(urbg);
+}
+
+template <typename IntType>
+std::vector<IntType> DrawPoissonSamples(double mean, size_t count) {
+  absl::random_internal::pcg64_2018_engine rng(kTestSeed);
+  absl::poisson_distribution<IntType> dist(mean);
+  std::vector<IntType> samples(count);
+  std::generate(samples.begin(), samples.end(), [&] { return dist(rng); });
+  return samples;
+}
+
+template <typename IntType>
+struct PoissonSampleSummary {
+  IntType min_sample;
+  IntType max_sample;
+  size_t nonzero_count;
+  double mean;
+};
+
+template <typename IntType>
+void PrintTo(const PoissonSampleSummary<IntType>& s, std::ostream* os) {
+  *os << "{min_sample=" << +s.min_sample << ", max_sample=" << +s.max_sample
+      << ", nonzero_count=" << s.nonzero_count << ", mean=" << s.mean << "}";
+}
+
+template <typename IntType>
+PoissonSampleSummary<IntType> SummarizePoissonSamples(
+    double mean, size_t count, uint64_t seed = kTestSeed) {
+  absl::random_internal::pcg64_2018_engine rng(seed);
+  absl::poisson_distribution<IntType> dist(mean);
+  IntType min_s = dist.max();
+  IntType max_s = dist.min();
+  size_t nonzero = 0;
+  double sum = 0.0;
+  for (size_t i = 0; i < count; ++i) {
+    const IntType x = dist(rng);
+    min_s = (std::min)(min_s, x);
+    max_s = (std::max)(max_s, x);
+    if (x > 0) {
+      ++nonzero;
+    }
+    sum += static_cast<double>(x);
+  }
+  return {min_s, max_s, nonzero, sum / static_cast<double>(count)};
+}
+
+MATCHER_P2(HasPositiveNonZeroAndMeanNear, expected_mean, tol, "") {
+  using SampleType = decltype(arg.min_sample);
+  if constexpr (std::numeric_limits<SampleType>::is_signed) {
+    if (arg.min_sample < SampleType{0}) return false;
+  }
+  return arg.nonzero_count > 0 && std::abs(arg.mean - expected_mean) <= tol;
+}
+
+struct PoissonDrawResult {
+  int64_t sample;
+  size_t rng_draws;
+};
+
+void PrintTo(const PoissonDrawResult& r, std::ostream* os) {
+  *os << "{sample=" << r.sample << ", rng_draws=" << r.rng_draws << "}";
+}
+
+PoissonDrawResult DrawLargeMeanSequence(double mean,
+                                        std::initializer_list<uint64_t> seq) {
+  absl::random_internal::sequence_urbg urbg(seq);
+  absl::poisson_distribution<int64_t> dist(mean);
+  const int64_t sample = dist(urbg);
+  return {sample, urbg.invocations()};
+}
+
+MATCHER_P2(ProducesSampleInDraws, expected_sample, expected_draws, "") {
+  return arg.sample == expected_sample &&
+         arg.rng_draws == static_cast<size_t>(expected_draws);
+}
+
+struct OffsetMomentsSummary {
+  double abs_z_score;
+  double variance;
+};
+
+void PrintTo(const OffsetMomentsSummary& s, std::ostream* os) {
+  *os << "{abs_z_score=" << s.abs_z_score << ", variance=" << s.variance << "}";
+}
+
+OffsetMomentsSummary SummarizeLargeMeanOffsets(double mean,
+                                               uint64_t seed = kTestSeed) {
+  constexpr size_t kSamples = 50000;
+  absl::random_internal::pcg64_2018_engine rng(seed);
+  absl::poisson_distribution<int64_t> dist(mean);
+  std::vector<double> offsets(kSamples);
+  for (size_t i = 0; i < kSamples; ++i) {
+    offsets[i] = static_cast<double>(dist(rng)) - mean;
+  }
+  const auto m = absl::random_internal::ComputeDistributionMoments(offsets);
+  return {std::abs(absl::random_internal::ZScore(0.0, m)), m.variance};
+}
+
+MATCHER_P2(HasUnbiasedMomentsWithVarianceNear, expected_var, rel_tol, "") {
+  return arg.abs_z_score < 4.0 &&
+         std::abs(arg.variance - expected_var) <= expected_var * rel_tol;
+}
+
+double EvalPoissonLogRatio(double x, double mean) {
+  const double mode = std::ceil(mean) - 1.0;
+  const double g_mode =
+      absl::random_internal::PoissonLogRatioTerm(mode, mode - mean, mean);
+  return absl::random_internal::PoissonLogRatio(x, x - mean, mean,
+                                                std::log(mean), g_mode);
+}
+
+double ExactLgammaLogRatio(double x, double mean) {
+  const double mode = std::ceil(mean) - 1.0;
+  return (x - mode) * std::log(mean) -
+         (std::lgamma(x + 1.0) - std::lgamma(mode + 1.0));
+}
+
+class RepeatMaxThenZeroUrbg {
+ public:
+  using result_type = uint64_t;
+  static constexpr result_type(min)() { return 0; }
+  static constexpr result_type(max)() { return ~uint64_t{0}; }
+  explicit RepeatMaxThenZeroUrbg(size_t max_draws) : remaining_(max_draws) {}
+  result_type operator()() {
+    if (remaining_ == 0) return 0;
+    --remaining_;
+    return ~uint64_t{0};
+  }
+
+ private:
+  size_t remaining_;
+};
+
+template <typename IntType>
+IntType SamplePoissonAfterRepeatedMaxBits(double mean, size_t max_bit_draws) {
+  RepeatMaxThenZeroUrbg urbg(max_bit_draws);
+  absl::poisson_distribution<IntType> dist(mean);
+  return dist(urbg);
+}
+
+TEST(PoissonDistributionTest, Int8KnuthClampsAtMax) {
+  // All-ones bits yield U = 1 - 2^-53, driving Knuth accumulation to int8 max.
+  EXPECT_EQ(SamplePoissonWithBits<int8_t>(50.0, {~uint64_t{0}}),
+            (std::numeric_limits<int8_t>::max)());
+}
+
+TEST(PoissonDistributionTest, Uint8KnuthClampsAtMax) {
+  // All-ones bits yield U = 1 - 2^-53, driving Knuth accumulation to uint8 max.
+  EXPECT_EQ(SamplePoissonWithBits<uint8_t>(50.0, {~uint64_t{0}}),
+            (std::numeric_limits<uint8_t>::max)());
+}
+
+TEST(PoissonDistributionTest, Int8KnuthBoundaryDoesNotOverflow) {
+  // On pre-CL code, 127 max-bit draws followed by 0ULL at mean = 5.0
+  // incremented int8_t past 127 (signed overflow UB) before decrementing.
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<int8_t>(5.0, 126), int8_t{126});
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<int8_t>(5.0, 127), int8_t{127});
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<int8_t>(5.0, 128), int8_t{127});
+}
+
+TEST(PoissonDistributionTest, Uint8KnuthBoundaryDoesNotWrap) {
+  // On pre-CL code, 256 max-bit draws followed by 0ULL at mean = 5.0 wrapped
+  // uint8_t to 0 instead of clamping at 255.
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<uint8_t>(5.0, 254), uint8_t{254});
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<uint8_t>(5.0, 255), uint8_t{255});
+  EXPECT_EQ(SamplePoissonAfterRepeatedMaxBits<uint8_t>(5.0, 256), uint8_t{255});
+}
+
+TEST(PoissonDistributionTest, Int8RatioOfUniformsNearMaxStaysInBounds) {
+  EXPECT_THAT(DrawPoissonSamples<int8_t>(127.0, 2000),
+              AllOf(Each(Ge(int8_t{60})), Contains(int8_t{127})));
+}
+
+TEST(PoissonDistributionTest, Uint8RatioOfUniformsNearMaxStaysInBounds) {
+  EXPECT_THAT(DrawPoissonSamples<uint8_t>(255.0, 2000),
+              AllOf(Each(Ge(uint8_t{150})), Contains(uint8_t{255})));
+}
+
+TEST(PoissonDistributionTest, Int128AndUint128TinyMeanSampling) {
+  EXPECT_EQ(SamplePoissonWithBits<absl::int128>(1e-20, {0ULL}),
+            absl::int128{1});
+  EXPECT_EQ(SamplePoissonWithBits<absl::int128>(1e-20, {~uint64_t{0}}),
+            absl::int128{0});
+  EXPECT_EQ(SamplePoissonWithBits<absl::uint128>(1e-20, {0ULL}),
+            absl::uint128{1});
+  EXPECT_EQ(SamplePoissonWithBits<absl::uint128>(1e-20, {~uint64_t{0}}),
+            absl::uint128{0});
+}
+
+TEST(PoissonDistributionTest, Int128AndUint128KnuthSampling) {
+  EXPECT_EQ(SamplePoissonWithBits<absl::int128>(5.0, {0x8000000000000001ULL}),
+            absl::int128{7});
+  EXPECT_EQ(SamplePoissonWithBits<absl::int128>(25.0, {0x8000000000000001ULL}),
+            absl::int128{36});
+  EXPECT_EQ(SamplePoissonWithBits<absl::uint128>(5.0, {0x8000000000000001ULL}),
+            absl::uint128{7});
+  EXPECT_EQ(SamplePoissonWithBits<absl::uint128>(25.0, {0x8000000000000001ULL}),
+            absl::uint128{36});
+}
+
+TEST(PoissonDistributionTest, Int128AndUint128LargeMeanSampling) {
+  constexpr uint64_t kUMax = ~uint64_t{0};
+  EXPECT_EQ(SamplePoissonWithBits<absl::int128>(1e15, {kUMax, 0ULL}),
+            absl::int128{1'000'000'000'000'000LL});
+  EXPECT_EQ(SamplePoissonWithBits<absl::uint128>(1e15, {kUMax, 0ULL}),
+            absl::uint128{1'000'000'000'000'000ULL});
+
+  constexpr absl::int128 kI128Lo = absl::int128{999'000'000'000'000LL};
+  constexpr absl::int128 kI128Hi = absl::int128{1'001'000'000'000'000LL};
+  EXPECT_THAT(DrawPoissonSamples<absl::int128>(1e15, 1000),
+              Each(AllOf(Ge(kI128Lo), Le(kI128Hi))));
+
+  constexpr absl::uint128 kU128Lo = absl::uint128{999'000'000'000'000ULL};
+  constexpr absl::uint128 kU128Hi = absl::uint128{1'001'000'000'000'000ULL};
+  EXPECT_THAT(DrawPoissonSamples<absl::uint128>(1e15, 1000),
+              Each(AllOf(Ge(kU128Lo), Le(kU128Hi))));
+}
+
+TEST(PoissonDistributionTest, ZeroMeanAlwaysReturnsZero) {
+  EXPECT_EQ(SamplePoissonWithBits<int>(0.0, {0ULL}), 0);
+  EXPECT_THAT(DrawPoissonSamples<uint64_t>(0.0, 1000), Each(uint64_t{0}));
+}
+
+TEST(PoissonDistributionTest, Uint64SingleStepKnuthMeanIsAccurate) {
+  EXPECT_THAT(SummarizePoissonSamples<uint64_t>(1.0, 20000),
+              HasPositiveNonZeroAndMeanNear(1.0, 0.05));
+  EXPECT_THAT(SummarizePoissonSamples<uint64_t>(5.0, 20000),
+              HasPositiveNonZeroAndMeanNear(5.0, 0.1));
+}
+
+TEST(PoissonDistributionTest, Uint64SplitKnuthMeanIsAccurate) {
+  EXPECT_THAT(SummarizePoissonSamples<uint64_t>(20.0, 20000),
+              HasPositiveNonZeroAndMeanNear(20.0, 0.2));
+  EXPECT_THAT(SummarizePoissonSamples<uint64_t>(50.0, 20000),
+              HasPositiveNonZeroAndMeanNear(50.0, 0.3));
+}
+
+TEST(PoissonDistributionTest, TinyMeanZeroBitsReturnsOne) {
+  EXPECT_EQ(SamplePoissonWithBits<int>(1e-18, {0ULL}), 1);
+  EXPECT_EQ(SamplePoissonWithBits<uint64_t>(1e-20, {0ULL}), uint64_t{1});
+}
+
+TEST(PoissonDistributionTest, SubnormalMeanZeroBitsReturnsOne) {
+  EXPECT_EQ(SamplePoissonWithBits<int64_t>(
+                std::numeric_limits<double>::denorm_min(), {0ULL}),
+            int64_t{1});
+}
+
+TEST(PoissonDistributionTest, TinyMeanMaxBitsReturnsZero) {
+  EXPECT_EQ(SamplePoissonWithBits<uint64_t>(1e-20, {~uint64_t{0}}),
+            uint64_t{0});
+}
+
+TEST(PoissonDistributionTest, TinyMeanCanSampleCountTwo) {
+  // Arrival-time thinning reaches X >= 2 rather than truncating to {0, 1}.
+  EXPECT_EQ(SamplePoissonWithBits<uint64_t>(
+                1e-20, {0ULL, 0ULL, 0ULL, 0x8000000000000000ULL, 0ULL, 0ULL,
+                        0ULL, 0ULL}),
+            uint64_t{2});
+}
+
+TEST(PoissonDistributionTest, TinyMeanStatisticalRateMatchesMean) {
+  constexpr double kTinyMean = 9e-5;
+  constexpr size_t kSamples = 200000;
+
+  EXPECT_THAT(SummarizePoissonSamples<int>(kTinyMean, kSamples),
+              HasPositiveNonZeroAndMeanNear(kTinyMean, 4.5e-5));
+}
+
+TEST(PoissonDistributionTest, LargeIntegerMeanAcceptsUpperAndLowerModes) {
+  constexpr uint64_t kUMax = ~uint64_t{0};
+  constexpr uint64_t kNegPow2Minus17 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 17));
+
+  // Integer means have dual modes at mean and mean - 1, both accepted at
+  // u = 1 - 2^-53 on the first proposal (2 URBG draws).
+  EXPECT_THAT(DrawLargeMeanSequence(1e10, {kUMax, 0ULL}),
+              ProducesSampleInDraws(10'000'000'000LL, 2));
+  EXPECT_THAT(DrawLargeMeanSequence(1e10, {kUMax, kNegPow2Minus17}),
+              ProducesSampleInDraws(9'999'999'999LL, 2));
+  EXPECT_THAT(DrawLargeMeanSequence(1e12, {kUMax, 0ULL}),
+              ProducesSampleInDraws(1'000'000'000'000LL, 2));
+  EXPECT_THAT(DrawLargeMeanSequence(1e15, {kUMax, 0ULL}),
+              ProducesSampleInDraws(1'000'000'000'000'000LL, 2));
+}
+
+TEST(PoissonDistributionTest, FractionalLargeMeanAcceptsModeOnFirstProposal) {
+  constexpr uint64_t kUMax = ~uint64_t{0};
+  constexpr uint64_t kNegPow2Minus25 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 25));
+  const double kMaxFracMean = std::nextafter(1e15, 0.0);
+
+  EXPECT_THAT(DrawLargeMeanSequence(51.5, {kUMax, kNegPow2Minus25}),
+              ProducesSampleInDraws(51, 2));
+  EXPECT_THAT(DrawLargeMeanSequence(1e10 + 0.375, {kUMax, 0ULL}),
+              ProducesSampleInDraws(10'000'000'000LL, 2));
+  EXPECT_THAT(DrawLargeMeanSequence(kMaxFracMean, {kUMax, kNegPow2Minus25}),
+              ProducesSampleInDraws(999'999'999'999'999LL, 2));
+}
+
+TEST(PoissonDistributionTest, FractionalLargeMeanRejectsOffModeAtMaxUniform) {
+  constexpr uint64_t kUMax = ~uint64_t{0};
+  constexpr uint64_t kNegPow2Minus25 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 25));
+  constexpr uint64_t kNegPow2Minus2 =
+      (uint64_t{1} << 63) | (uint64_t{1} << (63 - 2));
+
+  // For mean = 51.5 (unique mode 51), off-mode proposals dx = +1 (0ULL) and
+  // dx = -1 (-0.25) reject at u = 1 - 2^-53 before accepting dx = 0 on the
+  // second iteration (4 URBG draws).
+  EXPECT_THAT(
+      DrawLargeMeanSequence(51.5, {kUMax, 0ULL, kUMax, kNegPow2Minus25}),
+      ProducesSampleInDraws(51, 4));
+  EXPECT_THAT(DrawLargeMeanSequence(
+                  51.5, {kUMax, kNegPow2Minus2, kUMax, kNegPow2Minus25}),
+              ProducesSampleInDraws(51, 4));
+}
+
+class PoissonLargeMeanMomentsTest : public ::testing::TestWithParam<double> {};
+
+TEST_P(PoissonLargeMeanMomentsTest, OffsetMomentsAreUnbiased) {
+  const double mean = GetParam();
+  EXPECT_THAT(SummarizeLargeMeanOffsets(mean),
+              HasUnbiasedMomentsWithVarianceNear(mean, 0.025));
+}
+
+INSTANTIATE_TEST_SUITE_P(All, PoissonLargeMeanMomentsTest,
+                         ::testing::Values(51.5, 1e10, 1e10 + 0.375, 1e12, 1e15,
+                                           std::nextafter(1e15, 0.0)));
+
+TEST(PoissonDistributionTest, LogRatioMatchesLgammaAcrossTableBoundary) {
+  for (const double mean : {51.0, 51.5}) {
+    EXPECT_THAT(EvalPoissonLogRatio(0.0, mean),
+                DoubleNear(ExactLgammaLogRatio(0.0, mean), 1e-12));
+    EXPECT_THAT(EvalPoissonLogRatio(1.0, mean),
+                DoubleNear(ExactLgammaLogRatio(1.0, mean), 1e-12));
+    EXPECT_THAT(EvalPoissonLogRatio(19.0, mean),
+                DoubleNear(ExactLgammaLogRatio(19.0, mean), 1e-12));
+    EXPECT_THAT(EvalPoissonLogRatio(20.0, mean),
+                DoubleNear(ExactLgammaLogRatio(20.0, mean), 1e-12));
+  }
+}
+
+TEST(PoissonDistributionTest, LogRatioIsZeroAtBothModesForLargeIntegerMean) {
+  EXPECT_THAT(EvalPoissonLogRatio(1e10 - 1.0, 1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(1e10, 1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(1e12, 1e12), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(1e15, 1e15), DoubleNear(0.0, 1e-14));
+}
+
+TEST(PoissonDistributionTest,
+     LogRatioMatchesAdjacentStepsAtModerateFractionalMean) {
+  EXPECT_THAT(EvalPoissonLogRatio(50.0, 51.5),
+              DoubleNear(std::log(51.0 / 51.5), 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(51.0, 51.5), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(52.0, 51.5),
+              DoubleNear(std::log(51.5 / 52.0), 1e-14));
+}
+
+TEST(PoissonDistributionTest,
+     LogRatioMatchesAdjacentStepsAtLargeFractionalMean) {
+  constexpr double kFracMean1e10 = 1e10 + 0.375;
+  const double kMaxFracMean = std::nextafter(1e15, 0.0);
+  const double kMaxFracMode = std::ceil(kMaxFracMean) - 1.0;
+  const double kMaxFracPart = kMaxFracMean - kMaxFracMode;
+
+  EXPECT_THAT(EvalPoissonLogRatio(1e10 - 1.0, kFracMean1e10),
+              DoubleNear(std::log1p(-0.375 / kFracMean1e10), 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(1e10, kFracMean1e10), DoubleNear(0.0, 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(1e10 + 1.0, kFracMean1e10),
+              DoubleNear(std::log1p(-0.625 / (1e10 + 1.0)), 1e-14));
+  EXPECT_THAT(EvalPoissonLogRatio(kMaxFracMode - 1.0, kMaxFracMean),
+              DoubleNear(std::log1p(-kMaxFracPart / kMaxFracMean), 1e-17));
+  EXPECT_THAT(EvalPoissonLogRatio(kMaxFracMode, kMaxFracMean),
+              DoubleNear(0.0, 1e-17));
+  EXPECT_THAT(
+      EvalPoissonLogRatio(kMaxFracMode + 1.0, kMaxFracMean),
+      DoubleNear(std::log1p((kMaxFracPart - 1.0) / (kMaxFracMode + 1.0)),
+                 1e-17));
 }
 
 }  // namespace
