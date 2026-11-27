@@ -224,7 +224,8 @@ Requires:${PC_DEPS}\n\
 Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:${LNK_LIB}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
     INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/absl_${_NAME}.pc"
-            DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+            COMPONENT Development)
   endif()
 
   if(NOT ABSL_CC_LIB_IS_INTERFACE)
@@ -348,9 +349,9 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
 
   if(ABSL_ENABLE_INSTALL)
     install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
-          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Runtime
+          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Runtime
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
     )
   endif()
 
