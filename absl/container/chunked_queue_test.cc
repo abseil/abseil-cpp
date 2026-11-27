@@ -1350,6 +1350,78 @@ TEST(ChunkedQueue, StrongExceptionSafetyEmplaceBack) {
 }
 #endif
 
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceBackNewTailBlock) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+  q.emplace_back(10, false, &ctor_count, &dtor_count);
+  ASSERT_EQ(q.size(), 1);
+
+  // The first block has size 1, so the next emplace_back allocates a new tail
+  // block before constructing into it.
+  try {
+    q.emplace_back(20, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_EQ(q.size(), 1);
+  EXPECT_EQ(q.front().value, 10);
+  EXPECT_EQ(q.back().value, 10);
+  EXPECT_EQ(std::distance(q.rbegin(), q.rend()), 1);
+
+  q.pop_back();
+  EXPECT_TRUE(q.empty());
+  EXPECT_EQ(ctor_count, 1);
+  EXPECT_EQ(dtor_count, 1);
+
+  q.emplace_back(30, false, &ctor_count, &dtor_count);
+  EXPECT_EQ(q.front().value, 30);
+  EXPECT_EQ(q.back().value, 30);
+#endif
+}
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+struct ThrowingDefaultCtor {
+  static inline bool should_throw = false;
+  int value = 7;
+
+  ThrowingDefaultCtor() {
+    if (should_throw) {
+      throw 0;
+    }
+  }
+};
+#endif
+
+TEST(ChunkedQueue, ResizeExceptionSafetyNewTailBlock) {
+#ifndef ABSL_HAVE_EXCEPTIONS
+  GTEST_SKIP() << "Exceptions are not enabled.";
+#else
+  absl::chunked_queue<ThrowingDefaultCtor> q;
+  q.resize(1);
+  ASSERT_EQ(q.size(), 1);
+
+  ThrowingDefaultCtor::should_throw = true;
+  try {
+    q.resize(2);
+  } catch (...) {
+  }
+  ThrowingDefaultCtor::should_throw = false;
+
+  EXPECT_EQ(q.size(), 1);
+  EXPECT_EQ(q.back().value, 7);
+  q.pop_back();
+  EXPECT_TRUE(q.empty());
+
+  q.resize(3);
+  EXPECT_EQ(q.size(), 3);
+  EXPECT_EQ(q.back().value, 7);
+#endif
+}
+
 TEST(ChunkedQueue, StrongExceptionSafetyEmplaceFrontEmptyQueue) {
 #ifndef ABSL_HAVE_EXCEPTIONS
   GTEST_SKIP() << "Exceptions are not enabled.";
