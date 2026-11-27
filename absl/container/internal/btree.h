@@ -54,6 +54,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -634,10 +635,13 @@ class btree_node_base : public btree_node_header {
     set_parent(parent()->parent());
   }
 
-  btree_node_base* child(size_t children_offset, size_t i) const {
+  btree_node_base* const* children(size_t children_offset) const {
     assert(is_internal());
     return reinterpret_cast<btree_node_base* const*>(this_char() +
-                                                     children_offset)[i];
+                                                     children_offset);
+  }
+  btree_node_base* child(size_t children_offset, size_t i) const {
+    return children(children_offset)[i];
   }
   btree_node_base* start_child(size_t children_offset) const {
     return child(children_offset, start());
@@ -666,6 +670,11 @@ class btree_node_base : public btree_node_header {
     c->set_parent(this);
   }
 };
+
+template <typename SlotKey, typename KeyCompare, typename FieldType,
+          size_t kSlotSize, size_t kSlotsOffset, size_t kChildrenOffset,
+          bool kUseLinearSearch>
+class BtreeOps;
 
 // A node in the btree holding. The same node type is used for both internal
 // and leaf nodes in the btree, though the nodes are allocated in such a way
@@ -909,123 +918,24 @@ class btree_node : public btree_node_base<typename Params::node_count_type> {
     Base::init_child(kChildrenOffset, i, c);
   }
 
+  using SearchOps = BtreeOps<std::remove_const_t<key_type>, key_compare,
+                             field_type, sizeof(slot_type), kSlotsOffset,
+                             kChildrenOffset, use_linear_search::value>;
+
   // Returns the position of the first value whose key is not less than k.
   template <typename K>
   SearchResult<size_type, is_key_compare_to::value> lower_bound(
       const K& k, const key_compare& comp) const {
-    return use_linear_search::value ? linear_search(k, comp)
-                                    : binary_search(k, comp);
+    return SearchOps::template NodeSearch<
+        params_type::template can_have_multiple_equivalent_keys<K>()>(this, k,
+                                                                      comp);
   }
   // Returns the position of the first value whose key is greater than k.
   template <typename K>
   size_type upper_bound(const K& k, const key_compare& comp) const {
-    auto upper_compare = upper_bound_adapter<key_compare>(comp);
-    return use_linear_search::value ? linear_search(k, upper_compare).value
-                                    : binary_search(k, upper_compare).value;
-  }
-
-  template <typename K, typename Compare>
-  SearchResult<size_type, btree_is_key_compare_to<Compare, key_type>::value>
-  linear_search(const K& k, const Compare& comp) const {
-    return linear_search_impl(k, start(), finish(), comp,
-                              btree_is_key_compare_to<Compare, key_type>());
-  }
-
-  template <typename K, typename Compare>
-  SearchResult<size_type, btree_is_key_compare_to<Compare, key_type>::value>
-  binary_search(const K& k, const Compare& comp) const {
-    return binary_search_impl(k, start(), finish(), comp,
-                              btree_is_key_compare_to<Compare, key_type>());
-  }
-
-  // Returns the position of the first value whose key is not less than k using
-  // linear search performed using plain compare.
-  template <typename K, typename Compare>
-  SearchResult<size_type, false> linear_search_impl(
-      const K& k, size_type s, const size_type e, const Compare& comp,
-      std::false_type /* IsCompareTo */) const {
-    while (s < e) {
-      if (!comp(key(s), k)) {
-        break;
-      }
-      ++s;
-    }
-    return SearchResult<size_type, false>{s};
-  }
-
-  // Returns the position of the first value whose key is not less than k using
-  // linear search performed using compare-to.
-  template <typename K, typename Compare>
-  SearchResult<size_type, true> linear_search_impl(
-      const K& k, size_type s, const size_type e, const Compare& comp,
-      std::true_type /* IsCompareTo */) const {
-    while (s < e) {
-      const absl::weak_ordering c = comp(key(s), k);
-      if (c == 0) {
-        return {s, MatchKind::kEq};
-      } else if (c > 0) {
-        break;
-      }
-      ++s;
-    }
-    return {s, MatchKind::kNe};
-  }
-
-  // Returns the position of the first value whose key is not less than k using
-  // binary search performed using plain compare.
-  template <typename K, typename Compare>
-  SearchResult<size_type, false> binary_search_impl(
-      const K& k, size_type s, size_type e, const Compare& comp,
-      std::false_type /* IsCompareTo */) const {
-    while (s != e) {
-      const size_type mid = (s + e) >> 1;
-      if (comp(key(mid), k)) {
-        s = mid + 1;
-      } else {
-        e = mid;
-      }
-    }
-    return SearchResult<size_type, false>{s};
-  }
-
-  // Returns the position of the first value whose key is not less than k using
-  // binary search performed using compare-to.
-  template <typename K, typename CompareTo>
-  SearchResult<size_type, true> binary_search_impl(
-      const K& k, size_type s, size_type e, const CompareTo& comp,
-      std::true_type /* IsCompareTo */) const {
-    if (params_type::template can_have_multiple_equivalent_keys<K>()) {
-      MatchKind exact_match = MatchKind::kNe;
-      while (s != e) {
-        const size_type mid = (s + e) >> 1;
-        const absl::weak_ordering c = comp(key(mid), k);
-        if (c < 0) {
-          s = mid + 1;
-        } else {
-          e = mid;
-          if (c == 0) {
-            // Need to return the first value whose key is not less than k,
-            // which requires continuing the binary search if there could be
-            // multiple equivalent keys.
-            exact_match = MatchKind::kEq;
-          }
-        }
-      }
-      return {s, exact_match};
-    } else {  // Can't have multiple equivalent keys.
-      while (s != e) {
-        const size_type mid = (s + e) >> 1;
-        const absl::weak_ordering c = comp(key(mid), k);
-        if (c < 0) {
-          s = mid + 1;
-        } else if (c > 0) {
-          e = mid;
-        } else {
-          return {mid, MatchKind::kEq};
-        }
-      }
-      return {s, MatchKind::kNe};
-    }
+    return SearchOps::template NodeSearch</*kCanHaveMultipleEquivKeys=*/false>(
+               this, k, upper_bound_adapter<key_compare>(comp))
+        .value;
   }
 
   // Returns whether key i is ordered correctly with respect to the other keys
@@ -1208,6 +1118,48 @@ bool AreNodesFromSameContainer(const Node* node_a, const Node* node_b) {
   return node_a == node_b;
 }
 
+struct BtreeIteratorBase {
+  btree_node_header* node;
+  int position;
+
+  friend bool operator==(BtreeIteratorBase a, BtreeIteratorBase b) {
+    return a.node == b.node && a.position == b.position;
+  }
+  friend bool operator!=(BtreeIteratorBase a, BtreeIteratorBase b) {
+    return !(a == b);
+  }
+};
+
+// Returns n such that n calls to ++begin yields end.
+// Precondition: n exists && (begin.node != end.node || !begin.node->is_leaf()
+// || begin.position != end.position).
+template <typename FieldType>
+ptrdiff_t BtreeIteratorDistanceSlow(BtreeIteratorBase begin,
+                                    BtreeIteratorBase end,
+                                    size_t children_offset);
+extern template ptrdiff_t BtreeIteratorDistanceSlow<uint8_t>(BtreeIteratorBase,
+                                                             BtreeIteratorBase,
+                                                             size_t);
+extern template ptrdiff_t BtreeIteratorDistanceSlow<uint16_t>(BtreeIteratorBase,
+                                                              BtreeIteratorBase,
+                                                              size_t);
+
+template <typename FieldType>
+BtreeIteratorBase BtreeIteratorIncrementSlow(BtreeIteratorBase it,
+                                             size_t children_offset);
+extern template BtreeIteratorBase BtreeIteratorIncrementSlow<uint8_t>(
+    BtreeIteratorBase, size_t);
+extern template BtreeIteratorBase BtreeIteratorIncrementSlow<uint16_t>(
+    BtreeIteratorBase, size_t);
+
+template <typename FieldType>
+BtreeIteratorBase BtreeIteratorDecrementSlow(BtreeIteratorBase it,
+                                             size_t children_offset);
+extern template BtreeIteratorBase BtreeIteratorDecrementSlow<uint8_t>(
+    BtreeIteratorBase, size_t);
+extern template BtreeIteratorBase BtreeIteratorDecrementSlow<uint16_t>(
+    BtreeIteratorBase, size_t);
+
 class btree_iterator_generation_info_enabled {
  public:
   explicit btree_iterator_generation_info_enabled(uint32_t g)
@@ -1316,7 +1268,8 @@ class btree_iterator : private btree_iterator_generation_info {
       if (node_->is_leaf()) return position_ - other.position_;
       if (position_ == other.position_) return 0;
     }
-    return distance_slow(other);
+    return BtreeIteratorDistanceSlow<field_type>(other.raw(), raw(),
+                                                 node_type::kChildrenOffset);
   }
 
   // Advances the iterator by `n`. Values of `n` must not result in going past
@@ -1432,30 +1385,33 @@ class btree_iterator : private btree_iterator_generation_info {
     return true;
   }
 
-  // Returns n such that n calls to ++other yields *this.
-  // Precondition: n exists && (this->node_ != other.node_ ||
-  // !this->node_->is_leaf() || this->position_ != other.position_).
-  difference_type distance_slow(const_iterator other) const;
+  BtreeIteratorBase raw() const {
+    return {const_cast<normal_node*>(node_), position_};
+  }
 
   // Increment/decrement the iterator.
   void increment() {
     assert_valid_generation(node_);
-    if (node_->is_leaf() && ++position_ < node_->finish()) {
+    if (ABSL_PREDICT_TRUE(node_->is_leaf() && ++position_ < node_->finish())) {
       return;
     }
-    increment_slow();
+    const BtreeIteratorBase res = BtreeIteratorIncrementSlow<field_type>(
+        raw(), node_type::kChildrenOffset);
+    node_ = static_cast<Node*>(res.node);
+    position_ = res.position;
   }
-  void increment_slow();
   btree_iterator& increment_n_slow(difference_type n);
 
   void decrement() {
     assert_valid_generation(node_);
-    if (node_->is_leaf() && --position_ >= node_->start()) {
+    if (ABSL_PREDICT_TRUE(node_->is_leaf() && --position_ >= node_->start())) {
       return;
     }
-    decrement_slow();
+    const BtreeIteratorBase res = BtreeIteratorDecrementSlow<field_type>(
+        raw(), node_type::kChildrenOffset);
+    node_ = static_cast<Node*>(res.node);
+    position_ = res.position;
   }
-  void decrement_slow();
   btree_iterator& decrement_n_slow(difference_type n);
 
   const key_type& key() const {
@@ -1519,6 +1475,231 @@ struct BtreeCommonFields {
   size_t size;
 
   bool empty() const { return size == 0; }
+};
+
+using BtreeDestroyNFn = void (*)(void* alloc, void* slots, size_t count);
+using BtreeDeallocFn = void (*)(void* alloc, void* node, size_t size);
+
+// Compact 16-byte policy for destroying or clearing a B-tree, kept separate
+// from BtreePolicy so translation units that only destroy or clear a B-tree do
+// not instantiate transfer or allocation callbacks.
+struct BtreeDtorPolicy {
+  uint32_t slot_size;
+  uint16_t node_slots;
+  uint16_t slots_offset;
+  BtreeDestroyNFn destroy_n;
+
+  static constexpr size_t LeafSize(uint16_t slots_offset, size_t slot_count,
+                                   uint32_t slot_size) {
+    const size_t raw = slots_offset + slot_count * slot_size;
+    return (raw + alignof(void*) - 1) & ~(alignof(void*) - 1);
+  }
+
+  constexpr size_t LeafSize(size_t slot_count) const {
+    return LeafSize(slots_offset, slot_count, slot_size);
+  }
+
+  static constexpr uint32_t ComputeChildrenOffset(uint16_t slots_offset,
+                                                  uint16_t node_slots,
+                                                  uint32_t slot_size) {
+    return static_cast<uint32_t>(LeafSize(slots_offset, node_slots, slot_size));
+  }
+
+  constexpr uint32_t ComputeChildrenOffset() const {
+    return ComputeChildrenOffset(slots_offset, node_slots, slot_size);
+  }
+};
+
+template <uint32_t kSlotSize, uint16_t kNodeSlots, uint16_t kSlotsOffset,
+          BtreeDestroyNFn kDestroyN>
+inline constexpr BtreeDtorPolicy kBtreeDtor = {
+    kSlotSize,
+    kNodeSlots,
+    kSlotsOffset,
+    kDestroyN,
+};
+
+// Invokes fn with a typed allocator pointer or a temporary default allocator.
+template <typename Alloc, typename Fn>
+decltype(auto) WithBtreeAlloc(void* alloc, Fn&& fn) {
+  if constexpr (std::is_same_v<Alloc, std::allocator<char>>) {
+    (void)alloc;
+    std::allocator<char> a;
+    return fn(&a);
+  } else {
+    return fn(static_cast<Alloc*>(alloc));
+  }
+}
+
+template <size_t Alignment, typename Alloc>
+void BtreeDeallocate(void* alloc, void* node, size_t size) {
+  WithBtreeAlloc<Alloc>(alloc,
+                        [&](auto* a) { Deallocate<Alignment>(a, node, size); });
+}
+
+// Type-erased callback destroying a contiguous run of initialized slots.
+template <typename SlotPolicy, typename Alloc>
+void BtreeDestroyN(void* alloc, void* slots, size_t count) {
+  using Traits = common_policy_traits<SlotPolicy>;
+  auto* s = static_cast<typename SlotPolicy::slot_type*>(slots);
+  WithBtreeAlloc<Alloc>(alloc, [&](auto* a) {
+    for (size_t i = 0; i < count; ++i) {
+      Traits::destroy(a, std::launder(s + i));
+    }
+  });
+}
+
+// Destroys all elements and frees every node in the subtree.
+template <typename FieldType>
+void BtreeDestroy(btree_node_base<FieldType>* root,
+                  const BtreeDtorPolicy& policy);
+template <typename FieldType>
+void BtreeDestroy(btree_node_base<FieldType>* root,
+                  const BtreeDtorPolicy& policy, BtreeDeallocFn dealloc,
+                  void* alloc);
+extern template void BtreeDestroy<uint8_t>(btree_node_base<uint8_t>*,
+                                           const BtreeDtorPolicy&);
+extern template void BtreeDestroy<uint16_t>(btree_node_base<uint16_t>*,
+                                            const BtreeDtorPolicy&);
+extern template void BtreeDestroy<uint8_t>(btree_node_base<uint8_t>*,
+                                           const BtreeDtorPolicy&,
+                                           BtreeDeallocFn, void*);
+extern template void BtreeDestroy<uint16_t>(btree_node_base<uint16_t>*,
+                                            const BtreeDtorPolicy&,
+                                            BtreeDeallocFn, void*);
+
+// Shared search and lookup operations parameterized only on key type,
+// comparator, node field_type, and slot layout (independent of mapped value
+// type, allocator, IsMulti, and IsMap).
+template <typename SlotKey, typename KeyCompare, typename FieldType,
+          size_t kSlotSize, size_t kSlotsOffset, size_t kChildrenOffset,
+          bool kUseLinearSearch>
+class BtreeOps {
+  using NodeBase = btree_node_base<FieldType>;
+  using CompParam =
+      type_traits_internal::AddConstRefIfExpensiveToCopy<KeyCompare>;
+  static constexpr bool kIsCompareTo =
+      btree_is_key_compare_to<KeyCompare, SlotKey>::value;
+
+  static const SlotKey& Key(const void* node, size_t i) {
+    return *std::launder(reinterpret_cast<const SlotKey*>(
+        static_cast<const char*>(node) + kSlotsOffset + i * kSlotSize));
+  }
+
+  // Returns the position of the first value whose key is not less than k using
+  // linear search performed using plain compare.
+  template <typename K, typename Compare>
+  static SearchResult<size_t, false> LinearSearchPlain(const NodeBase* node,
+                                                       const K& k, size_t s,
+                                                       const size_t e,
+                                                       const Compare& comp) {
+    while (s < e) {
+      if (!comp(Key(node, s), k)) {
+        break;
+      }
+      ++s;
+    }
+    return SearchResult<size_t, false>{s};
+  }
+
+  // Returns the position of the first value whose key is not less than k using
+  // linear search performed using compare-to.
+  template <typename K, typename Compare>
+  static SearchResult<size_t, true> LinearSearchCompareTo(const NodeBase* node,
+                                                          const K& k, size_t s,
+                                                          const size_t e,
+                                                          const Compare& comp) {
+    while (s < e) {
+      const absl::weak_ordering c = comp(Key(node, s), k);
+      if (c == 0) {
+        return {s, MatchKind::kEq};
+      } else if (c > 0) {
+        break;
+      }
+      ++s;
+    }
+    return {s, MatchKind::kNe};
+  }
+
+  // Returns the position of the first value whose key is not less than k using
+  // binary search performed using plain compare.
+  template <typename K, typename Compare>
+  static SearchResult<size_t, false> BinarySearchPlain(const NodeBase* node,
+                                                       const K& k, size_t s,
+                                                       size_t e,
+                                                       const Compare& comp) {
+    while (s != e) {
+      const size_t mid = (s + e) >> 1;
+      if (comp(Key(node, mid), k)) {
+        s = mid + 1;
+      } else {
+        e = mid;
+      }
+    }
+    return SearchResult<size_t, false>{s};
+  }
+
+  // Returns the position of the first value whose key is not less than k using
+  // binary search performed using compare-to.
+  template <bool kCanHaveMultipleEquivKeys, typename K, typename CompareTo>
+  static SearchResult<size_t, true> BinarySearchCompareTo(
+      const NodeBase* node, const K& k, size_t s, size_t e,
+      const CompareTo& comp) {
+    if constexpr (kCanHaveMultipleEquivKeys) {
+      MatchKind exact_match = MatchKind::kNe;
+      while (s != e) {
+        const size_t mid = (s + e) >> 1;
+        const absl::weak_ordering c = comp(Key(node, mid), k);
+        if (c < 0) {
+          s = mid + 1;
+        } else {
+          e = mid;
+          if (c == 0) {
+            // Need to return the first value whose key is not less than k,
+            // which requires continuing the binary search if there could be
+            // multiple equivalent keys.
+            exact_match = MatchKind::kEq;
+          }
+        }
+      }
+      return {s, exact_match};
+    } else {  // Can't have multiple equivalent keys.
+      while (s != e) {
+        const size_t mid = (s + e) >> 1;
+        const absl::weak_ordering c = comp(Key(node, mid), k);
+        if (c < 0) {
+          s = mid + 1;
+        } else if (c > 0) {
+          e = mid;
+        } else {
+          return {mid, MatchKind::kEq};
+        }
+      }
+      return {s, MatchKind::kNe};
+    }
+  }
+
+ public:
+  template <bool kCanHaveMultipleEquivKeys, typename Compare, typename K>
+  static SearchResult<size_t, btree_is_key_compare_to<Compare, SlotKey>::value>
+  NodeSearch(const NodeBase* node, const K& k, const Compare& comp) {
+    constexpr bool kCompTo = btree_is_key_compare_to<Compare, SlotKey>::value;
+    if constexpr (kUseLinearSearch) {
+      if constexpr (kCompTo) {
+        return LinearSearchCompareTo(node, k, node->start(), node->finish(),
+                                     comp);
+      } else {
+        return LinearSearchPlain(node, k, node->start(), node->finish(), comp);
+      }
+    } else {
+      if constexpr (kCompTo) {
+        return BinarySearchCompareTo<kCanHaveMultipleEquivKeys>(
+            node, k, node->start(), node->finish(), comp);
+      } else {
+        return BinarySearchPlain(node, k, node->start(), node->finish(), comp);
+      }
+    }
+  }
 };
 
 template <typename Params>
@@ -1618,7 +1799,7 @@ class btree {
     // is complete.
     static_assert(static_assert_validation(), "This call must be elided.");
     if (!empty()) {
-      node_type::clear_and_delete(root(), mutable_allocator());
+      destroy_subtree(root());
     }
   }
 
@@ -1843,7 +2024,46 @@ class btree {
   allocator_type get_allocator() const { return allocator(); }
 
  private:
+  friend class btree_node<Params>;
   friend struct btree_access;
+  friend class BtreeNodePeer;
+
+  // Erase element type from default allocators to share policies and helpers.
+  static constexpr bool kIsDefaultAlloc =
+      std::is_same_v<allocator_type, std::allocator<value_type>>;
+  static constexpr bool kUsesDefaultNodeAlloc =
+      kIsDefaultAlloc && node_type::Alignment() <= alignof(void*);
+  using CanonicalAlloc =
+      std::conditional_t<kIsDefaultAlloc, std::allocator<char>, allocator_type>;
+  using SlotPolicy = typename Params::slot_policy;
+
+  static constexpr BtreeDestroyNFn get_destroy_n_fn() {
+    if constexpr (params_type::template destroy_is_trivial<CanonicalAlloc>()) {
+      return nullptr;
+    } else {
+      return &BtreeDestroyN<SlotPolicy, CanonicalAlloc>;
+    }
+  }
+
+  static constexpr BtreeDeallocFn get_dealloc_fn() {
+    return &BtreeDeallocate<node_type::Alignment(), CanonicalAlloc>;
+  }
+
+  static constexpr const BtreeDtorPolicy& GetDtorPolicy() {
+    constexpr field_type kSlots = field_type{kNodeSlots};
+    if constexpr (kNodeSlots <= (std::numeric_limits<field_type>::max)()) {
+      static_assert(BtreeDtorPolicy::ComputeChildrenOffset(
+                        node_type::kSlotsOffset, kSlots, sizeof(slot_type)) ==
+                    node_type::kChildrenOffset);
+    }
+    return kBtreeDtor<sizeof(slot_type), kSlots,
+                      static_cast<uint16_t>(node_type::kSlotsOffset),
+                      get_destroy_n_fn()>;
+  }
+
+  void destroy_subtree(node_type* node) {
+    node_type::clear_and_delete(node, mutable_allocator());
+  }
 
   // Internal accessor routines.
   node_type* root() { return static_cast<node_type*>(common_.root); }
@@ -2022,7 +2242,7 @@ inline void btree_node<P>::remove_values(const field_type i,
                                          const field_type to_erase,
                                          allocator_type* alloc) {
   value_destroy_n(i, to_erase, alloc);
-  if (is_internal()) {
+  if (ABSL_PREDICT_FALSE(is_internal())) {
     // Delete all children between begin and end.
     for (field_type j = 0; j < to_erase; ++j) {
       clear_and_delete(child(i + j + 1), alloc);
@@ -2210,179 +2430,17 @@ void btree_node<P>::merge(btree_node* src, allocator_type* alloc) {
 
 template <typename P>
 void btree_node<P>::clear_and_delete(btree_node* node, allocator_type* alloc) {
-  assert(node->count() > 0);
-  if (node->is_leaf()) {
-    node->value_destroy_n(node->start(), node->count(), alloc);
-    deallocate(LeafSize(node->max_count()), node, alloc);
-    return;
-  }
-
-  // The parent of the root of the subtree we are deleting.
-  btree_node* delete_root_parent = node->parent();
-
-  // Navigate to the leftmost leaf under node, and then delete upwards.
-  while (node->is_internal()) node = node->start_child();
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-  // When generations are enabled, we delete the leftmost leaf last in case it's
-  // the parent of the root and we need to check whether it's a leaf before we
-  // can update the root's generation.
-  // TODO(ezb): if we change btree_node::is_root to check a bool inside the node
-  // instead of checking whether the parent is a leaf, we can remove this logic.
-  btree_node* leftmost_leaf = node;
-#endif
-  // Use `size_type` because `pos` needs to be able to hold `kNodeSlots+1`,
-  // which isn't guaranteed to be a valid `field_type`.
-  size_type pos = node->position();
-  btree_node* parent = node->parent();
-  for (;;) {
-    // In each iteration of the next loop, we delete one leaf node and go right.
-    assert(pos <= parent->finish());
-    do {
-      node = parent->child(static_cast<field_type>(pos));
-      if (node->is_internal()) {
-        // Navigate to the leftmost leaf under node.
-        while (node->is_internal()) node = node->start_child();
-        pos = node->position();
-        parent = node->parent();
-      }
-      node->value_destroy_n(node->start(), node->count(), alloc);
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-      if (leftmost_leaf != node)
-#endif
-        deallocate(LeafSize(node->max_count()), node, alloc);
-      ++pos;
-    } while (pos <= parent->finish());
-
-    // Once we've deleted all children of parent, delete parent and go up/right.
-    assert(pos > parent->finish());
-    do {
-      node = parent;
-      pos = node->position();
-      parent = node->parent();
-      node->value_destroy_n(node->start(), node->count(), alloc);
-      deallocate(InternalSize(), node, alloc);
-      if (parent == delete_root_parent) {
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-        deallocate(LeafSize(leftmost_leaf->max_count()), leftmost_leaf, alloc);
-#endif
-        return;
-      }
-      ++pos;
-    } while (pos > parent->finish());
+  if constexpr (btree<P>::kUsesDefaultNodeAlloc) {
+    (void)alloc;
+    BtreeDestroy<field_type>(node, btree<P>::GetDtorPolicy());
+  } else {
+    BtreeDestroy<field_type>(node, btree<P>::GetDtorPolicy(),
+                             btree<P>::get_dealloc_fn(), alloc);
   }
 }
 
 ////
 // btree_iterator methods
-
-// Note: the implementation here is based on btree_node::clear_and_delete.
-template <typename N, typename R, typename P>
-auto btree_iterator<N, R, P>::distance_slow(const_iterator other) const
-    -> difference_type {
-  const_iterator begin = other;
-  const_iterator end = *this;
-  assert(begin.node_ != end.node_ || !begin.node_->is_leaf() ||
-         begin.position_ != end.position_);
-
-  const node_type* node = begin.node_;
-  // We need to compensate for double counting if begin.node_ is a leaf node.
-  difference_type count = node->is_leaf() ? -begin.position_ : 0;
-
-  // First navigate to the leftmost leaf node past begin.
-  if (node->is_internal()) {
-    ++count;
-    node = node->child(begin.position_ + 1);
-  }
-  while (node->is_internal()) node = node->start_child();
-
-  // Use `size_type` because `pos` needs to be able to hold `kNodeSlots+1`,
-  // which isn't guaranteed to be a valid `field_type`.
-  size_type pos = node->position();
-  const node_type* parent = node->parent();
-  for (;;) {
-    // In each iteration of the next loop, we count one leaf node and go right.
-    assert(pos <= parent->finish());
-    do {
-      node = parent->child(static_cast<field_type>(pos));
-      if (node->is_internal()) {
-        // Navigate to the leftmost leaf under node.
-        while (node->is_internal()) node = node->start_child();
-        pos = node->position();
-        parent = node->parent();
-      }
-      if (node == end.node_) return count + end.position_;
-      if (parent == end.node_ && pos == static_cast<size_type>(end.position_))
-        return count + node->count();
-      // +1 is for the next internal node value.
-      count += node->count() + 1;
-      ++pos;
-    } while (pos <= parent->finish());
-
-    // Once we've counted all children of parent, go up/right.
-    assert(pos > parent->finish());
-    do {
-      node = parent;
-      pos = node->position();
-      parent = node->parent();
-      // -1 because we counted the value at end and shouldn't.
-      if (parent == end.node_ && pos == static_cast<size_type>(end.position_))
-        return count - 1;
-      ++pos;
-    } while (pos > parent->finish());
-  }
-}
-
-template <typename N, typename R, typename P>
-void btree_iterator<N, R, P>::increment_slow() {
-  N* node = node_;
-  int position = position_;
-  if (node->is_leaf()) {
-    assert(position >= node->finish());
-    while (position == node->finish() && !node->is_root()) {
-      assert(node->parent()->child(node->position()) == node);
-      position = node->position();
-      node = node->parent();
-    }
-    // TODO(ezb): assert we aren't incrementing end() instead of handling.
-    if (position == node->finish()) {
-      return;
-    }
-  } else {
-    assert(position < node->finish());
-    node = node->child(static_cast<field_type>(position + 1));
-    while (node->is_internal()) {
-      node = node->start_child();
-    }
-    position = node->start();
-  }
-  *this = {node, position};
-}
-
-template <typename N, typename R, typename P>
-void btree_iterator<N, R, P>::decrement_slow() {
-  N* node = node_;
-  int position = position_;
-  if (node->is_leaf()) {
-    assert(position <= -1);
-    while (position < node->start() && !node->is_root()) {
-      assert(node->parent()->child(node->position()) == node);
-      position = node->position() - 1;
-      node = node->parent();
-    }
-    // TODO(ezb): assert we aren't decrementing begin() instead of handling.
-    if (position < node->start()) {
-      return;
-    }
-  } else {
-    assert(position >= node->start());
-    node = node->child(static_cast<field_type>(position));
-    while (node->is_internal()) {
-      node = node->child(node->finish());
-    }
-    position = node->finish() - 1;
-  }
-  *this = {node, position};
-}
 
 template <typename N, typename R, typename P>
 btree_iterator<N, R, P>& btree_iterator<N, R, P>::increment_n_slow(
@@ -2492,6 +2550,10 @@ constexpr bool btree<P>::static_assert_validation() {
                 "iterator not trivially copyable.");
   static_assert(sizeof(node_type) == 1 && alignof(node_type) == 1,
                 "btree_node must remain an empty 1-byte type.");
+  if constexpr (params_type::is_map_container::value) {
+    static_assert(memory_internal::OffsetOf<value_type>::kFirst == 0,
+                  "Map key must be at offset 0 of value_type.");
+  }
 
   // Note: We assert that kTargetValues, which is computed from
   // Params::kTargetNodeSize, must fit the node_type::field_type.
@@ -2817,7 +2879,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     return {0, begin};
   }
 
-  if (static_cast<size_type>(count) == size()) {
+  if (ABSL_PREDICT_FALSE(static_cast<size_type>(count) == size())) {
     clear();
     return {count, this->end()};
   }
@@ -2855,7 +2917,7 @@ auto btree<P>::erase_range(iterator begin, iterator end)
 template <typename P>
 void btree<P>::clear() {
   if (!empty()) {
-    node_type::clear_and_delete(root(), mutable_allocator());
+    destroy_subtree(root());
   }
   mutable_root() = mutable_rightmost() = EmptyNode();
   mutable_size() = 0;
