@@ -148,6 +148,23 @@ GenerationType* EmptyGeneration() {
   return nullptr;
 }
 
+size_t TestOnlyH2Mask() { return ~size_t{} << (sizeof(size_t) * 8 - 7); }
+
+size_t TestOnlyIgnoredBitsMask() {
+  // We ignore the high bits that aren't in H2 because they are never used.
+  // We use all the hash bits in 32-bit mode so the mask is 0 in that case.
+  if constexpr (sizeof(size_t) == 8) {
+    return static_cast<size_t>(~uint64_t{} << 48) & ~TestOnlyH2Mask();
+  }
+  return 0;
+}
+
+size_t TestOnlyStuckBits(const HashtablezInfo& info) {
+  return (info.hashes_bitwise_and.load(std::memory_order_relaxed) |
+          ~info.hashes_bitwise_or.load(std::memory_order_relaxed)) &
+         ~TestOnlyIgnoredBitsMask();
+}
+
 bool CommonFieldsGenerationInfoEnabled::
     should_rehash_for_bug_detection_on_insert(size_t capacity) const {
   if (reserved_growth_ == kReservedGrowthJustRanOut) return true;
