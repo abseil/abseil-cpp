@@ -184,6 +184,7 @@ absl_cc_library(
   NAME
     random_distributions
   SRCS
+    "beta_distribution.cc"
     "discrete_distribution.cc"
     "gaussian_distribution.cc"
   HDRS
