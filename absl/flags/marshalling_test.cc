@@ -15,6 +15,7 @@
 
 #include "absl/flags/marshalling.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <cmath>
@@ -23,10 +24,14 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/numeric/int128.h"
 
 namespace {
+
+using ::testing::ElementsAre;
+using ::testing::IsNan;
 
 TEST(MarshallingTest, TestBoolParsing) {
   std::string err;
@@ -777,6 +782,176 @@ TEST(MarshallingTest, TestVectorOfStringParsing) {
 
 // --------------------------------------------------------------------
 
+template <typename IntType>
+void TestIntegralVectorParsingCommon() {
+  std::string err;
+  std::vector<IntType> value = {IntType{99}, IntType{100}};
+
+  // Empty string clears pre-populated vector.
+  EXPECT_TRUE(absl::ParseFlag("", &value, &err));
+  EXPECT_EQ(value, std::vector<IntType>{});
+
+  // Single and multiple values overwrite existing contents.
+  value = {IntType{99}};
+  EXPECT_TRUE(absl::ParseFlag("42", &value, &err));
+  EXPECT_EQ(value, std::vector<IntType>({IntType{42}}));
+
+  EXPECT_TRUE(absl::ParseFlag("1,0,+3,123", &value, &err));
+  EXPECT_EQ(value, (std::vector<IntType>{IntType{1}, IntType{0}, IntType{3},
+                                         IntType{123}}));
+
+  // Leading zeros are decimal (base 10), not octal; 0x/0X is hexadecimal.
+  EXPECT_TRUE(absl::ParseFlag("010,000100,0x10,0X20,+0x31", &value, &err));
+  EXPECT_EQ(value, (std::vector<IntType>{IntType{10}, IntType{100}, IntType{16},
+                                         IntType{32}, IntType{49}}));
+
+  // Surrounding ASCII whitespace around elements is stripped.
+  EXPECT_TRUE(absl::ParseFlag(" 10 ,  20,30  ,\t0x22\n", &value, &err));
+  EXPECT_EQ(value, (std::vector<IntType>{IntType{10}, IntType{20}, IntType{30},
+                                         IntType{34}}));
+
+  // Whitespace-only non-empty strings, empty tokens, internal whitespace, and
+  // malformed tokens are rejected.
+  EXPECT_FALSE(absl::ParseFlag(" ", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("   ", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("\t", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("\n", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("\r", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag(",", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag(",,", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,,2", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1, ,2", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag(",1", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,2,", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1 2,3", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,typo,3", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,2U,3", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,FFF,3", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,--2,3", &value, &err));
+}
+
+template <typename SignedIntType>
+void TestSignedIntegralVectorParsing() {
+  TestIntegralVectorParsingCommon<SignedIntType>();
+
+  std::string err;
+  std::vector<SignedIntType> value;
+  EXPECT_TRUE(absl::ParseFlag("-1,-010,-0x10", &value, &err));
+  EXPECT_EQ(value, (std::vector<SignedIntType>{
+                       SignedIntType{-1}, SignedIntType{-10},
+                       SignedIntType{-16}}));
+}
+
+template <typename UnsignedIntType>
+void TestUnsignedIntegralVectorParsing() {
+  TestIntegralVectorParsingCommon<UnsignedIntType>();
+
+  std::string err;
+  std::vector<UnsignedIntType> value;
+  EXPECT_FALSE(absl::ParseFlag("-1", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1,-2,3", &value, &err));
+}
+
+TEST(MarshallingTest, TestVectorOfIntegralTypesParsing) {
+  // Fundamental integral types.
+  TestSignedIntegralVectorParsing<short>();                 // NOLINT
+  TestUnsignedIntegralVectorParsing<unsigned short>();      // NOLINT
+  TestSignedIntegralVectorParsing<int>();
+  TestUnsignedIntegralVectorParsing<unsigned int>();
+  TestSignedIntegralVectorParsing<long>();                  // NOLINT
+  TestUnsignedIntegralVectorParsing<unsigned long>();       // NOLINT
+  TestSignedIntegralVectorParsing<long long>();             // NOLINT
+  TestUnsignedIntegralVectorParsing<unsigned long long>();  // NOLINT
+  TestSignedIntegralVectorParsing<absl::int128>();
+  TestUnsignedIntegralVectorParsing<absl::uint128>();
+
+  // Fixed-width and platform typedefs.
+  TestSignedIntegralVectorParsing<int16_t>();
+  TestUnsignedIntegralVectorParsing<uint16_t>();
+  TestSignedIntegralVectorParsing<int32_t>();
+  TestUnsignedIntegralVectorParsing<uint32_t>();
+  TestSignedIntegralVectorParsing<int64_t>();
+  TestUnsignedIntegralVectorParsing<uint64_t>();
+  TestUnsignedIntegralVectorParsing<size_t>();
+
+  // Range bounds checks.
+  std::string err;
+  std::vector<int16_t> i16;
+  EXPECT_TRUE(absl::ParseFlag("-32768,32767", &i16, &err));
+  EXPECT_EQ(i16, (std::vector<int16_t>{-32768, 32767}));
+  EXPECT_FALSE(absl::ParseFlag("1,40000", &i16, &err));
+  EXPECT_FALSE(absl::ParseFlag("-40000,1", &i16, &err));
+
+  std::vector<uint16_t> u16;
+  EXPECT_TRUE(absl::ParseFlag("0,65535", &u16, &err));
+  EXPECT_EQ(u16, (std::vector<uint16_t>{0, 65535}));
+  EXPECT_FALSE(absl::ParseFlag("1,70000", &u16, &err));
+
+  std::vector<int64_t> i64;
+  EXPECT_FALSE(absl::ParseFlag("0xFFFFFFFFFFFFFFFFFF", &i64, &err));
+
+  std::vector<uint64_t> u64;
+  EXPECT_FALSE(absl::ParseFlag("0xFFFFFFFFFFFFFFFFFF", &u64, &err));
+
+  std::vector<absl::int128> i128;
+  EXPECT_TRUE(absl::ParseFlag(
+      "-0x10000000000000000,0xFFF0FFFFFFFFFFFFFFF", &i128, &err));
+  EXPECT_EQ(
+      i128,
+      (std::vector<absl::int128>{
+          absl::MakeInt128(-1, 0),
+          absl::MakeInt128(0x000000000000fff, 0xFFFFFFFFFFFFFFF)}));
+
+  std::vector<absl::uint128> u128;
+  EXPECT_TRUE(absl::ParseFlag("0,0xFFF0FFFFFFFFFFFFFFF", &u128, &err));
+  EXPECT_EQ(
+      u128,
+      (std::vector<absl::uint128>{
+          0, absl::MakeUint128(0x000000000000fff, 0xFFFFFFFFFFFFFFF)}));
+}
+
+// --------------------------------------------------------------------
+
+template <typename FloatType>
+void TestFloatingPointVectorParsing() {
+  std::string err;
+  std::vector<FloatType> value = {FloatType{99}};
+
+  EXPECT_TRUE(absl::ParseFlag("", &value, &err));
+  EXPECT_EQ(value, std::vector<FloatType>{});
+
+  value = {FloatType{99}};
+  EXPECT_TRUE(absl::ParseFlag("0.5, -1.25e-2, +0.25, 0x10p1", &value, &err));
+  EXPECT_THAT(value, ElementsAre(static_cast<FloatType>(0.5),
+                                 static_cast<FloatType>(-0.0125),
+                                 static_cast<FloatType>(0.25),
+                                 static_cast<FloatType>(32.0)));
+
+  EXPECT_TRUE(absl::ParseFlag("inf, -inf, NaN", &value, &err));
+  EXPECT_THAT(value, ElementsAre(std::numeric_limits<FloatType>::infinity(),
+                                 -std::numeric_limits<FloatType>::infinity(),
+                                 IsNan()));
+
+  EXPECT_FALSE(absl::ParseFlag(" ", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("   ", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("\t", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("\n", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag(",", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1.0,,2.0", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1.0, ,2.0", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag(",1.0", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1.0,2.0,", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1.0 2.0", &value, &err));
+  EXPECT_FALSE(absl::ParseFlag("1.0,bad,2.0", &value, &err));
+}
+
+TEST(MarshallingTest, TestVectorOfFloatingPointTypesParsing) {
+  TestFloatingPointVectorParsing<float>();
+  TestFloatingPointVectorParsing<double>();
+}
+
+// --------------------------------------------------------------------
+
 TEST(MarshallingTest, TestOptionalBoolParsing) {
   std::string err;
   std::optional<bool> value;
@@ -1060,6 +1235,61 @@ TEST(MarshallingTest, TestStringUnparsing) {
 
 // --------------------------------------------------------------------
 
+TEST(MarshallingTest, TestVectorUnparsing) {
+  EXPECT_EQ(absl::UnparseFlag(std::vector<std::string>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<std::string>{"a", "b", "c"}),
+            "a,b,c");
+
+  EXPECT_EQ(absl::UnparseFlag(std::vector<short>{}), "");  // NOLINT
+  EXPECT_EQ(absl::UnparseFlag(std::vector<short>{-1, 0, 2}),  // NOLINT
+            "-1,0,2");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned short>{}), "");  // NOLINT
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned short>{0, 1, 2}),  // NOLINT
+            "0,1,2");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<int>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<int>{-10, 0, 20}), "-10,0,20");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned int>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned int>{10, 20}), "10,20");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<long>{}), "");  // NOLINT
+  EXPECT_EQ(absl::UnparseFlag(std::vector<long>{-100, 200}),  // NOLINT
+            "-100,200");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned long>{}), "");  // NOLINT
+  EXPECT_EQ(absl::UnparseFlag(std::vector<unsigned long>{100, 200}),  // NOLINT
+            "100,200");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<long long>{}), "");  // NOLINT
+  EXPECT_EQ(absl::UnparseFlag(std::vector<long long>{-1000, 2000}),  // NOLINT
+            "-1000,2000");
+  EXPECT_EQ(
+      absl::UnparseFlag(std::vector<unsigned long long>{}),  // NOLINT
+      "");
+  EXPECT_EQ(
+      absl::UnparseFlag(std::vector<unsigned long long>{1000, 2000}),  // NOLINT
+      "1000,2000");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<absl::int128>{}), "");
+  EXPECT_EQ(
+      absl::UnparseFlag(
+          std::vector<absl::int128>{-1, absl::MakeInt128(-1, 0)}),
+      "-1,-18446744073709551616");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<absl::uint128>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<absl::uint128>{
+                0, absl::MakeUint128(0, 0xFFFFFFFFFFFFFFFF)}),
+            "0,18446744073709551615");
+
+  EXPECT_EQ(absl::UnparseFlag(std::vector<float>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<float>{
+                1.1f, -0.0f, std::numeric_limits<float>::infinity(),
+                -std::numeric_limits<float>::infinity(), std::nanf("")}),
+            "1.1,-0,inf,-inf,nan");
+
+  EXPECT_EQ(absl::UnparseFlag(std::vector<double>{}), "");
+  EXPECT_EQ(absl::UnparseFlag(std::vector<double>{
+                1.1, -0.0, std::numeric_limits<double>::infinity(),
+                -std::numeric_limits<double>::infinity(), std::nan("")}),
+            "1.1,-0,inf,-inf,nan");
+}
+
+// --------------------------------------------------------------------
+
 TEST(MarshallingTest, TestOptionalBoolUnparsing) {
   std::optional<bool> value;
 
@@ -1245,6 +1475,25 @@ TEST(MarshallingTest, TestDoubleRoundTrip) {
   TestRoundtrip(std::numeric_limits<double>::max());
   TestRoundtrip(std::numeric_limits<double>::lowest());
   TestRoundtrip(std::numeric_limits<double>::denorm_min());
+}
+
+TEST(MarshallingTest, TestVectorNumericRoundTrip) {
+  TestRoundtrip(std::vector<int64_t>{});
+  TestRoundtrip(std::vector<int64_t>{
+      std::numeric_limits<int64_t>::min(), -1, 0, 1,
+      std::numeric_limits<int64_t>::max()});
+  TestRoundtrip(std::vector<float>{});
+  TestRoundtrip(std::vector<float>{
+      0.12345678f, 0.12345678e20f, 0.12345678e-20f,
+      std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+      std::numeric_limits<float>::lowest(),
+      std::numeric_limits<float>::denorm_min()});
+  TestRoundtrip(std::vector<double>{});
+  TestRoundtrip(std::vector<double>{
+      0.12345678912345678, 0.12345678912345678e50, 0.12345678912345678e-50,
+      std::numeric_limits<double>::min(), std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::lowest(),
+      std::numeric_limits<double>::denorm_min()});
 }
 
 }  // namespace

@@ -28,6 +28,7 @@
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -42,6 +43,7 @@
 #include "absl/flags/internal/sequence_lock.h"
 #include "absl/flags/marshalling.h"
 #include "absl/meta/type_traits.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"

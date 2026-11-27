@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_FLAGS_CONFIG_H_
 #define ABSL_FLAGS_CONFIG_H_
 
@@ -57,12 +59,29 @@
   A(unsigned long, unsigned_long)            \
   A(long long, long_long)                    \
   A(unsigned long long, unsigned_long_long)  \
-  A(double, double)                          \
-  A(float, float)
+  A(float, float)                            \
+  A(double, double)
 
-#define ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(A) \
-  ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(A)         \
-  A(std::string, std_string)                   \
+#define ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(A)                     \
+  ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(A)                             \
+  A(absl::int128, absl_int128)                                     \
+  A(absl::uint128, absl_uint128)                                   \
+  A(std::string, std_string)                                       \
+  A(std::vector<short>, std_vector_of_short) /* NOLINT */          \
+  A(std::vector<unsigned short>, /* NOLINT */                      \
+    std_vector_of_unsigned_short)                                  \
+  A(std::vector<int>, std_vector_of_int)                           \
+  A(std::vector<unsigned int>, std_vector_of_unsigned_int)         \
+  A(std::vector<long>, std_vector_of_long) /* NOLINT */            \
+  A(std::vector<unsigned long>, /* NOLINT */                       \
+    std_vector_of_unsigned_long)                                   \
+  A(std::vector<long long>, std_vector_of_long_long) /* NOLINT */  \
+  A(std::vector<unsigned long long>, /* NOLINT */                  \
+    std_vector_of_unsigned_long_long)                              \
+  A(std::vector<absl::int128>, std_vector_of_absl_int128)          \
+  A(std::vector<absl::uint128>, std_vector_of_absl_uint128)        \
+  A(std::vector<float>, std_vector_of_float)                       \
+  A(std::vector<double>, std_vector_of_double)                     \
   A(std::vector<std::string>, std_vector_of_string)
 
 #endif  // ABSL_FLAGS_CONFIG_H_

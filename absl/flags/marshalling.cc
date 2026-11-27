@@ -157,7 +157,7 @@ bool AbslParseFlag(absl::string_view text, std::string* dst, std::string*) {
 }
 
 // --------------------------------------------------------------------
-// AbslParseFlag for vector of strings.
+// AbslParseFlag for vector of strings and numeric types.
 
 bool AbslParseFlag(absl::string_view text, std::vector<std::string>* dst,
                    std::string*) {
@@ -169,6 +169,84 @@ bool AbslParseFlag(absl::string_view text, std::vector<std::string>* dst,
   }
   *dst = absl::StrSplit(text, ',', absl::AllowEmpty());
   return true;
+}
+
+namespace {
+
+template <typename T>
+bool ParseFlagVectorImpl(absl::string_view text, std::vector<T>* dst,
+                         std::string* err) {
+  dst->clear();
+  if (text.empty()) return true;
+  for (const absl::string_view element :
+       absl::StrSplit(text, ',', absl::AllowEmpty())) {
+    T value;
+    if (!absl::ParseFlag(element, &value, err)) return false;
+    dst->push_back(value);
+  }
+  return true;
+}
+
+template <typename T>
+std::string UnparseFlagVectorImpl(const std::vector<T>& val) {
+  return absl::StrJoin(val, ",", [](std::string* out, T v) {
+    absl::StrAppend(out, absl::UnparseFlag(v));
+  });
+}
+
+}  // namespace
+
+bool AbslParseFlag(absl::string_view text, std::vector<short>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text,
+                   std::vector<unsigned short>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<int>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<unsigned int>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<long>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text,
+                   std::vector<unsigned long>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text,
+                   std::vector<long long>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text,
+                   std::vector<unsigned long long>* dst,  // NOLINT
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<absl::int128>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<absl::uint128>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<float>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
+}
+bool AbslParseFlag(absl::string_view text, std::vector<double>* dst,
+                   std::string* err) {
+  return ParseFlagVectorImpl(text, dst, err);
 }
 
 // --------------------------------------------------------------------
@@ -199,6 +277,43 @@ std::string Unparse(double v) { return absl::StrCat(absl::HighPrecision(v)); }
 std::string AbslUnparseFlag(absl::string_view v) { return std::string(v); }
 std::string AbslUnparseFlag(const std::vector<std::string>& v) {
   return absl::StrJoin(v, ",");
+}
+std::string AbslUnparseFlag(const std::vector<short>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<unsigned short>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<int>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<unsigned int>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<long>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<unsigned long>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<long long>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(  // NOLINT
+    const std::vector<unsigned long long>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<absl::int128>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<absl::uint128>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<float>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
+}
+std::string AbslUnparseFlag(const std::vector<double>& v) {  // NOLINT
+  return UnparseFlagVectorImpl(v);
 }
 
 }  // namespace flags_internal

@@ -201,6 +201,7 @@ absl_cc_library(
     absl::flags_config
     absl::flags_marshalling
     absl::flat_hash_map
+    absl::int128
     absl::meta
     absl::no_destructor
     absl::synchronization
@@ -302,6 +303,7 @@ absl_cc_library(
     absl::flags_program_name
     absl::flags_reflection
     absl::flags_usage
+    absl::int128
     absl::no_destructor
     absl::string_view
     absl::strings
@@ -375,7 +377,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags_marshalling
-    GTest::gtest_main
+    GTest::gmock_main
 )
 
 absl_cc_test(

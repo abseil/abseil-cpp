@@ -46,6 +46,7 @@
 #include "absl/flags/reflection.h"
 #include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/damerau_levenshtein_distance.h"
 #include "absl/strings/str_cat.h"
