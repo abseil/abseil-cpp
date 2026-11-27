@@ -988,6 +988,18 @@ inline size_t H1(size_t hash) { return hash; }
 // These are used as an occupied control byte.
 inline h2_t H2(size_t hash) { return hash >> (sizeof(size_t) * 8 - 7); }
 
+// Returns a bitmask of the hash bits used by H2(). For testing only.
+size_t TestOnlyH2Mask();
+
+// Returns a bitmask of hash bits unused by SwissTable (ignored when computing
+// stuck bits). For testing only.
+size_t TestOnlyIgnoredBitsMask();
+
+// Returns a bitmask of the hash bits in `info` that were stuck (always 0 or
+// always 1 across all sampled insertions), ignoring TestOnlyIgnoredBitsMask().
+// For testing only.
+size_t TestOnlyStuckBits(const HashtablezInfo& info);
+
 // When there is an insertion with no reserved growth, we rehash with
 // probability `min(1, RehashProbabilityConstant() / capacity())`. Using a
 // constant divided by capacity ensures that inserting N elements is still O(N)

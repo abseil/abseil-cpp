@@ -309,6 +309,89 @@ TEST(BlockedInfoTest, ConstructFromComponents) {
   EXPECT_EQ(info_max.tail_blocked(), 3);
 }
 
+TEST(HashBitsTest, TestOnlyH2MaskMatchesH2) {
+  const size_t mask = TestOnlyH2Mask();
+  const h2_t zero_h2 = H2(0);
+  size_t num_bits = 0;
+  for (size_t i = 0; i < sizeof(size_t) * 8; ++i) {
+    const size_t bit = size_t{1} << i;
+    const bool in_mask = (mask & bit) != 0;
+    EXPECT_EQ(in_mask, H2(bit) != zero_h2) << "bit " << i;
+    num_bits += in_mask ? 1 : 0;
+  }
+  EXPECT_EQ(num_bits, 7);
+}
+
+TEST(HashBitsTest, TestOnlyStuckBits) {
+  auto stuck_bits = [](size_t h1, size_t h2) {
+    HashtablezInfo info;
+    info.PrepareForSampling(1, 8, 8, 0, 0);
+    RecordInsertMissSlow(&info, h1, 0);
+    RecordInsertMissSlow(&info, h2, 0);
+    return TestOnlyStuckBits(info);
+  };
+
+  const size_t used_bits = ~TestOnlyIgnoredBitsMask();
+  EXPECT_EQ(used_bits & TestOnlyH2Mask(), TestOnlyH2Mask());
+  EXPECT_EQ(stuck_bits(0, ~size_t{}), 0);
+  EXPECT_EQ(stuck_bits(0, 0), used_bits);
+  EXPECT_EQ(stuck_bits(~size_t{}, ~size_t{}), used_bits);
+
+  // Stuck 0 and stuck 1 bits in both low bits and H2 bits are reported.
+  const size_t stuck_zero = size_t{0x500};
+  const size_t stuck_one = TestOnlyH2Mask();
+  EXPECT_EQ(stuck_bits(stuck_one, ~stuck_zero | stuck_one),
+            (stuck_zero | stuck_one) & used_bits);
+}
+
+TEST(HashBitsTest, UnusedBitsHaveHighCollisionRate) {
+  const size_t unused_bits = TestOnlyIgnoredBitsMask();
+  if (unused_bits == 0) {
+    return;
+  }
+
+  struct UnusedBitsHash {
+    size_t unused_bits;
+    size_t operator()(size_t x) const {
+      return static_cast<size_t>(x * uint64_t{0x9e3779b97f4a7c15}) &
+             unused_bits;
+    }
+  };
+  struct CountingEq {
+    size_t* calls;
+    bool operator()(size_t a, size_t b) const {
+      ++(*calls);
+      return a == b;
+    }
+  };
+
+  constexpr size_t kNumElements = 100;
+  size_t eq_calls = 0;
+  absl::flat_hash_set<size_t, UnusedBitsHash, CountingEq> set(
+      1000, UnusedBitsHash{unused_bits}, CountingEq{&eq_calls});
+
+  size_t hashes_or = 0;
+  size_t hashes_and = ~size_t{};
+  for (size_t i = 0; i < kNumElements; ++i) {
+    const size_t h = set.hash_function()(i);
+    hashes_or |= h;
+    hashes_and &= h;
+    set.insert(i);
+  }
+  // Verify every unused bit actually varied across inserted elements.
+  EXPECT_EQ(hashes_or, unused_bits);
+  EXPECT_EQ(hashes_and, 0);
+
+  // Hashes differing only in unused bits collide on both H1 and H2, causing
+  // quadratic equality checks and long probe chains despite low load factor.
+  eq_calls = 0;
+  for (size_t i = 0; i < kNumElements; ++i) {
+    EXPECT_TRUE(set.contains(i));
+  }
+  EXPECT_EQ(eq_calls, kNumElements * (kNumElements + 1) / 2);
+  EXPECT_GT(GetHashtableDebugProbeSummary(set).mean, 2.0);
+}
+
 TEST(BlockedInfoTest, BlockedBefore) {
   constexpr BlockedInfo info3(3, 0);
   EXPECT_EQ(info3.blocked_before(0), 0);
