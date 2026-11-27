@@ -59,13 +59,17 @@
 // including necessary headers to support hardware AES.
 //
 // ABSL_ARCH_{X86/PPC/ARM} macros determine the platform.
-#if defined(__x86_64__) || defined(__x86_64) || defined(_M_AMD64) || \
+//
+// AArch64 is checked first because MSVC defines both _M_ARM64EC and _M_X64
+// (and _M_AMD64) when targeting ARM64EC.
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || \
+    defined(_M_ARM64EC)
+#define ABSL_ARCH_AARCH64
+#elif defined(__x86_64__) || defined(__x86_64) || defined(_M_AMD64) || \
     defined(_M_X64)
 #define ABSL_ARCH_X86_64
 #elif defined(__i386) || defined(_M_IX86)
 #define ABSL_ARCH_X86_32
-#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
-#define ABSL_ARCH_AARCH64
 #elif defined(__arm__) || defined(__ARMEL__) || defined(_M_ARM)
 #define ABSL_ARCH_ARM
 #elif defined(__powerpc64__) || defined(__PPC64__) || defined(__powerpc__) || \
@@ -99,7 +103,8 @@
 
 #if defined(ABSL_ARCH_X86_64)
 
-#if defined(__AES__) || defined(__AVX__)
+// MSVC has no -maes equivalent; its AES intrinsics are always available.
+#if defined(__AES__) || (defined(_MSC_VER) && !defined(__clang__))
 #undef ABSL_HAVE_ACCELERATED_AES
 #define ABSL_HAVE_ACCELERATED_AES 1
 #endif
@@ -116,8 +121,10 @@
 #elif defined(ABSL_ARCH_ARM) || defined(ABSL_ARCH_AARCH64)
 
 // http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053c/IHI0053C_acle_2_0.pdf
-// Rely on NEON+CRYPTO extensions for ARM.
-#if defined(__ARM_NEON) && defined(__ARM_FEATURE_CRYPTO)
+// Rely on NEON+AES extensions for ARM. ACLE deprecated __ARM_FEATURE_CRYPTO
+// (which also requires SHA1/SHA2) in favor of __ARM_FEATURE_AES.
+#if defined(__ARM_NEON) && \
+    (defined(__ARM_FEATURE_AES) || defined(__ARM_FEATURE_CRYPTO))
 #undef ABSL_HAVE_ACCELERATED_AES
 #define ABSL_HAVE_ACCELERATED_AES 1
 #endif
@@ -144,8 +151,9 @@
 // Or when running linux PPC
 #undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#elif (defined(__linux__) || defined(__APPLE__)) && defined(ABSL_ARCH_AARCH64)
-// Or when running linux or macOS AArch64
+#elif (defined(__linux__) || defined(__APPLE__) || defined(__Fuchsia__)) && \
+    defined(ABSL_ARCH_AARCH64)
+// Or when running linux, macOS, or Fuchsia AArch64
 #undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
 #elif defined(__linux__) && defined(ABSL_ARCH_ARM) && (__ARM_ARCH >= 8)
