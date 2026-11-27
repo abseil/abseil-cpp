@@ -1196,13 +1196,38 @@ ABSL_ATTRIBUTE_NOINLINE static bool ReadAddrMap(
   return true;
 }
 
+// Returns true for addresses that cannot live in a user-space ELF mapping or
+// vDSO (and therefore do not warrant reading or clearing the cached map).
+static bool IsImpossibleUserAddress(const void* addr) {
+  const uintptr_t uaddr = reinterpret_cast<uintptr_t>(addr);
+  // Reject the zeroth page (nullptr and near-null values that frequently appear
+  // in corrupted frames): Linux defaults vm.mmap_min_addr to at least 4096, so
+  // no valid ELF mapping or vDSO resides below 4 KiB.
+  if (uaddr < 4096) return true;
+#if defined(__linux__) && defined(__LP64__) &&                                \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__) || \
+     (defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 64))
+  // User-space virtual addresses on these 64-bit Linux architectures fit in 56
+  // bits (including x86_64 5-level paging / LA57), so a non-zero top byte
+  // indicates a kernel, non-canonical, or high-byte-tagged address that cannot
+  // match an ELF object mapping or vDSO.
+  // NOTE: If/when we support tagged code pointers (ARM TBI / x86 LAM), this
+  // check will need to be updated to account for the pointer tag.
+  return (uaddr >> 56) != 0;
+#else
+  return false;
+#endif
+}
+
 // Find the objfile mapped in address region containing [addr, addr + len).
 ObjFile *Symbolizer::FindObjFile(const void *const addr, size_t len) {
+  if (IsImpossibleUserAddress(addr)) return nullptr;
   for (int i = 0; i < 2; ++i) {
     if (!ok_) return nullptr;
 
-    // Read /proc/self/maps if necessary
-    if (!addr_map_read_) {
+    // Read /proc/self/maps if necessary.
+    const bool freshly_read = !addr_map_read_;
+    if (freshly_read) {
       addr_map_read_ = true;
       if (!ReadAddrMap(RegisterObjFile, this, tmp_buf_, TMP_BUF_SIZE)) {
         ok_ = false;
@@ -1229,7 +1254,11 @@ ObjFile *Symbolizer::FindObjFile(const void *const addr, size_t len) {
         return obj;
     }
 
-    // The address mapping may have changed since it was last read.  Retry.
+    // If the map was just refreshed above, keep it populated so subsequent
+    // lookups do not re-read /proc/self/maps and re-open ELF files.
+    if (freshly_read) break;
+
+    // The address mapping may have changed since it was last read. Retry once.
     ClearAddrMap();
   }
   return nullptr;
@@ -1497,6 +1526,7 @@ static bool MaybeInitializeObjFile(
 // To keep stack consumption low, we would like this function to not
 // get inlined.
 const char *Symbolizer::GetUncachedSymbol(const void *pc) {
+  if (IsImpossibleUserAddress(pc)) return nullptr;
   ObjFile *const obj = FindObjFile(pc, 1);
   ptrdiff_t relocation = 0;
   if (obj != nullptr) {

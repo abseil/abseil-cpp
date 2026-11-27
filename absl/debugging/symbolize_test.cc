@@ -28,6 +28,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/base/config.h"
+#include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"
 #include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/per_thread_tls.h"
@@ -185,6 +186,29 @@ TEST(Symbolize, Cached) {
               strcmp("static_func()", static_func_symbol) == 0);
 
   EXPECT_TRUE(nullptr == TrySymbolize(nullptr));
+#ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
+  // Near-null addresses (< 4096) are fast-rejected.
+  EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(uintptr_t{0x100})));
+  // An untagged non-executable stack address misses once and refreshes the
+  // cached address map; verify subsequent uncached lookup still succeeds.
+  int stack_var = 0;
+  EXPECT_EQ(nullptr, TrySymbolize(absl::HwasanTagPointer(&stack_var, 0)));
+#if defined(__linux__) && defined(__LP64__) &&                                \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__) || \
+     (defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 64))
+  // Addresses with a non-zero top byte (kernel, non-canonical, or tagged)
+  // fail to symbolize quickly without refreshing the cached address map.
+  EXPECT_EQ(nullptr,
+            TrySymbolize(reinterpret_cast<void*>((uintptr_t{0x01} << 56) | 1)));
+  EXPECT_EQ(nullptr,
+            TrySymbolize(reinterpret_cast<void*>((uintptr_t{0xFE} << 56) | 1)));
+  EXPECT_EQ(nullptr, TrySymbolize(reinterpret_cast<void*>(~uintptr_t{0})));
+#endif
+  // Distinct (uncached) offset exercises `addr_map_` lookup after the misses.
+  EXPECT_STREQ("nonstatic_func",
+               TrySymbolize(reinterpret_cast<void*>(
+                   reinterpret_cast<uintptr_t>(&nonstatic_func) + 1)));
+#endif
 }
 
 TEST(Symbolize, Truncation) {
@@ -364,8 +388,12 @@ TEST(Symbolize, SymbolizeWithMultipleMaps) {
     ASSERT_NE(ret, MAP_FAILED);
   }
 
-  // Invalidate the symbolization cache so we are forced to rely on the hint.
-  absl::Symbolize(nullptr, buf, sizeof(buf));
+  // Refresh the symbolization cache so we are forced to rely on the hint.
+  // Use an untagged stack variable address: addr_map_ only caches executable
+  // file-backed mappings, whereas nullptr, low addresses (< 4096), and
+  // top-byte-tagged pointers are fast-rejected.
+  int stack_var = 0;
+  absl::Symbolize(absl::HwasanTagPointer(&stack_var, 0), buf, sizeof(buf));
 
   // Verify we can still symbolize.
   const char *expected[] = {"kPadding0", "kPadding1"};
