@@ -1048,6 +1048,30 @@ TEST_F(FormatConvertTest, ScientificZeroPadding) {
   }
 }
 
+TEST_F(FormatConvertTest, GeneralFixedStyleSlowPath) {
+  // 0x1p128 has 39 integral digits, so a %g precision above 39 selects the
+  // fixed style through the slow conversion path.
+  const absl::string_view digits = "340282366920938463463374607431768211456";
+  struct Case {
+    absl::string_view format;
+    std::string expected;
+  } cases[] = {
+      {"%.40g", std::string(digits)},
+      {"%#.40g", absl::StrCat(digits, ".0")},
+      {"%#.42G", absl::StrCat(digits, ".000")},
+      {"%45.40g", absl::StrCat("      ", digits)},
+      {"%-45.40g|", absl::StrCat(digits, "      |")},
+      {"%045.40g", absl::StrCat("000000", digits)},
+      {"%+045.40g", absl::StrCat("+00000", digits)},
+  };
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.format);
+    EXPECT_EQ(
+        FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(0x1p128)}),
+        c.expected);
+  }
+}
+
 TEST_F(FormatConvertTest, DoubleRound) {
   std::string s;
   const auto format = [&](const char *fmt, double d) -> std::string & {
