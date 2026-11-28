@@ -172,7 +172,6 @@ absl_cc_test(
     absl::stacktrace
     absl::strings
     absl::symbolize
-    Threads::Threads
     GTest::gmock
 )
 
