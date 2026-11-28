@@ -312,6 +312,17 @@ inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
 
 inline bool IsLowSurrogate(uint32_t c) { return c >= 0xDC00 && c <= 0xDFFF; }
 
+// Returns the number of UTF-8 code units WideToUtf8() writes for `wc`. Each
+// half of a UTF-16 surrogate pair writes two of the four.
+inline size_t Utf8LengthOfWideChar(wchar_t wc) {
+  const uint32_t c = static_cast<uint32_t>(wc);
+  if (c <= 0x7F) return 1;
+  if (c <= 0x7FF) return 2;
+  if (c >= 0xD800 && c <= 0xDFFF) return 2;
+  if (c <= 0xFFFF) return 3;
+  return 4;
+}
+
 inline bool ConvertStringArg(const wchar_t *v,
                              size_t len,
                              const FormatConversionSpecImpl conv,
@@ -325,8 +336,15 @@ inline bool ConvertStringArg(const wchar_t *v,
   }
   FixedArray<char> mb(len * kMaxUtf8CodeUnitsPerWideChar);
   strings_internal::ShiftState s;
+  // The precision limits the number of bytes written, and a partial multibyte
+  // character must never be written, so stop at the last complete character
+  // that fits.
+  const size_t max_chars = conv.precision() >= 0
+                               ? static_cast<size_t>(conv.precision())
+                               : (std::numeric_limits<size_t>::max)();
   size_t chars_written = 0;
-  for (size_t i = 0; i < len; ++i) {
+  size_t complete_chars = 0;
+  for (size_t i = 0; i < len && complete_chars < max_chars; ++i) {
     // A high surrogate must be immediately followed by a low surrogate. If it
     // isn't, the UTF-16 input is malformed and WideToUtf8() would otherwise
     // leave a partial sequence in the buffer. The single wchar_t path already
@@ -339,10 +357,13 @@ inline bool ConvertStringArg(const wchar_t *v,
         strings_internal::WideToUtf8(v[i], &mb[chars_written], s);
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
+    if (s.saw_high_surrogate) continue;
+    if (chars_written > max_chars) break;
+    complete_chars = chars_written;
   }
   // A trailing high surrogate has no low surrogate to complete it.
   if (s.saw_high_surrogate) return false;
-  return ConvertStringArg(string_view(mb.data(), chars_written), conv, sink);
+  return ConvertStringArg(string_view(mb.data(), complete_chars), conv, sink);
 }
 
 bool ConvertWCharTImpl(wchar_t v, const FormatConversionSpecImpl conv,
@@ -510,8 +531,15 @@ StringPtrConvertResult FormatConvertImpl(const wchar_t* v,
   } else if (conv.precision() < 0) {
     len = std::wcslen(v);
   } else {
-    // If precision is set, we look for the NUL-terminator on the valid range.
-    len = static_cast<size_t>(std::find(v, v + conv.precision(), L'\0') - v);
+    // If precision is set, it counts output bytes rather than wide characters,
+    // so the array only needs a NUL-terminator if it encodes to fewer than
+    // `precision` bytes. Stop reading once that many bytes are accounted for.
+    len = 0;
+    for (size_t bytes = 0;
+         bytes < static_cast<size_t>(conv.precision()) && v[len] != L'\0';
+         ++len) {
+      bytes += Utf8LengthOfWideChar(v[len]);
+    }
   }
   return {ConvertStringArg(v, len, conv, sink)};
 }
