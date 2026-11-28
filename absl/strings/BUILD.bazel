@@ -170,6 +170,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":resize_and_overwrite",
+        "//absl/base:config",
         "//absl/base:dynamic_annotations",
         "//absl/log:absl_check",
         "@googletest//:gtest",
