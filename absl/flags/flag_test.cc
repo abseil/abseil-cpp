@@ -1467,7 +1467,6 @@ TEST_F(FlagTest, FilenameInterning) {
   EXPECT_EQ(f_a2.Filename(), "dir/intern_test_a.cc");
   EXPECT_EQ(f_b.Filename(), "dir/intern_test_b.cc");
 }
-
 }  // namespace
 
 ABSL_FLAG(std::vector<int32_t>, numeric_vec_empty, {}, "empty int32 vector");
