@@ -34,6 +34,7 @@
 #include <utility>
 
 #include "gmock/gmock.h"
+#include "gtest/gtest-spi.h"
 #include "absl/base/config.h"
 #include "absl/base/fast_type_id.h"
 #include "absl/container/flat_hash_map.h"
@@ -121,9 +122,33 @@ class MockingBitGen {
   struct MockFnCaller<MockFnType, ValidatorT, ResultT, std::tuple<Args...>> {
     MockFnType* fn;
     inline ResultT operator()(Args... args) {
-      ResultT result = fn->Call(args...);
-      ValidatorT::Validate(result, args...);
-      return result;
+      if constexpr (std::is_same_v<ValidatorT,
+                                   random_internal::NoOpValidator>) {
+        return fn->Call(args...);
+      } else {
+        MockFnType* const fn_ptr = fn;
+        ::testing::TestPartResultArray parts;
+        ResultT result = [&]() {
+          ::testing::ScopedFakeTestPartResultReporter reporter(
+              ::testing::ScopedFakeTestPartResultReporter::
+                  INTERCEPT_ONLY_CURRENT_THREAD,
+              &parts);
+          return fn_ptr->Call(args...);
+        }();
+        bool has_failure = false;
+        for (int i = 0; i < parts.size(); ++i) {
+          const ::testing::TestPartResult& part = parts.GetTestPartResult(i);
+          if (part.failed()) {
+            has_failure = true;
+          }
+          GTEST_MESSAGE_AT_(part.file_name(), part.line_number(),
+                            part.summary(), part.type());
+        }
+        if (!has_failure) {
+          ValidatorT::Validate(result, args...);
+        }
+        return result;
+      }
     }
   };
 
@@ -140,20 +165,29 @@ class MockingBitGen {
                        /*ResultT*/ void* result) = 0;
   };
 
-  template <typename MockFnType, typename ValidatorT, typename ResultT,
-            typename ArgTupleT>
-  class FunctionHolderImpl final : public FunctionHolder {
+  template <typename BaseMockFnType>
+  class TypedFunctionHolder : public FunctionHolder {
    public:
+    virtual BaseMockFnType& GetMockFn() = 0;
+  };
+
+  template <typename WrappedFnType, typename BaseMockFnType,
+            typename ValidatorT, typename ResultT, typename ArgTupleT>
+  class FunctionHolderImpl final : public TypedFunctionHolder<BaseMockFnType> {
+   public:
+    BaseMockFnType& GetMockFn() final { return mock_fn_; }
+
     void Apply(void* args_tuple, void* result) final {
       // Requires tuple_args to point to a ArgTupleT, which is a
       // std::tuple<Args...> used to invoke the mock function. Requires result
       // to point to a ResultT, which is the result of the call.
       *static_cast<ResultT*>(result) = std::apply(
-          MockFnCaller<MockFnType, ValidatorT, ResultT, ArgTupleT>{&mock_fn_},
+          MockFnCaller<BaseMockFnType, ValidatorT, ResultT, ArgTupleT>{
+              &mock_fn_},
           *static_cast<ArgTupleT*>(args_tuple));
     }
 
-    MockFnType mock_fn_;
+    WrappedFnType mock_fn_;
   };
 
   // MockingBitGen::RegisterMock
@@ -166,31 +200,33 @@ class MockingBitGen {
   //
   // The returned MockFunction<...> type can be used to setup additional
   // distribution parameters of the expectation.
+  // SelfT is retained for the MockHelpers::MockFor call shape; strictness is
+  // detected dynamically below via ::testing::Mock::IsNice/IsStrict(this).
   template <typename ResultT, typename ArgTupleT, typename SelfT,
             typename ValidatorT>
   auto RegisterMock(SelfT&, FastTypeIdType type, ValidatorT)
       -> decltype(GetMockFnType(std::declval<ResultT>(),
                                 std::declval<ArgTupleT>()))& {
-    using MockFnType = decltype(GetMockFnType(std::declval<ResultT>(),
-                                              std::declval<ArgTupleT>()));
-
-    using WrappedFnType = std::conditional_t<
-        std::is_same_v<SelfT, ::testing::NiceMock<MockingBitGen>>,
-        ::testing::NiceMock<MockFnType>,
-        std::conditional_t<
-            std::is_same_v<SelfT, ::testing::NaggyMock<MockingBitGen>>,
-            ::testing::NaggyMock<MockFnType>,
-            std::conditional_t<
-                std::is_same_v<SelfT, ::testing::StrictMock<MockingBitGen>>,
-                ::testing::StrictMock<MockFnType>, MockFnType>>>;
-
-    using ImplT =
-        FunctionHolderImpl<WrappedFnType, ValidatorT, ResultT, ArgTupleT>;
+    using BaseMockFnType = decltype(GetMockFnType(std::declval<ResultT>(),
+                                                  std::declval<ArgTupleT>()));
     auto& mock = mocks_[type];
     if (!mock) {
-      mock = std::make_unique<ImplT>();
+      if (::testing::Mock::IsNice(this)) {
+        mock = std::make_unique<FunctionHolderImpl<
+            ::testing::NiceMock<BaseMockFnType>, BaseMockFnType, ValidatorT,
+            ResultT, ArgTupleT>>();
+      } else if (::testing::Mock::IsStrict(this)) {
+        mock = std::make_unique<FunctionHolderImpl<
+            ::testing::StrictMock<BaseMockFnType>, BaseMockFnType, ValidatorT,
+            ResultT, ArgTupleT>>();
+      } else {
+        mock = std::make_unique<FunctionHolderImpl<
+            ::testing::NaggyMock<BaseMockFnType>, BaseMockFnType, ValidatorT,
+            ResultT, ArgTupleT>>();
+      }
     }
-    return static_cast<ImplT*>(mock.get())->mock_fn_;
+    return static_cast<TypedFunctionHolder<BaseMockFnType>*>(mock.get())
+        ->GetMockFn();
   }
 
   // MockingBitGen::InvokeMock

@@ -29,19 +29,15 @@ ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 template <typename DistrT, typename ValidatorT, typename Fn>
-struct MockSingleOverload;
+struct MockSingleOverloadImpl;
 
-// MockSingleOverload
-//
-// MockSingleOverload hooks in to gMock's `ON_CALL` and `EXPECT_CALL` macros.
-// EXPECT_CALL(mock_single_overload, Call(...))` will expand to a call to
-// `mock_single_overload.gmock_Call(...)`. Because expectations are stored on
-// the MockingBitGen (an argument passed inside `Call(...)`), this forwards to
-// arguments to MockingBitGen::Register.
-//
-// The underlying KeyT must match the KeyT constructed by DistributionCaller.
+// MockSingleOverloadImpl expects its signature parameter types to already be
+// decayed so that KeyT and Matcher<...> use plain template parameters (avoiding
+// an MSVC template substitution bug with std::decay_t packs in trailing return
+// types).
 template <typename DistrT, typename ValidatorT, typename Ret, typename... Args>
-struct MockSingleOverload<DistrT, ValidatorT, Ret(MockingBitGen&, Args...)> {
+struct MockSingleOverloadImpl<DistrT, ValidatorT,
+                              Ret(MockingBitGen&, Args...)> {
   static_assert(std::is_same_v<typename DistrT::result_type, Ret>,
                 "Overload signature must have return type matching the "
                 "distribution result_type.");
@@ -60,8 +56,8 @@ struct MockSingleOverload<DistrT, ValidatorT, Ret(MockingBitGen&, Args...)> {
 
 template <typename DistrT, typename ValidatorT, typename Ret, typename Arg,
           typename... Args>
-struct MockSingleOverload<DistrT, ValidatorT,
-                          Ret(Arg, MockingBitGen&, Args...)> {
+struct MockSingleOverloadImpl<DistrT, ValidatorT,
+                              Ret(Arg, MockingBitGen&, Args...)> {
   static_assert(std::is_same_v<typename DistrT::result_type, Ret>,
                 "Overload signature must have return type matching the "
                 "distribution result_type.");
@@ -77,6 +73,45 @@ struct MockSingleOverload<DistrT, ValidatorT,
     return MockHelpers::MockFor<KeyT>(gen, ValidatorT())
         .gmock_Call(matcher, matchers...);
   }
+};
+
+template <typename DistrT, typename ValidatorT, typename Fn>
+struct MockSingleOverload;
+
+// MockSingleOverload
+//
+// MockSingleOverload hooks in to gMock's `ON_CALL` and `EXPECT_CALL` macros.
+// EXPECT_CALL(mock_single_overload, Call(...))` will expand to a call to
+// `mock_single_overload.gmock_Call(...)`. Because expectations are stored on
+// the MockingBitGen (an argument passed inside `Call(...)`), this forwards to
+// arguments to MockingBitGen::Register.
+//
+// The underlying KeyT must match the KeyT constructed by DistributionCaller.
+template <typename DistrT, typename ValidatorT, typename Ret, typename... Args>
+struct MockSingleOverload<DistrT, ValidatorT, Ret(MockingBitGen&, Args...)>
+    : public MockSingleOverloadImpl<DistrT, ValidatorT,
+                                    Ret(MockingBitGen&,
+                                        typename std::decay<Args>::type...)> {
+  using Base = MockSingleOverloadImpl<DistrT, ValidatorT,
+                                      Ret(MockingBitGen&,
+                                          typename std::decay<Args>::type...)>;
+  using Base::gmock_Call;
+  using typename Base::KeyT;
+};
+
+template <typename DistrT, typename ValidatorT, typename Ret, typename Arg,
+          typename... Args>
+struct MockSingleOverload<DistrT, ValidatorT, Ret(Arg, MockingBitGen&, Args...)>
+    : public MockSingleOverloadImpl<DistrT, ValidatorT,
+                                    Ret(typename std::decay<Arg>::type,
+                                        MockingBitGen&,
+                                        typename std::decay<Args>::type...)> {
+  using Base =
+      MockSingleOverloadImpl<DistrT, ValidatorT,
+                             Ret(typename std::decay<Arg>::type, MockingBitGen&,
+                                 typename std::decay<Args>::type...)>;
+  using Base::gmock_Call;
+  using typename Base::KeyT;
 };
 
 // MockOverloadSetWithValidator
