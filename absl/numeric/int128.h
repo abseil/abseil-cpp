@@ -1032,29 +1032,93 @@ constexpr uint128 operator-(uint128 lhs, uint128 rhs) {
 #endif
 }
 
-#if !defined(ABSL_HAVE_INTRINSIC_INT128)
-inline uint128 operator*(uint128 lhs, uint128 rhs) {
-#if defined(_MSC_VER) && defined(_M_X64) && !defined(_M_ARM64EC)
-  uint64_t carry;
-  uint64_t low = _umul128(Uint128Low64(lhs), Uint128Low64(rhs), &carry);
-  return MakeUint128(Uint128Low64(lhs) * Uint128High64(rhs) +
-                         Uint128High64(lhs) * Uint128Low64(rhs) + carry,
-                     low);
-#else   // _MSC_VER
-  uint64_t a32 = Uint128Low64(lhs) >> 32;
-  uint64_t a00 = Uint128Low64(lhs) & 0xffffffff;
-  uint64_t b32 = Uint128Low64(rhs) >> 32;
-  uint64_t b00 = Uint128Low64(rhs) & 0xffffffff;
-  uint128 result =
-      MakeUint128(Uint128High64(lhs) * Uint128Low64(rhs) +
-                      Uint128Low64(lhs) * Uint128High64(rhs) + a32 * b32,
-                  a00 * b00);
-  result += uint128(a32 * b00) << 32;
-  result += uint128(a00 * b32) << 32;
-  return result;
-#endif  // _MSC_VER
+namespace int128_internal {
+// Returns MakeUint128(0, lhs) * MakeUint128(0, rhs),
+// but this function is slightly faster.
+inline void Mul64x64(uint64_t lhs, uint64_t rhs, uint64_t* high_ret,
+                     uint64_t* low_ret) {
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+  const auto product =
+      static_cast<unsigned __int128>(lhs) * static_cast<unsigned __int128>(rhs);
+  *high_ret = static_cast<uint64_t>(product >> 64);
+  *low_ret = static_cast<uint64_t>(product);
+#elif defined(_MSC_VER) && defined(_M_X64) && !defined(_M_ARM64EC)
+  *low_ret = _umul128(lhs, rhs, high_ret);
+#elif defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+  // A 64-bit multiply is a single `mul` instruction; use it directly when the
+  // __int128 intrinsic and _umul128 are both unavailable (e.g. MinGW Clang).
+  __asm__("mulq %3" : "=a"(*low_ret), "=d"(*high_ret) : "0"(lhs), "r"(rhs));
+#else   // ABSL_HAVE_INTRINSIC128
+  const uint32_t lhigh = lhs >> 32;
+  const uint32_t llow = lhs & 0xffffffff;
+  const uint32_t rhigh = rhs >> 32;
+  const uint32_t rlow = rhs & 0xffffffff;
+  const uint64_t mlh = static_cast<uint64_t>(llow) * rhigh;
+  const uint64_t mhl = static_cast<uint64_t>(lhigh) * rlow;
+  const uint64_t ma = mlh + mhl;
+  const uint64_t mll = static_cast<uint64_t>(llow) * rlow;
+  const uint64_t mhh = static_cast<uint64_t>(lhigh) * rhigh;
+  const uint64_t carry1 = static_cast<uint64_t>(ma < mlh) << 32;
+  const uint64_t rl = mll + (ma << 32);
+  const uint64_t carry2 = rl < mll;
+  *high_ret = mhh + carry1 + carry2 + (ma >> 32);
+  *low_ret = rl;
+#endif  // ABSL_HAVE_INTRINSIC128
 }
-#endif  // ABSL_HAVE_INTRINSIC_INT128
+}  // namespace int128_internal
+
+#if !defined(ABSL_HAVE_INTRINSIC_INT128)
+namespace int128_internal {
+// Long division/modulo for uint128. Leaves the quotient in
+// `quotient_high_ret`/`quotient_low_ret` and the remainder in
+// `remainder_high_ret`/`remainder_low_ret`. Defined in int128.cc.
+// Requires divisor_high != 0 || divisor_low != 0.
+void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
+                uint64_t divisor_high, uint64_t divisor_low,
+                uint64_t* quotient_high_ret, uint64_t* quotient_low_ret,
+                uint64_t* remainder_high_ret, uint64_t* remainder_low_ret);
+}  // namespace int128_internal
+
+inline uint128 operator*(uint128 lhs, uint128 rhs) {
+  uint64_t lhigh = Uint128High64(lhs);
+  uint64_t llow = Uint128Low64(lhs);
+  uint64_t rhigh = Uint128High64(rhs);
+  uint64_t rlow = Uint128Low64(rhs);
+  uint64_t ml_high, ml_low;
+  int128_internal::Mul64x64(llow, rlow, &ml_high, &ml_low);
+  return MakeUint128(lhigh * rlow + llow * rhigh + ml_high, ml_low);
+}
+
+inline uint128 operator/(uint128 lhs, uint128 rhs) {
+  const uint64_t lhs_high = Uint128High64(lhs);
+  const uint64_t lhs_low = Uint128Low64(lhs);
+  const uint64_t rhs_high = Uint128High64(rhs);
+  const uint64_t rhs_low = Uint128Low64(rhs);
+  if (lhs_high == 0 && rhs_high == 0) {
+    return MakeUint128(0, lhs_low / rhs_low);
+  }
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
+  return MakeUint128(quotient_high, quotient_low);
+}
+
+inline uint128 operator%(uint128 lhs, uint128 rhs) {
+  const uint64_t lhs_high = Uint128High64(lhs);
+  const uint64_t lhs_low = Uint128Low64(lhs);
+  const uint64_t rhs_high = Uint128High64(rhs);
+  const uint64_t rhs_low = Uint128Low64(rhs);
+  if (lhs_high == 0 && rhs_high == 0) {
+    return MakeUint128(0, lhs_low % rhs_low);
+  }
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
+  return MakeUint128(remainder_high, remainder_low);
+}
+#endif  // !defined(ABSL_HAVE_INTRINSIC_INT128)
 
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
 constexpr uint128 operator*(uint128 lhs, uint128 rhs) {
@@ -1207,6 +1271,12 @@ constexpr int64_t BitCastToSigned(uint64_t v) {
   // MSVC optimize this to a no-op on x86-64.
   return v & (uint64_t{1} << 63) ? ~static_cast<int64_t>(~v)
                                  : static_cast<int64_t>(v);
+}
+
+// Returns the absolute value of the given int128 as a uint128.
+constexpr uint128 UnsignedAbsoluteValue(int128 v) {
+  // Cast to uint128 before possibly negating because -Int128Min() is undefined.
+  return Int128High64(v) < 0 ? -uint128(v) : uint128(v);
 }
 
 }  // namespace int128_internal

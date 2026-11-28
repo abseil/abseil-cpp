@@ -258,6 +258,68 @@ inline int128 operator*(int128 lhs, int128 rhs) {
       Uint128Low64(uint128(lhs) * rhs));
 }
 
+namespace int128_internal {
+inline void ConditionalNegate(uint64_t& high, uint64_t& low, uint64_t mask) {
+  const uint64_t low_x = low ^ mask;
+  const uint64_t high_x = high ^ mask;
+  high = high_x - mask - static_cast<uint64_t>(low_x < mask);
+  low = low_x - mask;
+}
+}  // namespace int128_internal
+
+inline int128 operator/(int128 lhs, int128 rhs) {
+  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
+
+  uint64_t lhs_high = static_cast<uint64_t>(Int128High64(lhs));
+  uint64_t lhs_low = Int128Low64(lhs);
+  uint64_t rhs_high = static_cast<uint64_t>(Int128High64(rhs));
+  uint64_t rhs_low = Int128Low64(rhs);
+
+  const uint64_t lhs_mask = 0 - (static_cast<uint64_t>(lhs_high) >> 63);
+  const uint64_t rhs_mask = 0 - (static_cast<uint64_t>(rhs_high) >> 63);
+  int128_internal::ConditionalNegate(lhs_high, lhs_low, lhs_mask);
+  int128_internal::ConditionalNegate(rhs_high, rhs_low, rhs_mask);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  if (lhs_high == 0 && rhs_high == 0) {
+    quotient_high = 0;
+    quotient_low = lhs_low / rhs_low;
+  } else {
+    int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                                &quotient_high, &quotient_low, &remainder_high,
+                                &remainder_low);
+  }
+  int128_internal::ConditionalNegate(quotient_high, quotient_low,
+                                     lhs_mask ^ rhs_mask);
+  return MakeInt128(int128_internal::BitCastToSigned(quotient_high),
+                    quotient_low);
+}
+
+inline int128 operator%(int128 lhs, int128 rhs) {
+  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
+
+  uint64_t lhs_high = static_cast<uint64_t>(Int128High64(lhs));
+  uint64_t lhs_low = Int128Low64(lhs);
+  uint64_t rhs_high = static_cast<uint64_t>(Int128High64(rhs));
+  uint64_t rhs_low = Int128Low64(rhs);
+
+  const uint64_t lhs_mask = 0 - (static_cast<uint64_t>(lhs_high) >> 63);
+  const uint64_t rhs_mask = 0 - (static_cast<uint64_t>(rhs_high) >> 63);
+  int128_internal::ConditionalNegate(lhs_high, lhs_low, lhs_mask);
+  int128_internal::ConditionalNegate(rhs_high, rhs_low, rhs_mask);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  if (lhs_high == 0 && rhs_high == 0) {
+    remainder_high = 0;
+    remainder_low = lhs_low % rhs_low;
+  } else {
+    int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                                &quotient_high, &quotient_low, &remainder_high,
+                                &remainder_low);
+  }
+  int128_internal::ConditionalNegate(remainder_high, remainder_low, lhs_mask);
+  return MakeInt128(int128_internal::BitCastToSigned(remainder_high),
+                    remainder_low);
+}
+
 inline int128 int128::operator++(int) {
   int128 tmp(*this);
   *this += 1;
