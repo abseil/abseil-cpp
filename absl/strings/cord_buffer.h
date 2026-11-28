@@ -166,7 +166,9 @@ class CordBuffer {
   //
   // Creates a CordBuffer instance of the desired `capacity` rounded to an
   // appropriate power of 2 size less than, or equal to `block_size`.
-  // Requires `block_size` to be a power of 2.
+  // Requires `block_size` to be a power of 2.  A `block_size` at or below
+  // the flat overhead (13 bytes) cannot hold any payload and is raised to
+  // the smallest flat allocation instead of producing a much larger buffer.
   //
   // If `capacity` is less than or equal to `kDefaultLimit`, then this method
   // behaves identical to `CreateWithDefaultLimit`, which means that the caller
@@ -479,6 +481,17 @@ inline CordBuffer CordBuffer::CreateWithCustomLimitImpl(
   assert(IsPow2(block_size));
   capacity = (std::min)(capacity, kCustomLimit);
   block_size = (std::min)(block_size, kCustomLimit);
+  // A block size at or below the flat overhead cannot hold any payload:
+  // `capacity = block_size` below would make `capacity - kOverhead`
+  // underflow to a huge size_t, which CordRepFlat::New() then clamps to
+  // the 256 KiB maximum flat length.  A contract-valid power-of-two
+  // block size of 8 with a 100-byte request therefore returned a
+  // 262131-byte buffer.  Raise such block sizes to the smallest flat
+  // allocation (kMinFlatSize), matching the capacity a block size of 16
+  // already produced, instead of a 256 KiB surprise.
+  if (block_size <= kOverhead) {
+    block_size = cord_internal::kMinFlatSize;
+  }
   if (capacity + kOverhead >= block_size) {
     capacity = block_size;
   } else if (capacity <= kDefaultLimit) {
