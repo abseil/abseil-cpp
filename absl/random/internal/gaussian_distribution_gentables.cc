@@ -24,7 +24,6 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
-#include "absl/base/macros.h"
 #include "absl/random/gaussian_distribution.h"
 
 namespace absl {
@@ -89,7 +88,6 @@ TableGenerator::TableGenerator() {
                 "fx and x arrays must be identical length");
 
   auto f = [](double x) { return std::exp(-0.5 * x * x); };
-  auto f_inv = [](double x) { return std::sqrt(-2.0 * std::log(x)); };
 
   tables_.x[0] = kV / f(kR);
   tables_.f[0] = f(tables_.x[0]);
@@ -100,10 +98,28 @@ TableGenerator::TableGenerator() {
   tables_.x[kC] = 0.0;
   tables_.f[kC] = f(tables_.x[kC]);  // 1.0
 
+  // Advance the Ziggurat area recurrence with TwoSum compensation on `acc` to
+  // avoid accumulating round-trip f(f_inv(v)) or serial addition rounding
+  // error. Once `acc >= 0.5`, shift by `-1.0` (exact by Sterbenz's lemma since
+  // `0.5 <= acc < 1.0`) and switch from `std::log` to `std::log1p` so neither
+  // `v -> 0` nor `v -> 1` loses precision. Store `f(tables_.x[i])` so
+  // `zg_.f[i]` matches `std::exp(-0.5 * x * x)` in the wedge test.
+  double acc = tables_.f[1];
+  double err = 0.0;
+  bool near_one = false;
   for (int i = 2; i < kC; i++) {
-    double v = (kV / tables_.x[i - 1]) + tables_.f[i - 1];
-    tables_.x[i] = f_inv(v);
-    tables_.f[i] = v;
+    const double step = kV / tables_.x[i - 1];
+    const double sum = acc + step;
+    const double step_virtual = sum - acc;
+    err += (acc - (sum - step_virtual)) + (step - step_virtual);
+    acc = sum;
+    if (!near_one && acc >= 0.5) {
+      acc -= 1.0;
+      near_one = true;
+    }
+    const double log_v = near_one ? std::log1p(acc + err) : std::log(acc + err);
+    tables_.x[i] = std::sqrt(-2.0 * log_v);
+    tables_.f[i] = f(tables_.x[i]);
   }
 }
 
@@ -112,6 +128,8 @@ void TableGenerator::Print(std::ostream* os) {
          "// clang-format off\n"
          "\n"
          "#include \"absl/random/gaussian_distribution.h\"\n"
+         "\n"
+         "#include \"absl/base/config.h\"\n"
          "\n"
          "namespace absl {\n"
          "ABSL_NAMESPACE_BEGIN\n"
