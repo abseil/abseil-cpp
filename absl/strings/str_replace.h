@@ -47,6 +47,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
+#include "absl/strings/internal/string_search.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -142,6 +143,11 @@ struct ViableSubstitution {
   absl::string_view old;
   absl::string_view replacement;
   size_t offset;
+  // Two-Way search state for `old`, owned by ApplySubstitutions() and built
+  // only if `old` is long and must be searched for again before the end of
+  // its previous occurrence. A raw pointer keeps this struct trivially
+  // copyable, which keeps the insertion sorts cheap.
+  const TwoWaySearcher<false>* searcher = nullptr;
 
   ViableSubstitution(absl::string_view old_str,
                      absl::string_view replacement_str, size_t offset_val)
@@ -169,7 +175,7 @@ std::vector<ViableSubstitution> FindSubstitutions(
     using std::get;
     absl::string_view old(get<0>(rep));
 
-    size_t pos = s.find(old);
+    size_t pos = strings_internal::Find(s, old);
     if (pos == s.npos) continue;
 
     // Ignore attempts to replace "". This condition is almost never true,

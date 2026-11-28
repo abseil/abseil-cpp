@@ -36,6 +36,8 @@
 #include <cstring>
 
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
+#include "absl/strings/internal/string_search.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -44,9 +46,15 @@ ABSL_NAMESPACE_BEGIN
 // StrContains()
 //
 // Returns whether a given string `haystack` contains the substring `needle`.
+//
+// Takes worst-case O(haystack.size() + needle.size()) time.
 inline bool StrContains(absl::string_view haystack,
                         absl::string_view needle) noexcept {
-  return haystack.find(needle, 0) != haystack.npos;
+  if (ABSL_PREDICT_TRUE(strings_internal::NaiveSearchIsFast(needle.size(),
+                                                            haystack.size()))) {
+    return haystack.find(needle, 0) != haystack.npos;
+  }
+  return strings_internal::FindLongNeedle(haystack, needle, 0) != haystack.npos;
 }
 
 inline bool StrContains(absl::string_view haystack, char needle) noexcept {

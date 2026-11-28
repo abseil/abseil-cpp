@@ -38,6 +38,7 @@ absl_cc_library(
     "has_absl_stringify.h"
     "internal/damerau_levenshtein_distance.h"
     "internal/string_constant.h"
+    "internal/string_search.h"
     "match.h"
     "numbers.h"
     "str_cat.h"
@@ -61,6 +62,7 @@ absl_cc_library(
     "internal/stringify_sink.cc"
     "internal/str_join_internal.h"
     "internal/str_split_internal.h"
+    "internal/string_search.cc"
     "match.cc"
     "numbers.cc"
     "str_cat.cc"
@@ -304,6 +306,20 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::strings
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
+    string_search_test
+  SRCS
+    "internal/string_search_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::cord
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
